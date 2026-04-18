@@ -1,0 +1,86 @@
+# ============================================================
+# Python / FastAPI (backend)
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Alembic
+# (keep alembic/versions tracked; ignore only generated runtime artifacts)
+
+# pytest / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.coveragerc
+
+# mypy / pyright
+.mypy_cache/
+.dmypy.json
+.pyright/
+
+# ============================================================
+# SvelteKit / Node (frontend)
+# ============================================================
+node_modules/
+.svelte-kit/
+build/
+dist/
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# ============================================================
+# Environment & secrets
+# ============================================================
+.env
+.env.*
+!.env.example
+
+# ============================================================
+# Docker
+# ============================================================
+*.log
+docker-compose.override.yml
+
+# ============================================================
+# Editor / OS
+# ============================================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Specs
+openspec/
+.openspec/
+.windsurf/
