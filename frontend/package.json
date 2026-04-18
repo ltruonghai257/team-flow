@@ -24,6 +24,7 @@
   "dependencies": {
     "date-fns": "^3.6.0",
     "lucide-svelte": "^0.378.0",
+    "svelte-dnd-action": "^0.9.69",
     "svelte-sonner": "^0.3.27"
   },
   "type": "module"

@@ -72,7 +72,12 @@ export const tasks = {
 	create: (data: object) => request('/tasks/', { method: 'POST', body: JSON.stringify(data) }),
 	update: (id: number, data: object) =>
 		request(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-	delete: (id: number) => request(`/tasks/${id}`, { method: 'DELETE' })
+	delete: (id: number) => request(`/tasks/${id}`, { method: 'DELETE' }),
+	aiParse: (input: string, mode: 'nlp' | 'json', model?: string) =>
+		request('/tasks/ai-parse', {
+			method: 'POST',
+			body: JSON.stringify({ input, mode, ...(model ? { model } : {}) })
+		})
 };
 
 // Schedules

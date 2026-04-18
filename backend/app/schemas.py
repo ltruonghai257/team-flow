@@ -1,9 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 from app.models import MilestoneStatus, TaskPriority, TaskStatus
+
+
+def _to_naive_utc(v):
+    """Convert tz-aware datetime to naive UTC; pass through naive datetimes and None."""
+    if isinstance(v, datetime) and v.tzinfo is not None:
+        return v.astimezone(timezone.utc).replace(tzinfo=None)
+    return v
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -80,6 +87,8 @@ class MilestoneCreate(BaseModel):
     due_date: datetime
     project_id: int
 
+    _normalize_dates = field_validator("start_date", "due_date", mode="after")(_to_naive_utc)
+
 
 class MilestoneUpdate(BaseModel):
     title: Optional[str] = None
@@ -88,6 +97,8 @@ class MilestoneUpdate(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+
+    _normalize_dates = field_validator("start_date", "due_date", "completed_at", mode="after")(_to_naive_utc)
 
 
 class MilestoneOut(BaseModel):
@@ -118,6 +129,8 @@ class TaskCreate(BaseModel):
     milestone_id: Optional[int] = None
     assignee_id: Optional[int] = None
 
+    _normalize_due = field_validator("due_date", mode="after")(_to_naive_utc)
+
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -131,6 +144,8 @@ class TaskUpdate(BaseModel):
     milestone_id: Optional[int] = None
     assignee_id: Optional[int] = None
     completed_at: Optional[datetime] = None
+
+    _normalize_due = field_validator("due_date", "completed_at", mode="after")(_to_naive_utc)
 
 
 class TaskOut(BaseModel):
@@ -154,6 +169,25 @@ class TaskOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AiParseRequest(BaseModel):
+    input: str
+    mode: str  # "nlp" | "json"
+    model: Optional[str] = None
+
+
+class AiParseResponse(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
+    due_date: Optional[datetime] = None
+    estimated_hours: Optional[int] = None
+    tags: Optional[str] = None
+    assignee_name: Optional[str] = None
+
+    _normalize_due = field_validator("due_date", mode="after")(_to_naive_utc)
+
+
 # ── Schedule ──────────────────────────────────────────────────────────────────
 
 class ScheduleCreate(BaseModel):
@@ -167,6 +201,8 @@ class ScheduleCreate(BaseModel):
     recurrence: Optional[str] = None
     task_id: Optional[int] = None
 
+    _normalize_times = field_validator("start_time", "end_time", mode="after")(_to_naive_utc)
+
 
 class ScheduleUpdate(BaseModel):
     title: Optional[str] = None
@@ -178,6 +214,8 @@ class ScheduleUpdate(BaseModel):
     location: Optional[str] = None
     recurrence: Optional[str] = None
     task_id: Optional[int] = None
+
+    _normalize_times = field_validator("start_time", "end_time", mode="after")(_to_naive_utc)
 
 
 class ScheduleOut(BaseModel):
