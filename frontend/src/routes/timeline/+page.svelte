@@ -114,12 +114,19 @@
 	onMount(loadTimeline);
 </script>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col" style="height: 100%; min-height: 0;">
 	<!-- Page header -->
-	<div class="px-6 py-4 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
-		<div>
-			<h1 class="text-xl font-semibold text-white">Team Timeline</h1>
-			<p class="text-sm text-gray-400 mt-0.5">Project and task overview</p>
+	<div class="px-6 py-4 border-b border-[#1e293b] bg-[#0a0f1e] flex items-center justify-between flex-shrink-0">
+		<div class="flex items-center gap-3">
+			<div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+				<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+				</svg>
+			</div>
+			<div>
+				<h1 class="text-base font-semibold text-white tracking-tight">Team Timeline</h1>
+				<p class="text-xs text-slate-500 mt-0.5">Visual project & task progress</p>
+			</div>
 		</div>
 	</div>
 
@@ -134,7 +141,7 @@
 	/>
 
 	<!-- Content -->
-	<div class="flex-1 overflow-hidden relative">
+	<div class="flex-1 overflow-hidden relative" style="min-height: 0;">
 		{#if loading}
 			<div class="flex items-center justify-center h-full">
 				<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
