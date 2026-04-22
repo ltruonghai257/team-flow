@@ -1,7 +1,7 @@
 from typing import List
 
 import litellm
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
+from app.limiter import limiter
 from app.models import AIConversation, AIMessage, Task, Milestone, User
 from app.schemas import AIConversationOut, AIMessageCreate, AIMessageOut
 
@@ -21,7 +22,9 @@ best practices. Be concise, practical, and action-oriented."""
 
 
 @router.get("/conversations", response_model=List[AIConversationOut])
+@limiter.limit("30/minute")
 async def list_conversations(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -35,7 +38,9 @@ async def list_conversations(
 
 
 @router.post("/conversations", response_model=AIConversationOut, status_code=201)
+@limiter.limit("30/minute")
 async def create_conversation(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -47,7 +52,9 @@ async def create_conversation(
 
 
 @router.get("/conversations/{conv_id}", response_model=AIConversationOut)
+@limiter.limit("30/minute")
 async def get_conversation(
+    request: Request,
     conv_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -64,7 +71,9 @@ async def get_conversation(
 
 
 @router.delete("/conversations/{conv_id}", status_code=204)
+@limiter.limit("30/minute")
 async def delete_conversation(
+    request: Request,
     conv_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -80,7 +89,9 @@ async def delete_conversation(
 
 
 @router.post("/conversations/{conv_id}/messages", response_model=AIMessageOut)
+@limiter.limit("30/minute")
 async def send_message(
+    request: Request,
     conv_id: int,
     payload: AIMessageCreate,
     db: AsyncSession = Depends(get_db),
@@ -131,7 +142,9 @@ async def send_message(
 
 
 @router.post("/quick-chat", response_model=AIMessageOut)
+@limiter.limit("30/minute")
 async def quick_chat(
+    request: Request,
     payload: AIMessageCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
