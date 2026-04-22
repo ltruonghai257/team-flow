@@ -1,12 +1,14 @@
 {
-  "mode": "yolo",
-  "parallelization": true,
+  "project_code": "TF",
+  "model_profile": "balanced",
+  "commit_docs": true,
   "workflow": {
-    "research": true,
-    "plan_checker": true,
-    "verifier": true,
-    "auto_advance": true,
-    "skip_discuss": false
+    "auto_advance": false,
+    "text_mode": false,
+    "discuss_mode": "discuss",
+    "research_before_questions": false
   },
-  "granularity": "coarse"
+  "features": {
+    "thinking_partner": true
+  }
 }
