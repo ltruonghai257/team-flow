@@ -138,6 +138,33 @@
 
 ---
 
+## Phase 8: User Invite & Team Management
+
+**Goal:** Allow supervisors and admins to add or invite users to the team, with email-based invitation flow including a validation code and confirmation link.
+
+**Delivers:**
+- `POST /api/teams/invite` - send email invitation with unique token + 6-digit validation code (expires 72h)
+- `POST /api/teams/add` - directly add an existing user to a team (supervisor/admin only)
+- `GET /api/invites/validate?token=…` - validate invite token and return invite metadata
+- `POST /api/invites/accept` - accept invite with token + validation code → creates/activates user account
+- Email template: invite email with team name, sender name, validation code, and accept link
+- Frontend: "Invite Member" modal on team management page (email input, role selector)
+- Frontend: "Add Member" direct-add flow for existing users
+- Frontend: Invite acceptance page at `/invite/accept?token=…` (code entry + account setup)
+- Pending invites list visible to supervisors/admins
+- Backend guards: `require_supervisor_or_admin()` dependency on invite/add endpoints
+
+**Depends on:** Phase 2 (RBAC roles), Phase 1 (stable auth layer)
+
+**Canonical refs:**
+- `.planning/REQUIREMENTS.md`
+- `backend/app/auth.py`
+- `backend/app/models.py`
+- `backend/app/routers/`
+- `frontend/src/routes/`
+
+---
+
 ## Phase 7: Azure Deployment & CI/CD
 
 **Goal:** Deploy TeamFlow to Azure App Service with automated CI/CD pipeline.
@@ -166,18 +193,19 @@
 ```
 Phase 1 - Production Hardening     [Critical blocker]
   └─ Phase 2 - RBAC                [Enables supervisor features]
-       └─ Phase 3 - Performance    [Core supervisor value]
-            ├─ Phase 4 - Timeline  [Parallel to Phase 5 possible]
-            └─ Phase 5 - AI        [Parallel to Phase 4 possible]
-                  └─ Phase 6 - Mobile UI
-                        └─ Phase 7 - Azure Deploy
+       ├─ Phase 3 - Performance    [Core supervisor value]
+       │    ├─ Phase 4 - Timeline  [Parallel to Phase 5 possible]
+       │    └─ Phase 5 - AI        [Parallel to Phase 4 possible]
+       │          └─ Phase 6 - Mobile UI
+       │                └─ Phase 7 - Azure Deploy
+       └─ Phase 8 - User Invite    [Parallel workstream from Phase 2]
 ```
 
 ---
 
 ## Milestone 1 Exit Criteria
 
-- [ ] All 7 phases complete
+- [ ] All 8 phases complete
 - [ ] `/performance` dashboard live with real team data
 - [ ] `/timeline` view operational
 - [ ] AI breakdown and project summary working

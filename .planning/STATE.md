@@ -5,7 +5,7 @@ milestone_name: milestone
 status: in_progress
 last_updated: "2026-04-23T00:45:00.000Z"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 4
   total_plans: 7
   completed_plans: 5
@@ -30,6 +30,12 @@ progress:
 ## Resume Point
 
 Phase 5 — check ROADMAP.md for next phase.
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 8 added: Allow supervisor or admin to add/invite user to team. If invite, send email, and have validation code and link
 
 ## Flags
 
