@@ -92,13 +92,19 @@
 		return { rows, tasks: ganttTasks };
 	}
 
+	const MS_DAY = 86_400_000;
+
 	function buildTask(task: any, rowId: string, color: string) {
 		const now = new Date();
 		const isUnscheduled = !task.due_date;
-		const dueDate = task.due_date ? new Date(task.due_date) : new Date(now.getTime() + 60 * 60 * 1000);
-		const fromDate = task.due_date
-			? new Date(Math.min(new Date(task.created_at).getTime(), dueDate.getTime() - 60 * 60 * 1000))
+		// Unscheduled tasks: show as a 3-day bar starting today
+		const dueDate = task.due_date ? new Date(task.due_date) : new Date(now.getTime() + 3 * MS_DAY);
+		// Ensure minimum 2-day bar width so tasks are always visible
+		const rawFrom = task.due_date
+			? new Date(task.created_at)
 			: now;
+		const minFrom = new Date(dueDate.getTime() - 2 * MS_DAY);
+		const fromDate = rawFrom < minFrom ? rawFrom : minFrom;
 
 		const isOverdue = !isUnscheduled && dueDate < now && task.status !== 'done';
 		const isDone = task.status === 'done';
@@ -146,8 +152,13 @@
 	}
 
 	let ganttData = $derived(buildGanttData(projects, viewMode));
-	let ganttFrom = $derived(rangeStart.getTime());
-	let ganttTo = $derived(rangeEnd.getTime());
+	// Pad range by 2 days on each side so bars at the edges aren't clipped
+	let ganttFrom = $derived(rangeStart.getTime() - 2 * MS_DAY);
+	let ganttTo = $derived(rangeEnd.getTime() + 2 * MS_DAY);
+	// Use 'week' column unit for ranges > 30 days, 'day' for shorter ranges
+	let columnUnit = $derived(
+		(rangeEnd.getTime() - rangeStart.getTime()) > 30 * MS_DAY ? 'week' : 'day'
+	);
 
 	onMount(async () => {
 		if (!ganttEl) return;
@@ -161,13 +172,13 @@
 				tasks: ganttData.tasks,
 				from: ganttFrom,
 				to: ganttTo,
-				fitWidth: false,
-				minWidth: 900,
+				fitWidth: true,
+				minWidth: 800,
 				headers: [
 					{ unit: 'month', format: 'MMMM yyyy', sticky: true },
-					{ unit: 'day', format: 'd' }
+					{ unit: columnUnit, format: columnUnit === 'week' ? 'w' : 'd' }
 				],
-				columnUnit: 'day',
+				columnUnit,
 				columnOffset: 1,
 				rowHeight: 44,
 				rowPadding: 6,
@@ -202,11 +213,17 @@
 		const data = ganttData;
 		const from = ganttFrom;
 		const to = ganttTo;
+		const unit = columnUnit;
 		ganttInstance.$set({
 			rows: data.rows,
 			tasks: data.tasks,
 			from,
-			to
+			to,
+			columnUnit: unit,
+			headers: [
+				{ unit: 'month', format: 'MMMM yyyy', sticky: true },
+				{ unit, format: unit === 'week' ? 'w' : 'd' }
+			]
 		});
 	});
 </script>
@@ -349,15 +366,15 @@
 	}
 </style>
 
-<div class="flex-1 overflow-hidden relative" style="min-height: 0;">
+<div class="flex-1 relative" style="min-height: 0; height: 100%;">
 	{#if ganttData.rows.length === 0}
 		<div class="flex flex-col items-center justify-center h-full text-gray-500 py-20">
 			<p class="text-sm">No projects with timeline data found.</p>
 			<p class="text-xs mt-1">Create projects with tasks and milestones to see the timeline.</p>
 		</div>
 	{:else}
-		<div class="gantt-wrapper">
-			<div bind:this={ganttEl} style="min-width: 900px; height: 100%;"></div>
+		<div class="gantt-wrapper" style="height: max({ganttData.rows.length * 50 + 80}px, 400px);">
+			<div bind:this={ganttEl} style="min-width: 800px; height: 100%;"></div>
 		</div>
 	{/if}
 </div>

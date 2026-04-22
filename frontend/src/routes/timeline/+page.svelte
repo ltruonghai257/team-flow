@@ -39,6 +39,7 @@
 	}
 
 	function fitToData() {
+		const MS_DAY = 86_400_000;
 		let earliest: Date | null = null;
 		let latest: Date | null = null;
 		const now = new Date();
@@ -49,16 +50,23 @@
 				...project.unassigned_tasks
 			];
 			for (const task of allTasks) {
-				const due = task.due_date ? new Date(task.due_date) : now;
-				const start = new Date(task.created_at);
+				// Use due_date as the right edge; skip null due_dates (they show near today)
+				const due = task.due_date ? new Date(task.due_date) : new Date(now.getTime() + 3 * MS_DAY);
+				// Use created_at as the left edge but cap it at 60 days back
+				const rawStart = new Date(task.created_at);
+				const start = rawStart < new Date(now.getTime() - 60 * MS_DAY) ? new Date(now.getTime() - 60 * MS_DAY) : rawStart;
 				if (!earliest || start < earliest) earliest = start;
 				if (!latest || due > latest) latest = due;
 			}
 		}
 
 		if (earliest && latest) {
-			rangeStart = earliest;
-			rangeEnd = latest;
+			// Pad 7 days on each side, minimum 14-day span
+			const paddedStart = new Date(earliest.getTime() - 7 * MS_DAY);
+			const paddedEnd = new Date(latest.getTime() + 7 * MS_DAY);
+			const minEnd = new Date(paddedStart.getTime() + 14 * MS_DAY);
+			rangeStart = paddedStart;
+			rangeEnd = paddedEnd > minEnd ? paddedEnd : minEnd;
 			rangeType = 'custom';
 		}
 	}
