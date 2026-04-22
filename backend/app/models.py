@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
@@ -14,6 +14,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    supervisor = "supervisor"
+    member = "member"
 
 
 class TaskStatus(str, enum.Enum):
@@ -57,10 +63,10 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, default="member")
+    role = Column(Enum(UserRole), default=UserRole.member)
     avatar_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
     created_tasks = relationship("Task", back_populates="creator", foreign_keys="Task.creator_id")
@@ -75,7 +81,7 @@ class Project(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     color = Column(String, default="#6366f1")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     milestones = relationship("Milestone", back_populates="project")
     tasks = relationship("Task", back_populates="project")
@@ -92,7 +98,7 @@ class Milestone(Base):
     due_date = Column(DateTime, nullable=False)
     completed_at = Column(DateTime, nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     project = relationship("Project", back_populates="milestones")
     tasks = relationship("Task", back_populates="milestone")
@@ -115,8 +121,8 @@ class Task(Base):
     milestone_id = Column(Integer, ForeignKey("milestones.id"), nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     project = relationship("Project", back_populates="tasks")
     milestone = relationship("Milestone", back_populates="tasks")
@@ -138,7 +144,7 @@ class Schedule(Base):
     recurrence = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     user = relationship("User", back_populates="schedules")
 
@@ -155,7 +161,7 @@ class EventNotification(Base):
     remind_at = Column(DateTime, nullable=False, index=True)
     offset_minutes = Column(Integer, nullable=False, default=15)
     status = Column(Enum(NotificationStatus), default=NotificationStatus.pending, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class ChatChannel(Base):
@@ -165,7 +171,7 @@ class ChatChannel(Base):
     name = Column(String, nullable=False, unique=True)
     description = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     members = relationship("ChatChannelMember", back_populates="channel", cascade="all, delete-orphan")
     messages = relationship("ChatMessage", back_populates="channel", cascade="all, delete-orphan")
@@ -177,7 +183,7 @@ class ChatChannelMember(Base):
     id = Column(Integer, primary_key=True, index=True)
     channel_id = Column(Integer, ForeignKey("chat_channels.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    joined_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     channel = relationship("ChatChannel", back_populates="members")
 
@@ -189,8 +195,8 @@ class ChatConversation(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_a_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     user_b_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_message_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    last_message_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
 
     messages = relationship("ChatMessage", back_populates="conversation", cascade="all, delete-orphan")
 
@@ -203,7 +209,7 @@ class ChatMessage(Base):
     channel_id = Column(Integer, ForeignKey("chat_channels.id"), nullable=True, index=True)
     conversation_id = Column(Integer, ForeignKey("chat_conversations.id"), nullable=True, index=True)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
 
     channel = relationship("ChatChannel", back_populates="messages")
     conversation = relationship("ChatConversation", back_populates="messages")
@@ -215,7 +221,7 @@ class UserPresence(Base):
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     is_online = Column(Boolean, default=False, nullable=False)
     custom_status = Column(String, nullable=True)
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class AIConversation(Base):
@@ -224,8 +230,8 @@ class AIConversation(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     user = relationship("User", back_populates="ai_conversations")
     messages = relationship("AIMessage", back_populates="conversation", order_by="AIMessage.created_at")
@@ -239,6 +245,6 @@ class AIMessage(Base):
     role = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     model = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     conversation = relationship("AIConversation", back_populates="messages")

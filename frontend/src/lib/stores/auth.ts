@@ -6,7 +6,7 @@ interface User {
 	email: string;
 	username: string;
 	full_name: string;
-	role: string;
+	role: 'admin' | 'supervisor' | 'member';
 	avatar_url: string | null;
 	is_active: boolean;
 	created_at: string;
@@ -60,3 +60,5 @@ function createAuthStore() {
 export const authStore = createAuthStore();
 export const currentUser = derived(authStore, ($a) => $a.user);
 export const isLoggedIn = derived(authStore, ($a) => !!$a.user);
+export const isAdmin = derived(authStore, ($a) => $a.user?.role === 'admin');
+export const isSupervisor = derived(authStore, ($a) => $a.user?.role === 'admin' || $a.user?.role === 'supervisor');

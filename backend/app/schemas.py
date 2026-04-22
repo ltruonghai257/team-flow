@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.models import MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus
+from app.models import MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus, UserRole
 
 
 def _to_naive_utc(v):
@@ -38,6 +38,10 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     role: Optional[str] = None
+
+
+class UserRoleUpdate(BaseModel):
+    role: UserRole
 
 
 class UserOut(BaseModel):

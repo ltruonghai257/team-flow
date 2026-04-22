@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, hash_password
+from app.auth import get_current_user, hash_password, require_admin
 from app.database import get_db
 from app.models import User
-from app.schemas import UserOut, UserUpdate
+from app.schemas import UserOut, UserRoleUpdate, UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -50,6 +50,23 @@ async def update_user(
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
+    await db.flush()
+    await db.refresh(user)
+    return user
+
+
+@router.patch("/{user_id}/role", response_model=UserOut)
+async def update_user_role(
+    user_id: int,
+    payload: UserRoleUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.role = payload.role
     await db.flush()
     await db.refresh(user)
     return user

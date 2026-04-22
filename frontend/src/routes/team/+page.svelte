@@ -25,8 +25,8 @@
 
 	function roleColor(role: string) {
 		const map: Record<string, string> = {
-			admin: 'bg-purple-900 text-purple-300',
-			lead: 'bg-blue-900 text-blue-300',
+			admin: 'bg-blue-100 text-blue-800',
+			supervisor: 'bg-purple-100 text-purple-800',
 			member: 'bg-gray-700 text-gray-300'
 		};
 		return map[role] || 'bg-gray-700 text-gray-300';
@@ -75,7 +75,13 @@
 							<p class="font-semibold text-white truncate">{u.full_name}</p>
 							<p class="text-xs text-gray-500 truncate">@{u.username}</p>
 						</div>
+						{#if u.role === 'admin'}
+						<span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">Admin</span>
+					{:else if u.role === 'supervisor'}
+						<span class="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800">Supervisor</span>
+					{:else}
 						<span class="badge {roleColor(u.role)}">{u.role}</span>
+					{/if}
 					</div>
 					<div class="flex items-center gap-1 text-xs text-gray-500 mb-4">
 						<Mail size={12} />

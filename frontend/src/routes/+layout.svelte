@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { authStore, isLoggedIn } from '$lib/stores/auth';
+	import { authStore, isLoggedIn, isSupervisor } from '$lib/stores/auth';
 	import { notificationStore, type NotificationItem } from '$lib/stores/notifications';
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
 	import { Toaster, toast } from 'svelte-sonner';
@@ -54,6 +54,13 @@
 
 	$: if (typeof window !== 'undefined' && !$authStore.loading && !$isLoggedIn && !['/login', '/register'].includes(String($page.url.pathname))) {
 		goto('/login');
+	}
+
+	$: if (typeof window !== 'undefined' && !$authStore.loading && $isLoggedIn && !$isSupervisor) {
+		const path = String($page.url.pathname);
+		if (path.startsWith('/performance') || path.startsWith('/admin')) {
+			goto('/');
+		}
 	}
 
 	$: isAuthPage = ['/login', '/register'].includes(String($page.url.pathname));
