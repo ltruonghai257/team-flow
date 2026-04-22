@@ -81,6 +81,6 @@ Thumbs.db
 *~
 
 # Specs
-# openspec/
-# .openspec/
+openspec/
+.openspec/
 .windsurf/

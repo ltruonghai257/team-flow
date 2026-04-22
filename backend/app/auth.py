@@ -58,3 +58,25 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise credentials_exception
     return user
+
+
+async def get_user_from_cookie(token: Optional[str], db: AsyncSession) -> Optional[User]:
+    """Validate the access_token cookie and return the User, or None if invalid.
+
+    Used by the WebSocket endpoint where the standard FastAPI Depends-based flow
+    doesn't apply during the handshake.
+    """
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+    except JWTError:
+        return None
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        return None
+    return user

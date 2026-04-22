@@ -4,14 +4,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import ai, auth, dashboard, milestones, projects, schedules, tasks, users
+from app.routers import ai, auth, chat, dashboard, milestones, notifications, projects, schedules, tasks, users, websocket as ws_router
+from app.scheduler_jobs import shutdown_scheduler, start_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    yield
+    start_scheduler()
+    try:
+        yield
+    finally:
+        shutdown_scheduler()
 
 
 app = FastAPI(
@@ -35,8 +40,11 @@ app.include_router(projects.router)
 app.include_router(milestones.router)
 app.include_router(tasks.router)
 app.include_router(schedules.router)
+app.include_router(notifications.router)
 app.include_router(ai.router)
 app.include_router(dashboard.router)
+app.include_router(chat.router)
+app.include_router(ws_router.router)
 
 
 @app.get("/health")

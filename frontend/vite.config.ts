@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
 		plugins: [sveltekit()],
 		server: {
 			proxy: {
-				'/api': apiBase
+				'/api': apiBase,
+				'/ws': { target: apiBase, ws: true, changeOrigin: true }
 			}
 		}
 	};

@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.models import MilestoneStatus, TaskPriority, TaskStatus
+from app.models import MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus
 
 
 def _to_naive_utc(v):
@@ -231,6 +231,68 @@ class ScheduleOut(BaseModel):
     user_id: int
     task_id: Optional[int]
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+
+class NotificationCreate(BaseModel):
+    event_type: NotificationEventType
+    event_ref_id: int
+    offset_minutes: int  # how many minutes before event to fire
+
+
+class NotificationBulkCreate(BaseModel):
+    event_type: NotificationEventType
+    event_ref_id: int
+    offset_minutes_list: List[int]  # replace any existing reminders with this set
+
+
+class NotificationOut(BaseModel):
+    id: int
+    user_id: int
+    event_type: NotificationEventType
+    event_ref_id: int
+    title_cache: str
+    start_at_cache: datetime
+    remind_at: datetime
+    offset_minutes: int
+    status: NotificationStatus
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+class ChatChannelOut(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChatMessageOut(BaseModel):
+    id: int
+    sender_id: int
+    sender_name: Optional[str] = None
+    channel_id: Optional[int]
+    conversation_id: Optional[int]
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChatConversationOut(BaseModel):
+    id: int
+    other_user_id: int
+    other_user_name: Optional[str] = None
+    last_message: Optional[str] = None
+    last_message_at: datetime
 
     model_config = {"from_attributes": True}
 

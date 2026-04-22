@@ -4,7 +4,9 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { authStore, isLoggedIn } from '$lib/stores/auth';
-	import { Toaster } from 'svelte-sonner';
+	import { notificationStore, type NotificationItem } from '$lib/stores/notifications';
+	import NotificationBell from '$lib/components/NotificationBell.svelte';
+	import { Toaster, toast } from 'svelte-sonner';
 	import {
 		LayoutDashboard,
 		CheckSquare,
@@ -23,7 +25,7 @@
 		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
 		{ href: '/milestones', label: 'Milestones', icon: Milestone },
 		{ href: '/team', label: 'Team', icon: Users },
-		{ href: '/schedule', label: 'My Schedule', icon: Calendar },
+		{ href: '/schedule', label: 'Scheduler', icon: Calendar },
 		{ href: '/ai', label: 'AI Assistant', icon: Bot }
 	];
 
@@ -34,6 +36,21 @@
 			goto('/login');
 		}
 	});
+
+	// Start/stop notification polling with auth state.
+	$: if (typeof window !== 'undefined') {
+		if ($isLoggedIn) {
+			notificationStore.start((newOnes: NotificationItem[]) => {
+				for (const n of newOnes) {
+					toast.info(n.title_cache, {
+						description: `Reminder · ${n.offset_minutes} min before · ${new Date(n.start_at_cache).toLocaleString()}`
+					});
+				}
+			});
+		} else {
+			notificationStore.stop();
+		}
+	}
 
 	$: if (typeof window !== 'undefined' && !$authStore.loading && !$isLoggedIn && !['/login', '/register'].includes(String($page.url.pathname))) {
 		goto('/login');
@@ -63,6 +80,7 @@
 			</div>
 
 			<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+				<NotificationBell />
 				{#each navItems as item}
 					{@const active = $page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/')}
 					<a

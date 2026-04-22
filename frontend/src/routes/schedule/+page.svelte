@@ -1,16 +1,37 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { schedules as schedulesApi } from '$lib/api';
+	import { schedules as schedulesApi, tasks as tasksApi, notifications as notifApi } from '$lib/api';
 	import { formatDateTime } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import { Plus, Pencil, Trash2, X, Calendar, MapPin, Clock } from 'lucide-svelte';
+	import { Plus, Pencil, Trash2, X, Calendar, MapPin, Clock, Bell, CheckSquare } from 'lucide-svelte';
 	import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, startOfWeek, endOfWeek } from 'date-fns';
 
+	// Unified event shape for rendering. Schedule events are editable; task events are read-only.
+	type EventItem = {
+		id: number;
+		source: 'schedule' | 'task';
+		title: string;
+		description?: string;
+		start_time: string;
+		end_time: string;
+		color: string;
+		location?: string;
+		raw: any;
+	};
+
 	let scheduleList: any[] = [];
+	let taskEvents: EventItem[] = [];
 	let loading = true;
 	let showModal = false;
 	let editingSchedule: any = null;
 	let currentMonth = new Date();
+
+	const REMINDER_OFFSETS = [
+		{ value: 15, label: '15 min before' },
+		{ value: 30, label: '30 min before' },
+		{ value: 60, label: '1 hour before' },
+		{ value: 1440, label: '1 day before' }
+	];
 
 	let form = {
 		title: '',
@@ -21,17 +42,54 @@
 		color: '#6366f1',
 		location: ''
 	};
+	let formReminders: number[] = []; // selected offset_minutes
 
-	onMount(loadSchedules);
+	onMount(loadAll);
 
-	async function loadSchedules() {
+	async function loadAll() {
 		loading = true;
 		try {
-			scheduleList = await schedulesApi.list();
+			const [schedules, taskList] = await Promise.all([
+				schedulesApi.list(),
+				tasksApi.list()
+			]);
+			scheduleList = schedules;
+			taskEvents = (taskList as any[])
+				.filter((t) => !!t.due_date)
+				.map((t) => ({
+					id: t.id,
+					source: 'task' as const,
+					title: t.title,
+					description: t.description,
+					start_time: t.due_date,
+					end_time: t.due_date,
+					color: '#f59e0b',
+					location: undefined,
+					raw: t
+				}));
 		} finally {
 			loading = false;
 		}
 	}
+
+	function scheduleToEvent(s: any): EventItem {
+		return {
+			id: s.id,
+			source: 'schedule',
+			title: s.title,
+			description: s.description,
+			start_time: s.start_time,
+			end_time: s.end_time,
+			color: s.color,
+			location: s.location,
+			raw: s
+		};
+	}
+
+	$: allEvents = [
+		...scheduleList.map(scheduleToEvent),
+		...taskEvents
+	];
 
 	function openCreate(date?: Date) {
 		editingSchedule = null;
@@ -45,10 +103,11 @@
 			color: '#6366f1',
 			location: ''
 		};
+		formReminders = [];
 		showModal = true;
 	}
 
-	function openEdit(s: any) {
+	async function openEdit(s: any) {
 		editingSchedule = s;
 		form = {
 			title: s.title,
@@ -59,7 +118,23 @@
 			color: s.color,
 			location: s.location || ''
 		};
+		try {
+			const existing: any[] = await notifApi.byEvent('schedule', s.id);
+			formReminders = Array.from(
+				new Set(existing.filter((n) => n.status !== 'dismissed').map((n) => n.offset_minutes))
+			);
+		} catch {
+			formReminders = [];
+		}
 		showModal = true;
+	}
+
+	function toggleReminder(offset: number) {
+		if (formReminders.includes(offset)) {
+			formReminders = formReminders.filter((o) => o !== offset);
+		} else {
+			formReminders = [...formReminders, offset];
+		}
 	}
 
 	async function handleSubmit() {
@@ -69,16 +144,29 @@
 			end_time: new Date(form.end_time).toISOString()
 		};
 		try {
+			let eventId: number;
 			if (editingSchedule) {
-				await schedulesApi.update(editingSchedule.id, payload);
+				const updated: any = await schedulesApi.update(editingSchedule.id, payload);
+				eventId = updated?.id ?? editingSchedule.id;
 				toast.success('Event updated');
 			} else {
-				await schedulesApi.create(payload);
+				const created: any = await schedulesApi.create(payload);
+				eventId = created.id;
 				toast.success('Event created');
 			}
+			// Sync reminders (bulk replace)
+			try {
+				await notifApi.bulkSet({
+					event_type: 'schedule',
+					event_ref_id: eventId,
+					offset_minutes_list: formReminders
+				});
+			} catch (err: any) {
+				toast.error(`Reminders not saved: ${err.message}`);
+			}
 			showModal = false;
-			await loadSchedules();
-		} catch (e) {
+			await loadAll();
+		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}
@@ -88,14 +176,14 @@
 		try {
 			await schedulesApi.delete(id);
 			toast.success('Event deleted');
-			await loadSchedules();
-		} catch (e) {
+			await loadAll();
+		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}
 
-	function eventsOnDay(day: Date) {
-		return scheduleList.filter((s) => isSameDay(new Date(s.start_time), day));
+	function eventsOnDay(day: Date): EventItem[] {
+		return allEvents.filter((ev) => isSameDay(new Date(ev.start_time), day));
 	}
 
 	$: calDays = (() => {
@@ -119,12 +207,17 @@
 <div class="p-6 max-w-6xl mx-auto">
 	<div class="flex items-center justify-between mb-6">
 		<div>
-			<h1 class="text-2xl font-bold text-white">My Schedule</h1>
-			<p class="text-gray-400 text-sm mt-1">Your personal calendar and events</p>
+			<h1 class="text-2xl font-bold text-white">Scheduler</h1>
+			<p class="text-gray-400 text-sm mt-1">Upcoming events and task deadlines</p>
 		</div>
 		<button on:click={() => openCreate()} class="btn-primary">
 			<Plus size={16} /> New Event
 		</button>
+	</div>
+
+	<div class="flex items-center gap-4 text-xs text-gray-500 mb-4">
+		<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-indigo-500"></span>Scheduled event</span>
+		<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span>Task due date</span>
 	</div>
 
 	{#if loading}
@@ -179,34 +272,42 @@
 			<!-- Upcoming events list -->
 			<div class="card">
 				<h2 class="font-semibold text-white mb-4 flex items-center gap-2">
-					<Calendar size={16} class="text-primary-400" /> Upcoming Events
+					<Calendar size={16} class="text-primary-400" /> Upcoming
 				</h2>
-				{#if scheduleList.length === 0}
-					<p class="text-gray-500 text-sm text-center py-6">No events yet</p>
+				{#if allEvents.length === 0}
+					<p class="text-gray-500 text-sm text-center py-6">No upcoming events</p>
 				{:else}
 					<div class="space-y-2 max-h-[500px] overflow-y-auto">
-						{#each scheduleList.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) as s}
-							<div class="p-3 rounded-lg bg-gray-800 border-l-2" style="border-color: {s.color}">
+						{#each allEvents.slice().sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) as ev}
+							<div class="p-3 rounded-lg bg-gray-800 border-l-2" style="border-color: {ev.color}">
 								<div class="flex items-start justify-between gap-2">
 									<div class="flex-1 min-w-0">
-										<p class="text-sm font-medium text-gray-200 truncate">{s.title}</p>
+										<div class="flex items-center gap-1.5">
+											{#if ev.source === 'task'}<CheckSquare size={11} class="text-amber-400 flex-shrink-0" />{/if}
+											<p class="text-sm font-medium text-gray-200 truncate">{ev.title}</p>
+										</div>
 										<p class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-											<Clock size={10} /> {formatDateTime(s.start_time)}
+											<Clock size={10} /> {formatDateTime(ev.start_time)}
 										</p>
-										{#if s.location}
+										{#if ev.location}
 											<p class="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-												<MapPin size={10} /> {s.location}
+												<MapPin size={10} /> {ev.location}
 											</p>
 										{/if}
+										{#if ev.source === 'task'}
+											<p class="text-[10px] text-amber-500/80 uppercase tracking-wide mt-0.5">Task · read-only</p>
+										{/if}
 									</div>
-									<div class="flex gap-1 flex-shrink-0">
-										<button on:click={() => openEdit(s)} class="p-1 text-gray-500 hover:text-gray-300 rounded transition-colors">
-											<Pencil size={12} />
-										</button>
-										<button on:click={() => deleteSchedule(s.id)} class="p-1 text-gray-500 hover:text-red-400 rounded transition-colors">
-											<Trash2 size={12} />
-										</button>
-									</div>
+									{#if ev.source === 'schedule'}
+										<div class="flex gap-1 flex-shrink-0">
+											<button on:click={() => openEdit(ev.raw)} class="p-1 text-gray-500 hover:text-gray-300 rounded transition-colors" title="Edit">
+												<Pencil size={12} />
+											</button>
+											<button on:click={() => deleteSchedule(ev.id)} class="p-1 text-gray-500 hover:text-red-400 rounded transition-colors" title="Delete">
+												<Trash2 size={12} />
+											</button>
+										</div>
+									{/if}
 								</div>
 							</div>
 						{/each}
@@ -260,6 +361,22 @@
 							></button>
 						{/each}
 					</div>
+				</div>
+				<div>
+					<label class="label flex items-center gap-1.5"><Bell size={12} /> Reminders</label>
+					<div class="flex flex-wrap gap-2">
+						{#each REMINDER_OFFSETS as r}
+							{@const selected = formReminders.includes(r.value)}
+							<button
+								type="button"
+								on:click={() => toggleReminder(r.value)}
+								class="text-xs px-2.5 py-1 rounded-full border transition-colors {selected ? 'bg-primary-600/20 border-primary-500 text-primary-200' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200'}"
+							>
+								{r.label}
+							</button>
+						{/each}
+					</div>
+					<p class="text-[11px] text-gray-500 mt-1.5">You'll receive a toast and a bell notification at each selected time.</p>
 				</div>
 				<div class="flex justify-end gap-3 pt-2">
 					<button type="button" on:click={() => (showModal = false)} class="btn-secondary">Cancel</button>
