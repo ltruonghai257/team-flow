@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.limiter import limiter
-from app.routers import ai, auth, chat, dashboard, milestones, notifications, projects, schedules, tasks, users, websocket as ws_router
+from app.routers import ai, auth, chat, dashboard, milestones, notifications, performance, projects, schedules, tasks, timeline, users, websocket as ws_router
 from app.scheduler_jobs import shutdown_scheduler, start_scheduler
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,8 @@ app.include_router(schedules.router)
 app.include_router(notifications.router)
 app.include_router(ai.router)
 app.include_router(dashboard.router)
+app.include_router(performance.router)
+app.include_router(timeline.router)
 app.include_router(chat.router)
 app.include_router(ws_router.router)
 

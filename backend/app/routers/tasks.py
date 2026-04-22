@@ -130,8 +130,12 @@ async def update_task(
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = payload.model_dump(exclude_unset=True)
-    if "status" in update_data and update_data["status"] == TaskStatus.done and not task.completed_at:
-        update_data["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+    if "status" in update_data:
+        new_status = update_data["status"]
+        if new_status == TaskStatus.done and task.status != TaskStatus.done:
+            update_data["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+        elif new_status != TaskStatus.done and task.status == TaskStatus.done:
+            update_data["completed_at"] = None
 
     for field, value in update_data.items():
         setattr(task, field, value)

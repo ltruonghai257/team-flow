@@ -135,3 +135,14 @@ export const chat = {
 export const dashboard = {
 	stats: () => request('/dashboard/')
 };
+
+// Performance
+export const performance = {
+	teamStats: () => request('/performance/team'),
+	memberStats: (id: number) => request(`/performance/user/${id}`)
+};
+
+// Timeline
+export const timeline = {
+	get: () => request('/timeline/')
+};

@@ -22,9 +22,12 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "d3-shape": "^3.2.0",
     "date-fns": "^3.6.0",
+    "layerchart": "next",
     "lucide-svelte": "^0.378.0",
     "svelte-dnd-action": "^0.9.69",
+    "svelte-gantt": "^4.5.0",
     "svelte-sonner": "^0.3.27"
   },
   "type": "module"

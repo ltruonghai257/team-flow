@@ -7,6 +7,9 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		plugins: [sveltekit()],
+		optimizeDeps: {
+			exclude: ['layerchart']
+		},
 		server: {
 			proxy: {
 				'/api': apiBase,

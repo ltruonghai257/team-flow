@@ -16,7 +16,9 @@
 		Bot,
 		LogOut,
 		FolderOpen,
-		ChevronRight
+		ChevronRight,
+		TrendingUp,
+		GanttChartSquare
 	} from 'lucide-svelte';
 
 	const navItems = [
@@ -24,10 +26,15 @@
 		{ href: '/projects', label: 'Projects', icon: FolderOpen },
 		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
 		{ href: '/milestones', label: 'Milestones', icon: Milestone },
+		{ href: '/timeline', label: 'Timeline', icon: GanttChartSquare },
 		{ href: '/team', label: 'Team', icon: Users },
 		{ href: '/schedule', label: 'Scheduler', icon: Calendar },
 		{ href: '/ai', label: 'AI Assistant', icon: Bot }
 	];
+
+	$: sidebarItems = $isSupervisor 
+		? [...navItems.slice(0, 1), { href: '/performance', label: 'Performance', icon: TrendingUp }, ...navItems.slice(1)]
+		: navItems;
 
 	onMount(async () => {
 		await authStore.loadMe();
@@ -88,7 +95,7 @@
 
 			<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 				<NotificationBell />
-				{#each navItems as item}
+				{#each sidebarItems as item}
 					{@const active = $page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/')}
 					<a
 						href={item.href}
