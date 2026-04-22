@@ -173,12 +173,16 @@
 				rowPadding: 6,
 				taskElementHook: (task: any, element: HTMLElement) => {
 					const color = task.model._color || '#6366f1';
-					// Target the actual task bar child
-					const bar = element.querySelector('.sg-task-background') as HTMLElement;
-					if (bar) bar.style.background = color + '33';
-					element.style.background = color;
-					element.style.borderRadius = '6px';
-					element.style.color = '#fff';
+					// Force override sg-task-default via inline style (highest specificity)
+					element.style.setProperty('background', color, 'important');
+					element.style.setProperty('border-radius', '5px', 'important');
+					element.style.setProperty('border', 'none', 'important');
+					element.style.setProperty('box-shadow', `0 0 0 1px ${color}88, 0 2px 6px rgba(0,0,0,0.45)`, 'important');
+					// Dim the inner progress overlay
+					const bg = element.querySelector('.sg-task-background') as HTMLElement;
+					if (bg) {
+						bg.style.setProperty('background', 'rgba(0,0,0,0.15)', 'important');
+					}
 					element.addEventListener('click', () => handleTaskSelect(task));
 				},
 				modules: [SvelteGanttTable],
@@ -277,31 +281,41 @@
 		border-right: 1px solid #0f1a2e !important;
 	}
 
+	/* ── Kill the default blue ── */
+	.gantt-wrapper :global(.sg-task-default) {
+		background: #6366f1 !important;
+		color: #fff !important;
+	}
+	.gantt-wrapper :global(.sg-task-default:hover) {
+		background: #6366f1 !important;
+	}
+	.gantt-wrapper :global(.sg-task-default.selected) {
+		background: #6366f1 !important;
+	}
+
 	/* ── Task bars ── */
 	.gantt-wrapper :global(.sg-task) {
 		border-radius: 5px !important;
 		border: none !important;
 		cursor: pointer;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5) !important;
 		transition: filter 0.12s, transform 0.12s !important;
 	}
 	.gantt-wrapper :global(.sg-task:hover) {
-		filter: brightness(1.18) !important;
-		transform: translateY(-1px);
-		box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6) !important;
+		filter: brightness(1.2) !important;
+		transform: translateY(-1px) !important;
 	}
 	.gantt-wrapper :global(.sg-task-content) {
 		padding-left: 10px !important;
 		font-size: 11px !important;
 		font-weight: 500 !important;
-		color: rgba(255, 255, 255, 0.9) !important;
+		color: rgba(255, 255, 255, 0.95) !important;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 	.gantt-wrapper :global(.sg-task-background) {
 		border-radius: 5px !important;
-		background: rgba(0, 0, 0, 0.2) !important;
+		background: rgba(0, 0, 0, 0.18) !important;
 	}
 
 	/* ── Task states ── */
