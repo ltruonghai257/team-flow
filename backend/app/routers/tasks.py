@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 import litellm
@@ -131,11 +131,11 @@ async def update_task(
 
     update_data = payload.model_dump(exclude_unset=True)
     if "status" in update_data and update_data["status"] == TaskStatus.done and not task.completed_at:
-        update_data["completed_at"] = datetime.utcnow()
+        update_data["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
 
     for field, value in update_data.items():
         setattr(task, field, value)
-    task.updated_at = datetime.utcnow()
+    task.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.flush()
     await db.refresh(task, ["assignee"])
     return task
@@ -175,7 +175,7 @@ async def ai_parse_task(
 
     # NLP mode — call LiteLLM
     model = payload.model or settings.AI_MODEL
-    prompt = _AI_PARSE_SYSTEM_PROMPT.replace("{today}", datetime.utcnow().strftime("%Y-%m-%d"))
+    prompt = _AI_PARSE_SYSTEM_PROMPT.replace("{today}", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     try:
         response = await litellm.acompletion(
             model=model,

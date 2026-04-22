@@ -6,7 +6,7 @@ once their `remind_at` time has passed.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select, update
@@ -26,7 +26,7 @@ async def process_due_notifications() -> int:
             result = await session.execute(
                 select(EventNotification).where(
                     EventNotification.status == NotificationStatus.pending,
-                    EventNotification.remind_at <= datetime.utcnow(),
+                    EventNotification.remind_at <= datetime.now(timezone.utc).replace(tzinfo=None),
                 )
             )
             due = result.scalars().all()

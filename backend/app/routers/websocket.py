@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import litellm
@@ -41,7 +41,7 @@ async def _send_error(ws: WebSocket, message: str, code: str | None = None) -> N
 async def _set_presence(db: AsyncSession, user_id: int, is_online: bool, custom: str | None | object = ...) -> None:
     result = await db.execute(select(UserPresence).where(UserPresence.user_id == user_id))
     pres = result.scalar_one_or_none()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if pres is None:
         pres = UserPresence(user_id=user_id, is_online=is_online, last_seen=now)
         db.add(pres)
@@ -60,7 +60,7 @@ async def _broadcast_presence(user_id: int, is_online: bool, custom_status: str 
         "user_id": user_id,
         "is_online": is_online,
         "custom_status": custom_status,
-        "timestamp": _iso(datetime.utcnow()),
+        "timestamp": _iso(datetime.now(timezone.utc).replace(tzinfo=None)),
     }
     for uid in manager.online_users():
         if uid == user_id:
@@ -86,7 +86,7 @@ async def _send_initial_presence(ws: WebSocket, db: AsyncSession) -> None:
 # ── Handlers ────────────────────────────────────────────────────────────────
 
 async def handle_heartbeat(ws: WebSocket, user: User, db: AsyncSession, msg: dict) -> None:
-    await manager.send_to_socket(ws, {"type": "heartbeat_ack", "timestamp": _iso(datetime.utcnow())})
+    await manager.send_to_socket(ws, {"type": "heartbeat_ack", "timestamp": _iso(datetime.now(timezone.utc).replace(tzinfo=None))})
 
 
 # Channel handlers ----------------------------------------------------------
@@ -258,7 +258,7 @@ async def handle_dm_message(ws: WebSocket, user: User, db: AsyncSession, msg: di
     conv = await _get_or_create_conversation(db, user.id, recipient_id)
     message = ChatMessage(sender_id=user.id, conversation_id=conv.id, content=content)
     db.add(message)
-    conv.last_message_at = datetime.utcnow()
+    conv.last_message_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(message)
 

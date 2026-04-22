@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -18,7 +18,7 @@ async def get_dashboard(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     next_30 = now + timedelta(days=30)
 
     total = (await db.execute(select(func.count()).select_from(Task))).scalar()

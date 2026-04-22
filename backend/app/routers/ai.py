@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List
 
 import litellm
@@ -161,4 +162,4 @@ async def quick_chat(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
 
-    return AIMessageOut(id=0, role="assistant", content=ai_content, model=model_used, created_at=__import__("datetime").datetime.utcnow())
+    return AIMessageOut(id=0, role="assistant", content=ai_content, model=model_used, created_at=datetime.now(timezone.utc).replace(tzinfo=None))

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -58,7 +58,7 @@ async def create_notification(
     )
     remind_at = start_at - timedelta(minutes=payload.offset_minutes)
     status = (
-        NotificationStatus.sent if remind_at <= datetime.utcnow() else NotificationStatus.pending
+        NotificationStatus.sent if remind_at <= datetime.now(timezone.utc).replace(tzinfo=None) else NotificationStatus.pending
     )
     n = EventNotification(
         user_id=current_user.id,
@@ -99,7 +99,7 @@ async def bulk_set_notifications(
     await db.flush()
 
     created: List[EventNotification] = []
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     for offset in payload.offset_minutes_list:
         remind_at = start_at - timedelta(minutes=offset)
         n = EventNotification(
