@@ -154,10 +154,6 @@
 
 		const { SvelteGantt, SvelteGanttTable } = await import('svelte-gantt');
 
-		function getTaskColor(task: any) {
-			return task._color || '#6366f1';
-		}
-
 		ganttInstance = new SvelteGantt({
 			target: ganttEl,
 			props: {
@@ -165,23 +161,29 @@
 				tasks: ganttData.tasks,
 				from: ganttFrom,
 				to: ganttTo,
-				fitWidth: true,
+				fitWidth: false,
+				minWidth: 900,
 				headers: [
-					{ unit: 'month', format: 'MMMM yyyy' },
+					{ unit: 'month', format: 'MMMM yyyy', sticky: true },
 					{ unit: 'day', format: 'd' }
 				],
 				columnUnit: 'day',
 				columnOffset: 1,
-				rowHeight: 36,
-				rowPadding: 4,
+				rowHeight: 44,
+				rowPadding: 6,
 				taskElementHook: (task: any, element: HTMLElement) => {
-					element.style.background = getTaskColor(task.model);
-					element.style.borderColor = getTaskColor(task.model);
+					const color = task.model._color || '#6366f1';
+					// Target the actual task bar child
+					const bar = element.querySelector('.sg-task-background') as HTMLElement;
+					if (bar) bar.style.background = color + '33';
+					element.style.background = color;
+					element.style.borderRadius = '6px';
+					element.style.color = '#fff';
 					element.addEventListener('click', () => handleTaskSelect(task));
 				},
 				modules: [SvelteGanttTable],
-				tableHeaders: [{ title: 'Name', property: 'label', width: 180 }],
-				tableWidth: 180
+				tableHeaders: [{ title: 'Name', property: 'label', width: 220 }],
+				tableWidth: 220
 			}
 		});
 
@@ -190,7 +192,7 @@
 		});
 	});
 
-	// Update gantt when data changes
+	// Update gantt when data or range changes
 	$effect(() => {
 		if (!ganttInstance) return;
 		const data = ganttData;
@@ -206,59 +208,116 @@
 </script>
 
 <style>
-	:global(.gantt-task-bar) {
-		border-radius: 4px;
-		font-size: 12px;
-		opacity: 0.9;
-		cursor: pointer;
-		transition: opacity 0.15s;
+	.gantt-wrapper {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		overflow-x: auto;
+		overflow-y: auto;
 	}
-	:global(.gantt-task-bar:hover) {
-		opacity: 1;
-	}
-	:global(.task-unscheduled) {
-		border: 2px dashed currentColor !important;
-		background: transparent !important;
-		opacity: 0.6;
-	}
-	:global(.task-overdue) {
-		outline: 2px solid #ef4444;
-		outline-offset: 1px;
-	}
-	:global(.task-done) {
-		opacity: 0.4;
-	}
-	:global(.sg-gantt) {
-		background: #030712;
-		color: #d1d5db;
+	.gantt-wrapper :global(.sg-gantt) {
+		background: #0a0f1e;
+		color: #e2e8f0;
 		font-size: 13px;
+		height: 100% !important;
 	}
-	:global(.sg-table-body-cell) {
-		background: #111827;
-		border-color: #1f2937;
-		color: #d1d5db;
+	/* Header rows */
+	.gantt-wrapper :global(.sg-header) {
+		background: #0f172a;
+		border-bottom: 1px solid #1e293b;
+		color: #64748b;
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.gantt-wrapper :global(.sg-header-unit) {
+		border-right: 1px solid #1e293b;
+	}
+	/* Table (left side) */
+	.gantt-wrapper :global(.sg-table-body-cell) {
+		background: #0f172a;
+		border-right: 1px solid #1e293b;
+		border-bottom: 1px solid #1e293b;
+		color: #cbd5e1;
 		font-size: 12px;
+		padding-left: 12px;
 	}
-	:global(.sg-header) {
-		background: #111827;
-		border-color: #1f2937;
-		color: #9ca3af;
+	.gantt-wrapper :global(.sg-table-header-cell) {
+		background: #0f172a;
+		border-right: 1px solid #1e293b;
+		border-bottom: 2px solid #334155;
+		color: #64748b;
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		padding-left: 12px;
 	}
-	:global(.sg-row) {
-		border-color: #1f2937;
+	/* Rows */
+	.gantt-wrapper :global(.sg-row) {
+		border-bottom: 1px solid #1a2540;
 	}
-	:global(.sg-row:hover) {
-		background: rgba(255, 255, 255, 0.02);
+	.gantt-wrapper :global(.sg-row:hover) {
+		background: rgba(99, 102, 241, 0.04);
+	}
+	/* Column lines */
+	.gantt-wrapper :global(.sg-column) {
+		border-right: 1px solid #1a2540;
+	}
+	/* Task bars */
+	.gantt-wrapper :global(.sg-task) {
+		border-radius: 6px !important;
+		cursor: pointer;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+		transition: filter 0.15s, box-shadow 0.15s;
+	}
+	.gantt-wrapper :global(.sg-task:hover) {
+		filter: brightness(1.15);
+		box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+	}
+	.gantt-wrapper :global(.sg-task-content) {
+		padding-left: 10px;
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.01em;
+		color: rgba(255,255,255,0.92) !important;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.gantt-wrapper :global(.sg-task-background) {
+		border-radius: 6px;
+		opacity: 0.15;
+	}
+	/* Task states */
+	.gantt-wrapper :global(.task-unscheduled) {
+		border: 2px dashed rgba(255,255,255,0.3) !important;
+		background: rgba(99,102,241,0.15) !important;
+		opacity: 0.7;
+	}
+	.gantt-wrapper :global(.task-overdue) {
+		outline: 2px solid #f87171;
+		outline-offset: 2px;
+		box-shadow: 0 0 8px rgba(248, 113, 113, 0.3) !important;
+	}
+	.gantt-wrapper :global(.task-done) {
+		opacity: 0.38;
+		filter: grayscale(0.3);
+	}
+	/* Today marker */
+	.gantt-wrapper :global(.sg-time-range-highlight) {
+		background: rgba(99, 102, 241, 0.08);
 	}
 </style>
 
-<div class="flex-1 overflow-hidden relative h-full">
+<div class="flex-1 overflow-hidden relative" style="min-height: 0;">
 	{#if ganttData.rows.length === 0}
 		<div class="flex flex-col items-center justify-center h-full text-gray-500 py-20">
 			<p class="text-sm">No projects with timeline data found.</p>
 			<p class="text-xs mt-1">Create projects with tasks and milestones to see the timeline.</p>
 		</div>
 	{:else}
-		<div bind:this={ganttEl} class="w-full h-full"></div>
+		<div class="gantt-wrapper">
+			<div bind:this={ganttEl} style="min-width: 900px; height: 100%;"></div>
+		</div>
 	{/if}
 </div>

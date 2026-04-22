@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { performance } from '$lib/api';
-	import { AreaChart, Tooltip, TooltipItem, Axis } from 'layerchart';
+	// layerchart removed — using inline SVG area chart below
 	import { 
 		TrendingUp, 
 		Clock, 
@@ -11,13 +11,14 @@
 		ChevronLeft,
 		Calendar,
 		ArrowUpRight,
-		CheckSquare
+		CheckSquare,
+		Users
 	} from 'lucide-svelte';
 	import { format, parseISO } from 'date-fns';
 
 	let loading = $state(true);
 	let data = $state<any>(null);
-	const userId = parseInt($page.params.id);
+	const userId = parseInt($page.params.id ?? '0');
 
 	onMount(async () => {
 		try {
@@ -176,44 +177,46 @@
 					</div>
 
 					<div class="h-[400px] w-full">
-						{#if data.trend_data.length > 0}
-							<AreaChart 
-								data={data.trend_data} 
-								x="date" 
-								y="completed_count"
-								padding={{ bottom: 30, left: 30 }}
-								props={{
-									area: {
-										class: "fill-primary-500/10"
-									},
-									line: {
-										class: "stroke-primary-500 stroke-2"
-									},
-									grid: {
-										class: "stroke-gray-800/50"
-									}
-								}}
-							>
-								{#snippet tooltip()}
-									<Tooltip>
-										{#snippet children({ data })}
-											<div class="bg-gray-950 border border-gray-800 p-3 rounded-lg shadow-2xl">
-												<p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-													{format(parseISO(data.date), 'MMMM d, yyyy')}
-												</p>
-												<TooltipItem label="Completed" value={data.completed_count} color="rgb(59 130 246)" />
-											</div>
-										{/snippet}
-									</Tooltip>
-								{/snippet}
-							</AreaChart>
-						{:else}
-							<div class="h-full flex flex-col items-center justify-center text-gray-500 gap-3 border-2 border-dashed border-gray-800 rounded-xl">
-								<Calendar size={32} class="opacity-20" />
-								<p class="text-sm">Not enough data to show trend</p>
-							</div>
-						{/if}
-					</div>
+					{#if data.trend_data.length > 0}
+						{@const W = 600}
+						{@const H = 300}
+						{@const pad = { top: 20, right: 20, bottom: 40, left: 40 }}
+						{@const innerW = W - pad.left - pad.right}
+						{@const innerH = H - pad.top - pad.bottom}
+						{@const maxCount = Math.max(...data.trend_data.map((d: any) => d.completed_count), 1)}
+						{@const stepX = innerW / Math.max(data.trend_data.length - 1, 1)}
+						{@const pts = data.trend_data.map((d: any, i: number) => [pad.left + i * stepX, pad.top + innerH - (d.completed_count / maxCount) * innerH] as [number,number])}
+						{@const polyline = pts.map(([x,y]: [number,number]) => `${x},${y}`).join(' ')}
+						{@const areaPath = `M ${pts[0][0]},${pad.top + innerH} ` + pts.map(([x,y]: [number,number]) => `L ${x},${y}`).join(' ') + ` L ${pts[pts.length-1][0]},${pad.top + innerH} Z`}
+						<svg viewBox="0 0 {W} {H}" class="w-full h-full">
+							<defs>
+								<linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+									<stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
+									<stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+								</linearGradient>
+							</defs>
+							<!-- Grid lines -->
+							{#each [0, 0.25, 0.5, 0.75, 1] as frac}
+								<line x1={pad.left} y1={pad.top + innerH * (1 - frac)} x2={pad.left + innerW} y2={pad.top + innerH * (1 - frac)} stroke="#1f2937" stroke-width="1"/>
+								<text x={pad.left - 6} y={pad.top + innerH * (1 - frac) + 4} text-anchor="end" font-size="9" fill="#6b7280">{Math.round(maxCount * frac)}</text>
+							{/each}
+							<!-- Area fill -->
+							<path d={areaPath} fill="url(#areaGrad)"/>
+							<!-- Line -->
+							<polyline points={polyline} fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="round"/>
+							<!-- Data points + x labels -->
+							{#each pts as [x, y], i}
+								<circle cx={x} cy={y} r="3" fill="#6366f1"/>
+								<text x={x} y={H - 8} text-anchor="middle" font-size="9" fill="#6b7280">{format(parseISO(data.trend_data[i].date), 'MMM d')}</text>
+							{/each}
+						</svg>
+					{:else}
+						<div class="h-full flex flex-col items-center justify-center text-gray-500 gap-3 border-2 border-dashed border-gray-800 rounded-xl">
+							<Calendar size={32} class="opacity-20" />
+							<p class="text-sm">Not enough data to show trend</p>
+						</div>
+					{/if}
+				</div>
 				</div>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">

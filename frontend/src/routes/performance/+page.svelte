@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { performance } from '$lib/api';
-	import { BarChart, Tooltip, TooltipItem } from 'layerchart';
+	// layerchart removed — using inline SVG bar chart below
 	import { 
 		TrendingUp, 
 		Clock, 
@@ -76,39 +76,47 @@
 		<!-- Workload Chart -->
 		<div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6">
 			<h3 class="text-lg font-semibold text-white mb-6">Team Workload Distribution</h3>
-			<div class="h-[300px] w-full">
-				<BarChart 
-					data={data.team_metrics} 
-					x="full_name" 
-					y="active_tasks"
-					padding={{ bottom: 20 }}
-					props={{
-						bars: {
-							class: "fill-primary-500/40 hover:fill-primary-500 transition-colors cursor-pointer",
-							radius: 4
-						},
-						xAxis: {
-							class: "text-[10px] text-gray-500"
-						},
-						yAxis: {
-							class: "text-[10px] text-gray-500"
-						},
-						grid: {
-							class: "stroke-gray-800"
-						}
-					}}
-				>
-					{#snippet tooltip()}
-						<Tooltip>
-							{#snippet children({ data })}
-								<div class="bg-gray-900 border border-gray-800 p-3 rounded-lg shadow-xl">
-									<p class="text-sm font-bold text-white mb-1">{data.full_name}</p>
-									<TooltipItem label="Active Tasks" value={data.active_tasks} color="rgb(59 130 246)" />
-								</div>
-							{/snippet}
-						</Tooltip>
-					{/snippet}
-				</BarChart>
+			<div class="h-[300px] w-full overflow-x-auto">
+				{#if data.team_metrics.length > 0}
+					{@const maxVal = Math.max(...data.team_metrics.map((m: any) => m.active_tasks), 1)}
+					{@const barW = Math.max(40, Math.min(80, Math.floor(560 / data.team_metrics.length) - 12))}
+					{@const chartH = 220}
+					<svg
+						viewBox="0 0 {data.team_metrics.length * (barW + 12) + 40} {chartH + 40}"
+						class="w-full h-full"
+						overflow="visible"
+					>
+						{#each data.team_metrics as member, i}
+							{@const barH = Math.max(4, (member.active_tasks / maxVal) * chartH)}
+							{@const x = 20 + i * (barW + 12)}
+							{@const y = chartH - barH}
+							<rect
+								x={x}
+								y={y}
+								width={barW}
+								height={barH}
+								rx="4"
+								class="fill-primary-500/40 hover:fill-primary-500 transition-colors cursor-pointer"
+							/>
+							<text
+								x={x + barW / 2}
+								y={chartH + 16}
+								text-anchor="middle"
+								class="fill-gray-500 text-[10px]"
+								font-size="10"
+							>{member.full_name.split(' ')[0]}</text>
+							<text
+								x={x + barW / 2}
+								y={y - 4}
+								text-anchor="middle"
+								class="fill-gray-400"
+								font-size="11"
+							>{member.active_tasks}</text>
+						{/each}
+					</svg>
+				{:else}
+					<div class="flex items-center justify-center h-full text-gray-500 text-sm">No workload data</div>
+				{/if}
 			</div>
 		</div>
 
