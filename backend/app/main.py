@@ -1,21 +1,36 @@
+import asyncio
+import logging
+import sys
 from contextlib import asynccontextmanager
 
+from alembic import command
+from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
-from app.database import Base, engine
 from app.limiter import limiter
 from app.routers import ai, auth, chat, dashboard, milestones, notifications, projects, schedules, tasks, users, websocket as ws_router
 from app.scheduler_jobs import shutdown_scheduler, start_scheduler
 
+logger = logging.getLogger(__name__)
+
+
+def run_migrations() -> None:
+    alembic_cfg = AlembicConfig("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    command.upgrade(alembic_cfg, "head")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        await asyncio.to_thread(run_migrations)
+    except Exception as exc:
+        logger.error("Alembic migration failed: %s", exc)
+        sys.exit(1)
     start_scheduler()
     try:
         yield
