@@ -25,7 +25,7 @@
 	let filterStatus = '';
 	let filterMine = false;
 	let viewMode: ViewMode = 'list';
-	let aiMode: 'form' | 'nlp' | 'json' = 'form';
+	let aiMode: 'form' | 'nlp' | 'json' | 'breakdown' = 'form';
 
 	const VIEW_KEY = 'tasks_view_mode';
 
@@ -359,7 +359,7 @@
 
 			<div class="p-5">
 				{#if !editingTask}
-					<AiTaskInput bind:mode={aiMode} onParsed={applyParsed}>
+					<AiTaskInput bind:mode={aiMode} onParsed={applyParsed} {projectList} {milestoneList} {userList}>
 						<form on:submit|preventDefault={handleSubmit} class="space-y-4">
 							<!-- Form fields (shared with edit mode) -->
 							<div>

@@ -77,6 +77,11 @@ export const tasks = {
 		request('/tasks/ai-parse', {
 			method: 'POST',
 			body: JSON.stringify({ input, mode, ...(model ? { model } : {}) })
+		}),
+	aiBreakdown: (description: string, projectId: number) =>
+		request('/tasks/ai-breakdown', {
+			method: 'POST',
+			body: JSON.stringify({ description, project_id: projectId })
 		})
 };
 
@@ -120,7 +125,12 @@ export const ai = {
 			body: JSON.stringify({ content })
 		}),
 	quickChat: (content: string) =>
-		request('/ai/quick-chat', { method: 'POST', body: JSON.stringify({ content }) })
+		request('/ai/quick-chat', { method: 'POST', body: JSON.stringify({ content }) }),
+	projectSummary: (projectId: number) =>
+		request('/ai/project-summary', {
+			method: 'POST',
+			body: JSON.stringify({ project_id: projectId })
+		})
 };
 
 // Chat

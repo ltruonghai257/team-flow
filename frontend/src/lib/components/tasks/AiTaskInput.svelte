@@ -1,12 +1,96 @@
 <script lang="ts">
 	import { tasks as tasksApi } from '$lib/api';
-	import { Sparkles, Code2, FormInput } from 'lucide-svelte';
+	import { Sparkles, Code2, FormInput, Layers } from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
+	import SubtaskCard from './SubtaskCard.svelte';
 
 	export let onParsed: (fields: Record<string, any>) => void = () => {};
+	export let projectList: any[] = [];
+	export let milestoneList: any[] = [];
+	export let userList: any[] = [];
 
-	type Mode = 'form' | 'nlp' | 'json';
+	type Mode = 'form' | 'nlp' | 'json' | 'breakdown';
 	export let mode: Mode = 'form';
+
+	type SubtaskDraft = {
+		title: string;
+		priority: string;
+		estimated_hours: number;
+		description: string;
+		milestone_id: string;
+	};
+
+	let breakdownProject = '';
+	let breakdownMilestone = '';
+	let breakdownAssignee = '';
+	let breakdownDescription = '';
+	let breakdownLoading = false;
+	let subtasks: SubtaskDraft[] = [];
+	let batchProgress = { current: 0, total: 0, running: false };
+
+	$: filteredMilestones = breakdownProject
+		? milestoneList.filter((m: any) => m.project_id === Number(breakdownProject))
+		: milestoneList;
+
+	async function breakdown() {
+		if (!breakdownProject || !breakdownDescription.trim()) return;
+		breakdownLoading = true;
+		try {
+			const result = (await tasksApi.aiBreakdown(
+				breakdownDescription,
+				Number(breakdownProject)
+			)) as { subtasks: any[] };
+			subtasks = result.subtasks.map((s) => ({
+				...s,
+				estimated_hours: s.estimated_hours ?? 0,
+				milestone_id: breakdownMilestone
+			}));
+		} catch {
+			toast.error('AI breakdown failed — please try again');
+		} finally {
+			breakdownLoading = false;
+		}
+	}
+
+	async function createAll() {
+		batchProgress = { current: 0, total: subtasks.length, running: true };
+		let successCount = 0;
+		for (let i = 0; i < subtasks.length; i++) {
+			batchProgress = { ...batchProgress, current: i + 1 };
+			try {
+				await tasksApi.create({
+					title: subtasks[i].title,
+					description: subtasks[i].description || null,
+					priority: subtasks[i].priority,
+					estimated_hours: subtasks[i].estimated_hours || null,
+					project_id: Number(breakdownProject),
+					milestone_id: subtasks[i].milestone_id ? Number(subtasks[i].milestone_id) : null,
+					assignee_id: breakdownAssignee ? Number(breakdownAssignee) : null
+				});
+				successCount++;
+			} catch {
+				// continue on individual failure
+			}
+		}
+		const total = subtasks.length;
+		batchProgress = { current: 0, total: 0, running: false };
+		if (successCount < total) {
+			toast.error("Some tasks couldn't be created — check project settings");
+		} else {
+			toast.success(`Created ${successCount} tasks successfully`);
+		}
+		subtasks = [];
+		breakdownDescription = '';
+	}
+
+	function updateSubtask(index: number, updated: SubtaskDraft) {
+		subtasks = subtasks.map((s, i) => (i === index ? updated : s));
+	}
+
+	function removeSubtask(index: number) {
+		subtasks = subtasks.filter((_, i) => i !== index);
+	}
 
 	const MODEL_KEY = 'ai_parse_model';
 	const models = [
@@ -93,10 +177,102 @@
 		>
 			<Code2 size={14} /> JSON
 		</button>
+		<button
+			type="button"
+			on:click={() => (mode = 'breakdown')}
+			title="Break down task with AI"
+			class="px-3 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 {mode ===
+			'breakdown'
+				? 'border-primary-500 text-primary-400'
+				: 'border-transparent text-gray-400 hover:text-gray-200'}"
+		>
+			<Layers size={14} /> Breakdown
+		</button>
 	</div>
 </div>
 
-{#if mode === 'nlp'}
+{#if mode === 'breakdown'}
+	<div class="space-y-3">
+		<div>
+			<label class="label" for="bd-project">Project</label>
+			<select id="bd-project" bind:value={breakdownProject} class="input" required>
+				<option value="">Select a project</option>
+				{#each projectList as p}
+					<option value={String(p.id)}>{p.name}</option>
+				{/each}
+			</select>
+		</div>
+		<div>
+			<label class="label" for="bd-milestone">Default Milestone</label>
+			<select id="bd-milestone" bind:value={breakdownMilestone} class="input">
+				<option value="">No milestone</option>
+				{#each filteredMilestones as m}
+					<option value={String(m.id)}>{m.title}</option>
+				{/each}
+			</select>
+		</div>
+		<div>
+			<label class="label" for="bd-assignee">Assign all to</label>
+			<select id="bd-assignee" bind:value={breakdownAssignee} class="input">
+				<option value="">Unassigned</option>
+				{#each userList as u}
+					<option value={String(u.id)}>{u.full_name}</option>
+				{/each}
+			</select>
+		</div>
+		<div>
+			<label class="label" for="bd-desc">What do you want to build?</label>
+			<textarea
+				id="bd-desc"
+				bind:value={breakdownDescription}
+				class="input resize-none"
+				rows="4"
+				placeholder="Describe the feature or work to break down into tasks..."
+			></textarea>
+		</div>
+		<button
+			type="button"
+			on:click={breakdown}
+			disabled={breakdownLoading || !breakdownProject || !breakdownDescription.trim()}
+			class="btn-primary w-full justify-center"
+		>
+			{#if breakdownLoading}
+				<span aria-hidden="true" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+			{:else}
+				Break down with AI
+			{/if}
+		</button>
+
+		{#if subtasks.length > 0}
+			<div class="space-y-3 mt-4">
+				{#each subtasks as subtask, i}
+					<SubtaskCard
+						{subtask}
+						milestoneList={filteredMilestones}
+						on:update={(e) => updateSubtask(i, e.detail)}
+						on:remove={() => removeSubtask(i)}
+					/>
+				{/each}
+			</div>
+
+			{#if batchProgress.running}
+				<p class="text-center text-xs text-gray-400 py-2">
+					Creating {batchProgress.current} of {batchProgress.total}...
+				</p>
+			{:else}
+				<button
+					type="button"
+					on:click={createAll}
+					class="btn-primary w-full justify-center mt-2"
+				>
+					Create All ({subtasks.length} tasks)
+				</button>
+			{/if}
+		{:else if !breakdownLoading && breakdownDescription}
+			<p class="text-sm text-gray-500 text-center py-4">All subtasks removed. Break down again to start over.</p>
+		{/if}
+	</div>
+{:else if mode === 'nlp'}
 	<div class="space-y-3">
 		<div>
 			<label class="label" for="ai-model">AI Model</label>
