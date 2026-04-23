@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from '../helpers/auth';
 
 test.describe('Task modal on mobile keyboard (375px)', () => {
 	test.use({ viewport: { width: 375, height: 812 } });
+
+	test.beforeEach(async ({ page }) => {
+		await loginAs(page);
+	});
 
 	test('task modal is visible and height is keyboard-safe', async ({ page }) => {
 		await page.goto('/tasks');

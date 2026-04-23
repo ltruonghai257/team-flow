@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from '../helpers/auth';
 
 test.describe('Mobile sidebar (375px)', () => {
 	test.use({ viewport: { width: 375, height: 812 } });
 
 	test.beforeEach(async ({ page }) => {
-		// Go to login page and authenticate
-		await page.goto('/login');
+		await loginAs(page);
 	});
 
 	test('hamburger button is visible and sidebar is hidden on load', async ({ page }) => {

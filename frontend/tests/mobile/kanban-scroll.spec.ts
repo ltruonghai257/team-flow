@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from '../helpers/auth';
 
 test.describe('Kanban horizontal scroll on mobile (375px)', () => {
 	test.use({ viewport: { width: 375, height: 812 } });
+
+	test.beforeEach(async ({ page }) => {
+		await loginAs(page);
+	});
 
 	test('kanban board scrolls horizontally', async ({ page }) => {
 		await page.goto('/tasks');
