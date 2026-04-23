@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import litellm
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,10 +12,16 @@ from sqlalchemy.orm import selectinload
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
+from app.limiter import limiter
 from app.models import Task, TaskPriority, TaskStatus, User
-from app.schemas import AiParseRequest, AiParseResponse, TaskCreate, TaskOut, TaskUpdate
+from app.schemas import AiBreakdownRequest, AiBreakdownResponse, AiBreakdownSubtask, AiParseRequest, AiParseResponse, TaskCreate, TaskOut, TaskUpdate
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+_AI_BREAKDOWN_SYSTEM_PROMPT = """You are a task breakdown assistant. The user describes a feature or work item.
+Decompose it into 3–8 concrete subtasks. Respond with ONLY a valid JSON array (no markdown, no prose):
+[{"title":"...", "priority":"low|medium|high|critical", "estimated_hours": integer, "description":"1-2 sentences"}]
+Return between 3 and 8 items. No code fences. No explanations."""
 
 _AI_PARSE_SYSTEM_PROMPT = """You are a task extraction assistant. The user will describe a task in natural language.
 Extract the task fields and respond with ONLY a valid JSON object (no markdown, no prose) matching this schema:
@@ -157,6 +163,74 @@ async def delete_task(
         raise HTTPException(status_code=404, detail="Task not found")
     await db.delete(task)
     await db.flush()
+
+
+def _coerce_ai_breakdown(raw: list) -> list[AiBreakdownSubtask]:
+    """Normalize a raw list into AiBreakdownSubtask items, dropping invalid entries."""
+    valid_priority = {p.value for p in TaskPriority}
+    result = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title", "")).strip()[:200]
+        if not title:
+            continue
+        priority = item.get("priority", "medium")
+        if not isinstance(priority, str) or priority not in valid_priority:
+            priority = "medium"
+        hours = item.get("estimated_hours", 0)
+        if not isinstance(hours, (int, float)) or hours < 0:
+            hours = 0
+        description = str(item.get("description", ""))[:500]
+        result.append(AiBreakdownSubtask(
+            title=title,
+            priority=priority,
+            estimated_hours=int(hours),
+            description=description,
+        ))
+    return result[:8]
+
+
+@router.post("/ai-breakdown", response_model=AiBreakdownResponse)
+@limiter.limit("30/minute")
+async def ai_breakdown(
+    request: Request,
+    payload: AiBreakdownRequest,
+    _: User = Depends(get_current_user),
+):
+    try:
+        response = await litellm.acompletion(
+            model=settings.AI_MODEL,
+            messages=[
+                {"role": "system", "content": _AI_BREAKDOWN_SYSTEM_PROMPT},
+                {"role": "user", "content": payload.description},
+            ],
+            temperature=0.4,
+        )
+        content = response.choices[0].message.content or ""
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI service error: {e}")
+
+    content = content.strip()
+    fence_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", content, re.DOTALL)
+    if fence_match:
+        content = fence_match.group(1)
+    else:
+        arr_match = re.search(r"\[.*\]", content, re.DOTALL)
+        if arr_match:
+            content = arr_match.group(0)
+
+    try:
+        data = json.loads(content)
+        if not isinstance(data, list):
+            raise ValueError("Expected JSON array")
+    except (json.JSONDecodeError, ValueError):
+        raise HTTPException(status_code=502, detail="AI did not return a valid JSON array")
+
+    subtasks = _coerce_ai_breakdown(data)
+    if not subtasks:
+        raise HTTPException(status_code=502, detail="AI returned no valid subtasks")
+    return AiBreakdownResponse(subtasks=subtasks)
 
 
 @router.post("/ai-parse", response_model=AiParseResponse)

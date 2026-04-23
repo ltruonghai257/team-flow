@@ -377,6 +377,42 @@ class UserPerformanceDetail(BaseModel):
     recent_completed_tasks: List[TaskOut]
 
 
+# ── AI Breakdown ──────────────────────────────────────────────────────────────
+
+class AiBreakdownRequest(BaseModel):
+    description: str
+    project_id: int
+
+
+class AiBreakdownSubtask(BaseModel):
+    title: str
+    priority: str
+    estimated_hours: int
+    description: str
+
+
+class AiBreakdownResponse(BaseModel):
+    subtasks: List[AiBreakdownSubtask]
+
+
+# ── Project Summary ───────────────────────────────────────────────────────────
+
+class ProjectSummaryRequest(BaseModel):
+    project_id: int
+
+
+class ProjectSummarySections(BaseModel):
+    milestone_progress: str
+    recent_completions: str
+    overdue: str
+    at_risk: str
+
+
+class ProjectSummaryResponse(BaseModel):
+    summary: str
+    sections: ProjectSummarySections
+
+
 # ── Timeline ──────────────────────────────────────────────────────────────────
 
 class TimelineTaskOut(BaseModel):
