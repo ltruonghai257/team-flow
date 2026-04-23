@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { projects as projectsApi } from '$lib/api';
+	import { projects as projectsApi, ai as aiApi } from '$lib/api';
 	import { formatDate } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import { Plus, Pencil, Trash2, X, FolderOpen } from 'lucide-svelte';
+	import { Plus, Pencil, Trash2, X, FolderOpen, Sparkles } from 'lucide-svelte';
+	import { slide } from 'svelte/transition';
 
 	let projectList: any[] = [];
 	let loading = true;
@@ -11,6 +12,32 @@
 	let editingProject: any = null;
 
 	let form = { name: '', description: '', color: '#6366f1' };
+
+	let summaryMap: Record<number, { summary: string; sections: any } | null> = {};
+	let loadingMap: Record<number, boolean> = {};
+	let expandedMap: Record<number, boolean> = {};
+
+	async function summarizeProject(projectId: number) {
+		loadingMap[projectId] = true;
+		loadingMap = loadingMap;
+		try {
+			const result = await aiApi.projectSummary(projectId);
+			summaryMap[projectId] = result;
+			expandedMap[projectId] = true;
+			summaryMap = summaryMap;
+			expandedMap = expandedMap;
+		} catch {
+			toast.error("Couldn't summarize project — please try again");
+		} finally {
+			loadingMap[projectId] = false;
+			loadingMap = loadingMap;
+		}
+	}
+
+	function toggleSummary(projectId: number) {
+		expandedMap[projectId] = !expandedMap[projectId];
+		expandedMap = expandedMap;
+	}
 
 	const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#ec4899', '#14b8a6'];
 
@@ -46,7 +73,7 @@
 			}
 			showModal = false;
 			projectList = await projectsApi.list();
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}
@@ -57,7 +84,7 @@
 			await projectsApi.delete(id);
 			toast.success('Project deleted');
 			projectList = await projectsApi.list();
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}
@@ -111,11 +138,66 @@
 					{#if p.description}
 						<p class="text-sm text-gray-400 line-clamp-2">{p.description}</p>
 					{/if}
-					<div class="mt-3 pt-3 border-t border-gray-800 flex gap-2">
+					<div class="mt-3 pt-3 border-t border-gray-800 flex gap-2 items-center flex-wrap">
 						<a href="/tasks?project_id={p.id}" class="text-xs text-gray-500 hover:text-primary-400 transition-colors">View Tasks →</a>
 						<span class="text-gray-700">·</span>
 						<a href="/milestones?project_id={p.id}" class="text-xs text-gray-500 hover:text-primary-400 transition-colors">Milestones →</a>
+						<span class="text-gray-700">·</span>
+						{#if summaryMap[p.id]}
+							<button
+								type="button"
+								on:click={() => toggleSummary(p.id)}
+								aria-expanded={expandedMap[p.id] ?? false}
+								aria-label="{expandedMap[p.id] ? 'Hide' : 'Show'} summary for {p.name}"
+								class="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-primary-400 transition-colors"
+							>
+								<Sparkles size={12} />
+								{expandedMap[p.id] ? 'Hide Summary' : 'Show Summary'}
+							</button>
+						{:else}
+							<button
+								type="button"
+								on:click={() => summarizeProject(p.id)}
+								disabled={loadingMap[p.id]}
+								aria-label="Summarize {p.name}"
+								class="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-primary-400 transition-colors disabled:cursor-not-allowed"
+							>
+								{#if loadingMap[p.id]}
+									<span aria-hidden="true" class="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></span>
+									Summarizing...
+								{:else}
+									<Sparkles size={12} />
+									Summarize
+								{/if}
+							</button>
+						{/if}
 					</div>
+
+					{#if summaryMap[p.id] && expandedMap[p.id]}
+						<div
+							transition:slide={{ duration: 200 }}
+							class="mt-3 pt-3 border-t border-gray-700/50 bg-gray-800/40 rounded-b-lg -mx-5 -mb-5 px-5 pb-4"
+						>
+							<div class="space-y-3">
+								<div>
+									<p class="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-1">Milestone Progress</p>
+									<p class="text-sm text-gray-400">{summaryMap[p.id]?.sections?.milestone_progress}</p>
+								</div>
+								<div>
+									<p class="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-1">Recent Completions</p>
+									<p class="text-sm text-gray-400">{summaryMap[p.id]?.sections?.recent_completions}</p>
+								</div>
+								<div>
+									<p class="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-1">Overdue</p>
+									<p class="text-sm text-gray-400">{summaryMap[p.id]?.sections?.overdue}</p>
+								</div>
+								<div>
+									<p class="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-1">At-Risk</p>
+									<p class="text-sm text-gray-400">{summaryMap[p.id]?.sections?.at_risk}</p>
+								</div>
+							</div>
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
