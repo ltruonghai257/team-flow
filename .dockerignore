@@ -1,0 +1,17 @@
+.git
+.planning
+.windsurf
+.claude
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/node_modules
+frontend/build
+backend/.env
+backend/.env.azure.example
+*.md
+.gitignore
+docker-compose.yml
+test-results/
+tests/
