@@ -7,6 +7,10 @@ Creates:
   - 2 milestones per project
   - ~16 tasks spread across milestones and assignees, with varied
     statuses, due dates (past, present, future), and one unscheduled task
+  - notifications for each user
+  - chat messages across projects
+  - schedules for each user
+  - 1 pending team invite
 
 Run from the backend directory:
     python -m app.scripts.seed_demo
@@ -15,6 +19,7 @@ Safe to re-run — skips creation if data already exists (checks by email).
 """
 
 import asyncio
+import secrets
 from datetime import datetime, timedelta, timezone
 
 
@@ -31,7 +36,9 @@ async def main() -> None:
     from app.database import AsyncSessionLocal
     from app.models import (
         User, UserRole, Project, Milestone, MilestoneStatus, Task,
-        TaskStatus, TaskPriority,
+        TaskStatus, TaskPriority, NotificationStatus, NotificationEventType,
+        EventNotification, Schedule, ChatChannel, ChatChannelMember,
+        ChatConversation, ChatMessage, TeamInvite, InviteStatus,
     )
     from app.auth import hash_password
 
@@ -192,6 +199,218 @@ async def main() -> None:
                 print(f"  created task: {td['title']}")
             else:
                 print(f"  skipped task (exists): {td['title']}")
+
+        # ------------------------------------------------------------------
+        # Schedules
+        # ------------------------------------------------------------------
+        schedules_data = [
+            dict(user=users["supervisor"], title="Sprint Planning",        start_time=_days(1),  end_time=_days(1)  + timedelta(hours=1),   color="#6366f1", description="Plan the upcoming sprint with the team"),
+            dict(user=users["supervisor"], title="1:1 with Alice",         start_time=_days(2),  end_time=_days(2)  + timedelta(hours=1),   color="#f59e0b", description="Weekly check-in"),
+            dict(user=users["supervisor"], title="Release Review",         start_time=_days(14), end_time=_days(14) + timedelta(hours=2),   color="#10b981", description="v1.0 launch review meeting"),
+            dict(user=users["alice"],      title="API Design Session",     start_time=_days(1),  end_time=_days(1)  + timedelta(hours=2),   color="#6366f1", description="Design REST endpoints for mobile"),
+            dict(user=users["alice"],      title="Code Review",            start_time=_days(3),  end_time=_days(3)  + timedelta(hours=1),   color="#f59e0b"),
+            dict(user=users["bob"],        title="Backend Sync",           start_time=_days(1),  end_time=_days(1)  + timedelta(hours=1),   color="#6366f1"),
+            dict(user=users["bob"],        title="Push Notification Spike", start_time=_days(5), end_time=_days(5)  + timedelta(hours=3),   color="#ef4444", description="Research FCM / APNS setup"),
+            dict(user=users["carol"],      title="Design Review",          start_time=_days(2),  end_time=_days(2)  + timedelta(hours=1),   color="#a855f7", description="Review new color palette"),
+            dict(user=users["carol"],      title="All Hands",              start_time=_days(7),  end_time=_days(7)  + timedelta(hours=1),   color="#10b981", all_day=False),
+        ]
+        schedule_objs: list[Schedule] = []
+        for sd in schedules_data:
+            user = sd.pop("user")
+            result = await db.execute(
+                select(Schedule).where(Schedule.title == sd["title"], Schedule.user_id == user.id)
+            )
+            s = result.scalar_one_or_none()
+            if not s:
+                s = Schedule(**sd, user_id=user.id)
+                db.add(s)
+                await db.flush()
+                print(f"  created schedule: {sd['title']} for {user.username}")
+            else:
+                print(f"  skipped schedule (exists): {sd['title']}")
+            schedule_objs.append(s)
+
+        # ------------------------------------------------------------------
+        # Event Notifications (reminders)
+        # ------------------------------------------------------------------
+        result = await db.execute(
+            select(EventNotification).where(EventNotification.user_id == users["supervisor"].id)
+        )
+        if not result.scalars().first():
+            notif_data = [
+                # sent (past remind_at) — show immediately in the bell
+                dict(user=users["supervisor"], title="Fix overdue bug is past due!",
+                     event_type=NotificationEventType.task,    event_ref_id=1,
+                     start_at=_days(-3), remind_at=_days(-3),  status=NotificationStatus.sent),
+                dict(user=users["supervisor"], title="Reminder: Release Review in 15 min",
+                     event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[0].id,
+                     start_at=_days(1),  remind_at=_now() - timedelta(minutes=5), status=NotificationStatus.sent),
+                dict(user=users["alice"],      title="Reminder: Code Review starts soon",
+                     event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[4].id,
+                     start_at=_days(3),  remind_at=_now() - timedelta(minutes=2), status=NotificationStatus.sent),
+                dict(user=users["bob"],        title="Backend Sync starts in 15 min",
+                     event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[5].id,
+                     start_at=_days(1),  remind_at=_now() - timedelta(minutes=1), status=NotificationStatus.sent),
+                dict(user=users["carol"],      title="Design Review: reminder",
+                     event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[7].id,
+                     start_at=_days(2),  remind_at=_now() - timedelta(minutes=3), status=NotificationStatus.sent),
+                # pending (future remind_at) — activated by scheduler later
+                dict(user=users["supervisor"], title="Sprint Planning starts in 15 min",
+                     event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[0].id,
+                     start_at=_days(1),  remind_at=_days(1) - timedelta(minutes=15), status=NotificationStatus.pending),
+                dict(user=users["alice"],      title="API Design Session in 15 min",
+                     event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[3].id,
+                     start_at=_days(1),  remind_at=_days(1) - timedelta(minutes=15), status=NotificationStatus.pending),
+            ]
+            for nd in notif_data:
+                user   = nd.pop("user")
+                start  = nd.pop("start_at")
+                status = nd.pop("status")
+                db.add(EventNotification(
+                    user_id=user.id,
+                    event_type=nd["event_type"],
+                    event_ref_id=nd["event_ref_id"],
+                    title_cache=nd["title"],
+                    start_at_cache=start,
+                    remind_at=nd["remind_at"],
+                    status=status,
+                ))
+            await db.flush()
+            print("  created event notifications")
+        else:
+            print("  skipped notifications (exist)")
+
+        # ------------------------------------------------------------------
+        # Chat channels
+        # ------------------------------------------------------------------
+        channels_data = [
+            dict(name="general",   description="Team-wide announcements and discussion"),
+            dict(name="backend",   description="Backend engineering channel"),
+            dict(name="design",    description="Design and frontend channel"),
+            dict(name="random",    description="Off-topic and fun"),
+        ]
+        channels: dict[str, ChatChannel] = {}
+        for cd in channels_data:
+            result = await db.execute(select(ChatChannel).where(ChatChannel.name == cd["name"]))
+            ch = result.scalar_one_or_none()
+            if not ch:
+                ch = ChatChannel(**cd, created_by=users["supervisor"].id)
+                db.add(ch)
+                await db.flush()
+                print(f"  created channel: #{cd['name']}")
+            else:
+                print(f"  skipped channel (exists): #{cd['name']}")
+            channels[cd["name"]] = ch
+
+        # Add all users to general; relevant users to other channels
+        memberships = [
+            (channels["general"], [users["supervisor"], users["alice"], users["bob"], users["carol"]]),
+            (channels["backend"], [users["supervisor"], users["alice"], users["bob"]]),
+            (channels["design"],  [users["supervisor"], users["alice"], users["carol"]]),
+            (channels["random"],  [users["supervisor"], users["alice"], users["bob"], users["carol"]]),
+        ]
+        for ch, members in memberships:
+            for u in members:
+                result = await db.execute(
+                    select(ChatChannelMember).where(
+                        ChatChannelMember.channel_id == ch.id,
+                        ChatChannelMember.user_id == u.id,
+                    )
+                )
+                if not result.scalar_one_or_none():
+                    db.add(ChatChannelMember(channel_id=ch.id, user_id=u.id))
+        await db.flush()
+
+        # Channel messages
+        result = await db.execute(
+            select(ChatMessage).where(ChatMessage.channel_id == channels["general"].id)
+        )
+        if not result.scalars().first():
+            msgs = [
+                (users["supervisor"], channels["general"], "Hey team! Sprint 3 kicks off today. Check the board for your tasks."),
+                (users["alice"],      channels["general"], "On it! I'll start with the CI/CD pipeline setup."),
+                (users["bob"],        channels["general"], "I'll pick up the API documentation."),
+                (users["carol"],      channels["general"], "Starting the performance load tests. Will update by EOD."),
+                (users["supervisor"], channels["backend"],  "Alice, can you take a look at the scheduler bug? It's marked critical."),
+                (users["alice"],      channels["backend"],  "Already on it — looks like a timezone edge case. Will have a fix by tomorrow."),
+                (users["bob"],        channels["backend"],  "I can help review the fix once it's ready."),
+                (users["alice"],      channels["design"],   "Color palette PR is up for review — link in the task."),
+                (users["carol"],      channels["design"],   "Looks great! Left some comments on the contrast ratios."),
+                (users["supervisor"], channels["random"],   "Anyone catch the game last night? 🏀"),
+                (users["bob"],        channels["random"],   "Missed it — was deep in push notification docs 😅"),
+                (users["carol"],      channels["random"],   "Same, deadline mode activated lol"),
+            ]
+            offset = 120
+            for sender, ch, content in msgs:
+                db.add(ChatMessage(
+                    sender_id=sender.id,
+                    channel_id=ch.id,
+                    content=content,
+                    created_at=_now() - timedelta(minutes=offset),
+                ))
+                offset -= 8
+            await db.flush()
+            print("  created channel messages")
+        else:
+            print("  skipped channel messages (exist)")
+
+        # ------------------------------------------------------------------
+        # Direct messages (supervisor <-> alice)
+        # ------------------------------------------------------------------
+        result = await db.execute(
+            select(ChatConversation).where(
+                ChatConversation.user_a_id == users["supervisor"].id,
+                ChatConversation.user_b_id == users["alice"].id,
+            )
+        )
+        dm = result.scalar_one_or_none()
+        if not dm:
+            dm = ChatConversation(
+                user_a_id=users["supervisor"].id,
+                user_b_id=users["alice"].id,
+            )
+            db.add(dm)
+            await db.flush()
+            dm_msgs = [
+                (users["supervisor"], "Hey Alice, how's the scheduler bug coming along?"),
+                (users["alice"],      "Almost done — it's a UTC vs local time mismatch. Fix ready for review shortly."),
+                (users["supervisor"], "Great, that's the blocker for the release. Thanks!"),
+                (users["alice"],      "No worries, I'll tag you in the PR."),
+            ]
+            offset = 45
+            for sender, content in dm_msgs:
+                db.add(ChatMessage(
+                    sender_id=sender.id,
+                    conversation_id=dm.id,
+                    content=content,
+                    created_at=_now() - timedelta(minutes=offset),
+                ))
+                offset -= 10
+            await db.flush()
+            print("  created DM conversation (supervisor <-> alice)")
+        else:
+            print("  skipped DM (exists)")
+
+        # ------------------------------------------------------------------
+        # Pending team invite
+        # ------------------------------------------------------------------
+        result = await db.execute(
+            select(TeamInvite).where(TeamInvite.email == "newmember@demo.com")
+        )
+        if not result.scalar_one_or_none():
+            db.add(TeamInvite(
+                email="newmember@demo.com",
+                role=UserRole.member,
+                token=secrets.token_urlsafe(32),
+                validation_code="482910",
+                status=InviteStatus.pending,
+                invited_by_id=users["supervisor"].id,
+                expires_at=_days(3),
+            ))
+            await db.flush()
+            print("  created pending invite: newmember@demo.com")
+        else:
+            print("  skipped invite (exists)")
 
         await db.commit()
         print("\nDone. Login with:")

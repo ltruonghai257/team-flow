@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Bell, X } from 'lucide-svelte';
-	import { notificationStore, unreadCount } from '$lib/stores/notifications';
+	import { goto } from '$app/navigation';
+	import { notificationStore, unreadCount, type NotificationItem } from '$lib/stores/notifications';
 	import { formatDateTime } from '$lib/utils';
 
 	let open = false;
@@ -13,7 +14,8 @@
 		open = false;
 	}
 
-	async function dismissOne(id: number) {
+	async function dismissOne(e: MouseEvent, id: number) {
+		e.stopPropagation();
 		try {
 			await notificationStore.dismiss(id);
 		} catch {
@@ -28,11 +30,20 @@
 			/* ignore */
 		}
 	}
+
+	function handleItemClick(n: NotificationItem) {
+		close();
+		if (n.event_type === 'schedule') {
+			goto('/schedule');
+		} else {
+			goto('/tasks');
+		}
+	}
 </script>
 
 <svelte:window on:click={close} />
 
-<div class="relative" role="presentation" on:click|stopPropagation on:keydown|stopPropagation>
+<div class="relative" role="presentation" on:click|stopPropagation on:keydown|stopPropagation style="position: static">
 	<button
 		on:click={toggle}
 		class="relative flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
@@ -51,7 +62,7 @@
 
 	{#if open}
 		<div
-			class="absolute left-full top-0 ml-2 w-80 max-h-[70vh] overflow-y-auto bg-gray-900 border border-gray-800 rounded-xl shadow-xl z-50"
+			class="fixed left-64 top-4 w-80 max-h-[70vh] overflow-y-auto bg-gray-900 border border-gray-800 rounded-xl shadow-xl z-[9999]"
 		>
 			<div class="flex items-center justify-between px-4 py-3 border-b border-gray-800 sticky top-0 bg-gray-900">
 				<h3 class="text-sm font-semibold text-white">Notifications</h3>
@@ -70,8 +81,11 @@
 			{:else}
 				<ul class="divide-y divide-gray-800">
 					{#each $notificationStore.items as n (n.id)}
-						<li class="p-3 hover:bg-gray-800/50 transition-colors flex items-start gap-2">
-							<div class="flex-1 min-w-0">
+						<li class="flex items-start gap-2 hover:bg-gray-800/50 transition-colors">
+							<button
+								on:click={() => handleItemClick(n)}
+								class="flex-1 min-w-0 p-3 text-left"
+							>
 								<p class="text-sm font-medium text-gray-200 truncate">{n.title_cache}</p>
 								<p class="text-xs text-gray-500 mt-0.5">
 									{n.offset_minutes} min reminder · {formatDateTime(n.start_at_cache)}
@@ -79,10 +93,10 @@
 								<p class="text-[10px] text-gray-600 mt-0.5 uppercase tracking-wide">
 									{n.event_type}
 								</p>
-							</div>
+							</button>
 							<button
-								on:click={() => dismissOne(n.id)}
-								class="p-1 text-gray-500 hover:text-gray-200 rounded transition-colors flex-shrink-0"
+								on:click={(e) => dismissOne(e, n.id)}
+								class="p-3 text-gray-500 hover:text-gray-200 rounded transition-colors flex-shrink-0"
 								title="Dismiss"
 							>
 								<X size={14} />

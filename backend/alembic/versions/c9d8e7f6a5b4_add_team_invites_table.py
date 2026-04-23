@@ -17,30 +17,37 @@ down_revision: Union[str, Sequence[str], None] = 'a1b2c3d4e5f6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-invitestatus_enum = sa.Enum('pending', 'accepted', 'expired', 'cancelled', name='invitestatus')
-
-
 def upgrade() -> None:
-    invitestatus_enum.create(op.get_bind(), checkfirst=True)
-    op.create_table(
-        'team_invites',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('email', sa.String(), nullable=False),
-        sa.Column('role', sa.Enum('admin', 'supervisor', 'member', name='userrole'), nullable=True),
-        sa.Column('token', sa.String(), nullable=False),
-        sa.Column('validation_code', sa.String(), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'accepted', 'expired', 'cancelled', name='invitestatus'), nullable=True),
-        sa.Column('invited_by_id', sa.Integer(), nullable=False),
-        sa.Column('expires_at', sa.DateTime(), nullable=False),
-        sa.Column('accepted_at', sa.DateTime(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['invited_by_id'], ['users.id'], ),
-        sa.PrimaryKeyConstraint('id'),
-    )
-    op.create_index(op.f('ix_team_invites_id'), 'team_invites', ['id'], unique=False)
-    op.create_index(op.f('ix_team_invites_email'), 'team_invites', ['email'], unique=False)
-    op.create_index(op.f('ix_team_invites_token'), 'team_invites', ['token'], unique=True)
-    op.create_index(op.f('ix_team_invites_status'), 'team_invites', ['status'], unique=False)
+    op.execute(sa.text("""
+        DO $$ BEGIN
+            CREATE TYPE userrole AS ENUM ('admin', 'supervisor', 'member');
+        EXCEPTION WHEN duplicate_object THEN null;
+        END $$
+    """))
+    op.execute(sa.text("""
+        DO $$ BEGIN
+            CREATE TYPE invitestatus AS ENUM ('pending', 'accepted', 'expired', 'cancelled');
+        EXCEPTION WHEN duplicate_object THEN null;
+        END $$
+    """))
+    op.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS team_invites (
+            id          SERIAL PRIMARY KEY,
+            email       VARCHAR NOT NULL,
+            role        userrole DEFAULT 'member',
+            token       VARCHAR NOT NULL UNIQUE,
+            validation_code VARCHAR NOT NULL,
+            status      invitestatus DEFAULT 'pending',
+            invited_by_id INTEGER NOT NULL REFERENCES users(id),
+            expires_at  TIMESTAMP NOT NULL,
+            accepted_at TIMESTAMP,
+            created_at  TIMESTAMP
+        )
+    """))
+    op.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_team_invites_id ON team_invites (id)"))
+    op.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_team_invites_email ON team_invites (email)"))
+    op.execute(sa.text("CREATE UNIQUE INDEX IF NOT EXISTS ix_team_invites_token ON team_invites (token)"))
+    op.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_team_invites_status ON team_invites (status)"))
 
 
 def downgrade() -> None:
@@ -49,4 +56,4 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_team_invites_email'), table_name='team_invites')
     op.drop_index(op.f('ix_team_invites_id'), table_name='team_invites')
     op.drop_table('team_invites')
-    invitestatus_enum.drop(op.get_bind(), checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS invitestatus")

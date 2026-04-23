@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -25,6 +26,8 @@ from app.schemas import (
     InviteValidateOut,
     UserOut,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["invites"])
 
@@ -79,13 +82,16 @@ async def send_invite(
     await db.flush()
     await db.refresh(invite)
 
-    await send_invite_email(
-        to_email=payload.email,
-        invited_by_name=current_user.full_name,
-        role=payload.role.value,
-        validation_code=code,
-        token=token,
-    )
+    try:
+        await send_invite_email(
+            to_email=payload.email,
+            invited_by_name=current_user.full_name,
+            role=payload.role.value,
+            validation_code=code,
+            token=token,
+        )
+    except Exception as exc:
+        logger.warning("Failed to send invite email to %s: %s", payload.email, exc)
 
     return invite
 

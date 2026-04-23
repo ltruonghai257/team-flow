@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "svelte-dnd-action": "^0.9.69"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

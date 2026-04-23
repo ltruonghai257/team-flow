@@ -26,11 +26,12 @@ def run_migrations() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        await asyncio.to_thread(run_migrations)
-    except Exception as exc:
-        logger.error("Alembic migration failed: %s", exc)
-        sys.exit(1)
+    if settings.RUN_MIGRATIONS:
+        try:
+            await asyncio.to_thread(run_migrations)
+        except Exception as exc:
+            logger.error("Alembic migration failed: %s", exc)
+            sys.exit(1)
     start_scheduler()
     try:
         yield

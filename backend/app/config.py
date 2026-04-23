@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool = False
     FRONTEND_URL: str = "http://localhost:5173"
 
+    RUN_MIGRATIONS: bool = True
+
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str, info) -> str:
