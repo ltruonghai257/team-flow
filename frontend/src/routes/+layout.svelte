@@ -41,7 +41,7 @@
 	onMount(async () => {
 		await authStore.loadMe();
 		const path = String($page.url.pathname);
-		if (!$isLoggedIn && path !== '/login' && path !== '/register') {
+		if (!$isLoggedIn && path !== '/login' && path !== '/register' && !path.startsWith('/invite/accept')) {
 			goto('/login');
 		}
 	});
@@ -61,7 +61,7 @@
 		}
 	}
 
-	$: if (typeof window !== 'undefined' && !$authStore.loading && !$isLoggedIn && !['/login', '/register'].includes(String($page.url.pathname))) {
+	$: if (typeof window !== 'undefined' && !$authStore.loading && !$isLoggedIn && !['/login', '/register'].includes(String($page.url.pathname)) && !String($page.url.pathname).startsWith('/invite/accept')) {
 		goto('/login');
 	}
 
@@ -72,7 +72,7 @@
 		}
 	}
 
-	$: isAuthPage = ['/login', '/register'].includes(String($page.url.pathname));
+	$: isAuthPage = ['/login', '/register'].includes(String($page.url.pathname)) || String($page.url.pathname).startsWith('/invite/accept');
 
 	let sidebarOpen = false;
 
