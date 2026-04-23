@@ -72,6 +72,12 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+async def require_supervisor_or_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in (UserRole.admin, UserRole.supervisor):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Supervisor or admin access required")
+    return current_user
+
+
 async def get_user_from_cookie(token: Optional[str], db: AsyncSession) -> Optional[User]:
     """Validate the access_token cookie and return the User, or None if invalid.
 

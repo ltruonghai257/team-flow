@@ -55,6 +55,13 @@ class NotificationEventType(str, enum.Enum):
     task = "task"
 
 
+class InviteStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    expired = "expired"
+    cancelled = "cancelled"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -248,3 +255,20 @@ class AIMessage(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     conversation = relationship("AIConversation", back_populates="messages")
+
+
+class TeamInvite(Base):
+    __tablename__ = "team_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, nullable=False, index=True)
+    role = Column(Enum(UserRole), default=UserRole.member)
+    token = Column(String, unique=True, nullable=False, index=True)
+    validation_code = Column(String, nullable=False)
+    status = Column(Enum(InviteStatus), default=InviteStatus.pending, index=True)
+    invited_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    accepted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+
+    invited_by = relationship("User", foreign_keys=[invited_by_id])

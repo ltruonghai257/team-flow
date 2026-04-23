@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.models import MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus, UserRole
+from app.models import InviteStatus, MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus, UserRole
 
 
 def _to_naive_utc(v):
@@ -449,3 +449,45 @@ class TimelineProjectOut(BaseModel):
     unassigned_tasks: List[TimelineTaskOut] = []
 
     model_config = {"from_attributes": True}
+
+
+# ── Invites ───────────────────────────────────────────────────────────────────
+
+class InviteCreate(BaseModel):
+    email: EmailStr
+    role: UserRole = UserRole.member
+
+
+class InviteOut(BaseModel):
+    id: int
+    email: str
+    role: str
+    status: InviteStatus
+    invited_by_id: int
+    expires_at: datetime
+    accepted_at: Optional[datetime]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class InviteValidateOut(BaseModel):
+    id: int
+    email: str
+    role: str
+    invited_by_name: str
+    expires_at: datetime
+    valid: bool
+
+
+class InviteAcceptRequest(BaseModel):
+    token: str
+    validation_code: str
+    username: str
+    full_name: str
+    password: str
+
+
+class DirectAddRequest(BaseModel):
+    user_id: int
+    role: Optional[UserRole] = None
