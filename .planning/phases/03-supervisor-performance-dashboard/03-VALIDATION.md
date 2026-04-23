@@ -1,3 +1,12 @@
+---
+phase: "03"
+slug: "supervisor-performance-dashboard"
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
+created: "2026-04-24"
+---
+
 # Validation: Supervisor Performance Dashboard (Phase 3)
 
 ## Completed Tasks
