@@ -7,9 +7,12 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test:mobile": "playwright test --project=mobile-chrome",
+    "test:mobile:ui": "playwright test --project=mobile-chrome --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@sveltejs/adapter-node": "^5.0.1",
     "@sveltejs/kit": "^2.5.7",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

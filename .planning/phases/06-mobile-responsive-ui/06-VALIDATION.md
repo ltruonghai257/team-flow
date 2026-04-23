@@ -22,11 +22,11 @@ escalated: 0
 
 | Framework | Config File | Status |
 |-----------|-------------|--------|
-| Playwright | playwright.config.ts | NOT CONFIGURED |
+| Playwright | `frontend/playwright.config.ts` | ✅ CONFIGURED |
 | Vitest | vitest.config.ts | NOT CONFIGURED |
 | pytest | pytest.ini | NOT CONFIGURED |
 
-> To enable automated browser tests: `bun add -D @playwright/test && bunx playwright install`
+**Run tests:** `bun run test:mobile` (from `frontend/`) — requires dev server on `:5173`
 
 ---
 
@@ -35,10 +35,10 @@ escalated: 0
 | # | Requirement (REQ-06) | Impl File | Status | Test File |
 |---|----------------------|-----------|--------|-----------|
 | R1 | All routes render on 375px+ viewport | All `+page.svelte` files — `p-4 md:p-6` | MANUAL-ONLY | — |
-| R2 | Sidebar collapses to hamburger on mobile | `frontend/src/routes/+layout.svelte` | MANUAL-ONLY | — |
-| R3 | Kanban board scrolls horizontally on mobile | `frontend/src/lib/components/tasks/KanbanBoard.svelte` | MANUAL-ONLY | — |
+| R2 | Sidebar collapses to hamburger on mobile | `frontend/src/routes/+layout.svelte` | PARTIAL | `tests/mobile/sidebar.spec.ts` |
+| R3 | Kanban board scrolls horizontally on mobile | `frontend/src/lib/components/tasks/KanbanBoard.svelte` | PARTIAL | `tests/mobile/kanban-scroll.spec.ts` |
 | R4 | Performance table horizontally scrollable | `frontend/src/routes/performance/+page.svelte` | MANUAL-ONLY | — |
-| R5 | Task creation form usable on mobile keyboard | `frontend/src/routes/tasks/+page.svelte` | MANUAL-ONLY | — |
+| R5 | Task creation form usable on mobile keyboard | `frontend/src/routes/tasks/+page.svelte` | PARTIAL | `tests/mobile/task-modal.spec.ts` |
 
 ---
 
@@ -160,10 +160,10 @@ test('task modal scrolls within 92dvh', async ({ page }) => {
 |--------|-------|
 | Requirements analyzed | 5 |
 | COVERED (automated) | 0 |
-| PARTIAL | 0 |
-| MISSING → Manual-only | 5 |
+| PARTIAL (automated files exist, auth-gated) | 3 |
+| MISSING → Manual-only | 2 |
 | Escalated | 0 |
-| Playwright snippets generated | 3 |
+| Playwright test files created | 3 |
 
 **Status: PARTIAL** — 0 automated, 5 manual-only. Add Playwright to convert manual checks to automated.
 
