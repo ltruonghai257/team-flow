@@ -33,7 +33,7 @@ Standard 8-point scale — identical to Phase 4, consistent with all existing ro
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon gaps, badge padding, tab icon-to-label gap (`gap-1.5`) |
+| xs | 4px | Icon gaps, badge padding, tab icon-to-label gap (`gap-1`) |
 | sm | 8px | Subtask card internal field spacing, button icon gap |
 | md | 16px | Card internal padding, section spacing inside modal |
 | lg | 24px | Summary panel internal padding, modal section breaks |
@@ -54,12 +54,11 @@ Inherited from project Inter font + Tailwind defaults. Identical rules to Phase 
 
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
-| Body / field label | 14px | 400 | 1.4 | `text-sm` |
-| UI label (form labels, tab text) | 14px | 500 | 1.4 | `text-sm font-medium` |
+| Body / field label / form label / tab text | 14px | 400 | 1.4 | `text-sm` |
 | Section heading (modal title, card title) | 16px | 600 | 1.3 | `text-base font-semibold` |
 | Summary section heading | 14px | 600 | 1.4 | `text-sm font-semibold` |
 
-**Rule:** Subtask card titles are `text-sm` (14px) inputs. Summary section headings (`Milestone Progress`, `Recent Completions`, `Overdue`, `At-Risk`) use `text-sm font-semibold text-gray-200`. Summary body paragraphs use `text-sm text-gray-400`. No display size needed in this phase.
+**Rule:** Subtask card titles are `text-sm` (14px) inputs. Summary section headings (`Milestone Progress`, `Recent Completions`, `Overdue`, `At-Risk`) use `text-sm font-semibold text-gray-200`. Summary body paragraphs use `text-sm text-gray-400`. No display size needed in this phase. Two weights only: regular (400) and semibold (600).
 
 ---
 
@@ -77,7 +76,7 @@ Inherited from project Inter font + Tailwind defaults. Identical rules to Phase 
 **Accent reserved for:**
 1. Active "Breakdown" tab — `border-primary-500 text-primary-400` (same as existing Form/NLP/JSON tabs)
 2. "Break down" submit button — `btn-primary` class (uses `bg-primary-600`)
-3. "Summarize" button on project cards — `btn-primary` class (small variant: `px-3 py-1.5 text-xs`)
+3. "Summarize" button on project cards — `btn-primary` class (small variant: `px-3 py-2 text-xs`)
 4. "Create All" batch-create button — `btn-primary` class
 5. Focus rings on all `.input` fields — `focus:ring-primary-500` (already in `.input` class)
 
@@ -117,9 +116,9 @@ Each subtask card renders fields in this order (top to bottom):
 1. **Title** — `<input class="input" />` full width
 2. **Row: Priority + Estimated Hours** — `flex gap-3`: `<select class="input">` (priority, flex-1) + `<input type="number" class="input w-24">` (hours)
 3. **Description** — `<textarea class="input resize-none" rows="2" />` full width
-4. **Row: Milestone + Delete** — `flex items-center gap-2`: milestone `<select class="input flex-1">` + `<button class="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded transition-colors">` with `<Trash2 size={13} />`
+4. **Row: Milestone + Delete** — `flex items-center gap-2`: milestone `<select class="input flex-1">` + `<button class="p-1 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded transition-colors">` with `<Trash2 size={13} />`
 
-Delete button follows existing project card edit/delete button pattern: `p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded transition-colors`.
+Delete button follows existing project card edit/delete button pattern: `p-1 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded transition-colors`.
 
 ---
 
