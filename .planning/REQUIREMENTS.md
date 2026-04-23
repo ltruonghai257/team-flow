@@ -6,6 +6,22 @@
 
 ---
 
+## Requirements Traceability Table
+
+| REQ-ID | Description | Priority | Phase | Status |
+|--------|-------------|----------|-------|--------|
+| REQ-01 | Production Hardening | Critical | 09 (gap closure) | Pending |
+| REQ-02 | Supervisor Performance Dashboard | High | 09 (gap closure) | Pending |
+| REQ-03 | Team Timeline / Project Overview | High | 10 (gap closure) | Pending |
+| REQ-04 | Enhanced AI Capabilities | Medium | 10 (gap closure) | Pending |
+| REQ-05 | Azure Deployment | Critical | 11 (gap closure) | Pending |
+| REQ-06 | Mobile-Responsive UI | Medium | 11 (gap closure) | Pending |
+| REQ-07 | Role-Based Access Control | Medium | 09 (gap closure) | Pending |
+
+**Coverage:** 0/7 requirements satisfied (all pending verification documentation)
+
+---
+
 ## Milestone 1: Production-Ready Team Management Platform
 
 ### Goal

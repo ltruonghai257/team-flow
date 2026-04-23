@@ -203,9 +203,66 @@ Phase 1 - Production Hardening     [Critical blocker]
 
 ---
 
+## Phase 9: Generate Verification Documentation (Phases 1-3)
+
+**Goal:** Create VERIFICATION.md files for foundational phases to enable requirement verification.
+
+**Delivers:**
+- VERIFICATION.md for Phase 1 (Production Hardening) - REQ-01 coverage table
+- VERIFICATION.md for Phase 2 (RBAC Role Model) - REQ-07 coverage table
+- VERIFICATION.md for Phase 3 (Supervisor Performance Dashboard) - REQ-02 coverage table
+- VALIDATION.md frontmatter updates for Phases 2 and 3 (nyquist_compliant status)
+
+**Depends on:** Phases 1, 2, 3 complete (documentation only)
+
+**Canonical refs:**
+- `.planning/v1.0-MILESTONE-AUDIT.md` - verification gaps
+- `.planning/REQUIREMENTS.md` - REQ-01, REQ-02, REQ-07 acceptance criteria
+- `.claude/get-shit-done/templates/VALIDATION.md` - template
+
+---
+
+## Phase 10: Generate Verification Documentation (Phases 4-5)
+
+**Goal:** Create VERIFICATION.md files for feature phases to enable requirement verification.
+
+**Delivers:**
+- VERIFICATION.md for Phase 4 (Team Timeline View) - REQ-03 coverage table
+- VERIFICATION.md for Phase 5 (Enhanced AI Features) - REQ-04 coverage table
+- VALIDATION.md files for Phases 4 and 5 (missing entirely)
+
+**Depends on:** Phases 4, 5 complete (documentation only)
+
+**Canonical refs:**
+- `.planning/v1.0-MILESTONE-AUDIT.md` - verification gaps
+- `.planning/REQUIREMENTS.md` - REQ-03, REQ-04 acceptance criteria
+- `.claude/get-shit-done/templates/VALIDATION.md` - template
+
+---
+
+## Phase 11: Generate Verification Documentation (Phases 6-8)
+
+**Goal:** Create VERIFICATION.md files for deployment and management phases to enable requirement verification.
+
+**Delivers:**
+- VERIFICATION.md for Phase 6 (Mobile Responsive UI) - REQ-06 coverage table
+- VERIFICATION.md for Phase 7 (Azure Deployment CI/CD) - REQ-05 coverage table
+- VERIFICATION.md for Phase 8 (User Invite Team Management) - verification documentation
+- VALIDATION.md files for Phases 7 and 8 (missing entirely)
+- VALIDATION.md fix for Phase 6 (set nyquist_compliant: true)
+
+**Depends on:** Phases 6, 7, 8 complete (documentation only)
+
+**Canonical refs:**
+- `.planning/v1.0-MILESTONE-AUDIT.md` - verification gaps
+- `.planning/REQUIREMENTS.md` - REQ-05, REQ-06 acceptance criteria
+- `.claude/get-shit-done/templates/VALIDATION.md` - template
+
+---
+
 ## Milestone 1 Exit Criteria
 
-- [ ] All 8 phases complete
+- [ ] All 11 phases complete (8 implementation + 3 verification)
 - [ ] `/performance` dashboard live with real team data
 - [ ] `/timeline` view operational
 - [ ] AI breakdown and project summary working
