@@ -124,7 +124,7 @@
 
 <div class="flex flex-col" style="height: 100%; min-height: 0;">
 	<!-- Page header -->
-	<div class="px-6 py-4 border-b border-[#1e293b] bg-[#0a0f1e] flex items-center justify-between flex-shrink-0">
+	<div class="px-4 md:px-6 py-3 md:py-4 border-b border-[#1e293b] bg-[#0a0f1e] flex items-center justify-between flex-shrink-0 flex-wrap gap-2">
 		<div class="flex items-center gap-3">
 			<div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
 				<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

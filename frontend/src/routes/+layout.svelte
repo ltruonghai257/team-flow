@@ -18,7 +18,9 @@
 		FolderOpen,
 		ChevronRight,
 		TrendingUp,
-		GanttChartSquare
+		GanttChartSquare,
+		Menu,
+		X
 	} from 'lucide-svelte';
 
 	const navItems = [
@@ -72,6 +74,12 @@
 
 	$: isAuthPage = ['/login', '/register'].includes(String($page.url.pathname));
 
+	let sidebarOpen = false;
+
+	function closeSidebar() {
+		sidebarOpen = false;
+	}
+
 	async function logout() {
 		await authStore.logout();
 		goto('/login');
@@ -84,8 +92,21 @@
 	<slot />
 {:else if $isLoggedIn}
 	<div class="flex h-screen overflow-hidden">
-		<!-- Sidebar -->
-		<aside class="w-60 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col">
+		<!-- Mobile overlay backdrop -->
+		{#if sidebarOpen}
+			<div
+				class="fixed inset-0 bg-black/60 z-30 md:hidden"
+				role="presentation"
+				on:click={closeSidebar}
+				on:keydown={(e) => e.key === 'Escape' && closeSidebar()}
+			></div>
+		{/if}
+
+		<!-- Sidebar: hidden on mobile unless open, always visible md+ -->
+		<aside
+			class="fixed md:static inset-y-0 left-0 z-40 w-60 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col transform transition-transform duration-200
+				{sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0"
+		>
 			<div class="px-5 py-4 border-b border-gray-800">
 				<div class="flex items-center gap-2.5">
 					<div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">T</div>
@@ -99,6 +120,7 @@
 					{@const active = $page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/')}
 					<a
 						href={item.href}
+						on:click={closeSidebar}
 						class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group {active
 							? 'bg-primary-600/20 text-primary-400'
 							: 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}"
@@ -131,10 +153,34 @@
 			{/if}
 		</aside>
 
-		<!-- Main -->
-		<main class="flex-1 overflow-y-auto bg-gray-950">
-			<slot />
-		</main>
+		<!-- Main content area -->
+		<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+			<!-- Mobile top bar -->
+			<header class="md:hidden flex items-center gap-3 px-4 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
+				<button
+					on:click={() => (sidebarOpen = !sidebarOpen)}
+					aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+					class="text-gray-400 hover:text-gray-200 transition-colors"
+				>
+					{#if sidebarOpen}
+						<X size={22} />
+					{:else}
+						<Menu size={22} />
+					{/if}
+				</button>
+				<div class="flex items-center gap-2">
+					<div class="w-6 h-6 bg-primary-600 rounded flex items-center justify-center text-white font-bold text-xs">T</div>
+					<span class="font-semibold text-white text-sm">TeamFlow</span>
+				</div>
+				<div class="ml-auto">
+					<NotificationBell />
+				</div>
+			</header>
+
+			<main class="flex-1 overflow-y-auto bg-gray-950">
+				<slot />
+			</main>
+		</div>
 	</div>
 {:else}
 	<div class="flex items-center justify-center h-screen bg-gray-950">

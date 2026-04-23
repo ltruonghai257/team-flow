@@ -204,7 +204,7 @@
 
 <svelte:head><title>Schedule · TeamFlow</title></svelte:head>
 
-<div class="p-6 max-w-6xl mx-auto">
+<div class="p-4 md:p-6 max-w-6xl mx-auto">
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<h1 class="text-2xl font-bold text-white">Scheduler</h1>

@@ -18,7 +18,7 @@
 
 <svelte:head><title>Dashboard · TeamFlow</title></svelte:head>
 
-<div class="p-6 max-w-7xl mx-auto">
+<div class="p-4 md:p-6 max-w-7xl mx-auto">
 	<div class="mb-6">
 		<h1 class="text-2xl font-bold text-white">Dashboard</h1>
 		<p class="text-gray-400 text-sm mt-1">Overview of your projects and team</p>

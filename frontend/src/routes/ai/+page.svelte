@@ -48,7 +48,7 @@
 				activeConv = conversations[0] || null;
 				messages = activeConv ? (await aiApi.getConversation(activeConv.id)).messages : [];
 			}
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}
@@ -67,7 +67,7 @@
 			messages = [...messages.slice(0, -1), { id: Date.now() - 1, role: 'user', content, created_at: new Date().toISOString() }, reply];
 			conversations = conversations.map((c) => c.id === activeConv.id ? { ...c, title: c.title === 'New Conversation' ? content.slice(0, 40) : c.title } : c);
 			await scrollToBottom();
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message || 'AI error');
 			messages = messages.slice(0, -1);
 		} finally {
@@ -97,9 +97,9 @@
 
 <svelte:head><title>AI Assistant · TeamFlow</title></svelte:head>
 
-<div class="flex h-screen overflow-hidden">
+<div class="flex h-[calc(100dvh-48px)] md:h-screen overflow-hidden">
 	<!-- Conversation list -->
-	<div class="w-64 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col">
+	<div class="hidden sm:flex w-56 md:w-64 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex-col">
 		<div class="p-3 border-b border-gray-800">
 			<button on:click={newConversation} class="btn-primary w-full justify-center text-xs py-2">
 				<Plus size={14} /> New Chat

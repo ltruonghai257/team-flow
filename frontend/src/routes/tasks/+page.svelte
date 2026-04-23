@@ -193,8 +193,8 @@
 
 <svelte:head><title>Tasks · TeamFlow</title></svelte:head>
 
-<div class="p-6 max-w-[1600px] mx-auto">
-	<div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+<div class="p-4 md:p-6 max-w-[1600px] mx-auto">
+	<div class="flex items-center justify-between mb-4 md:mb-5 flex-wrap gap-3">
 		<div>
 			<h1 class="text-2xl font-bold text-white">Tasks</h1>
 			<p class="text-gray-400 text-sm mt-1">{taskList.length} tasks</p>
@@ -349,7 +349,7 @@
 <!-- Modal -->
 {#if showModal}
 	<div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-		<div class="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+		<div class="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg max-h-[92dvh] overflow-y-auto">
 			<div class="flex items-center justify-between p-5 border-b border-gray-800">
 				<h2 class="font-semibold text-white">{editingTask ? 'Edit Task' : 'New Task'}</h2>
 				<button on:click={() => (showModal = false)} class="text-gray-500 hover:text-gray-300">

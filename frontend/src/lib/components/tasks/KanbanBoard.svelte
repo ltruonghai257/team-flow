@@ -46,9 +46,9 @@
 	}
 </script>
 
-<div class="flex gap-3 overflow-x-auto pb-4">
+<div class="flex gap-3 overflow-x-auto pb-4" style="touch-action: pan-x pan-y;">
 	{#each grouped as col, i (col.status)}
-		<div class="flex-shrink-0 w-72 bg-gray-900/60 border border-gray-800 rounded-xl flex flex-col max-h-[calc(100vh-220px)]">
+		<div class="flex-shrink-0 w-72 bg-gray-900/60 border border-gray-800 rounded-xl flex flex-col max-h-[calc(100vh-270px)] md:max-h-[calc(100vh-220px)]">
 			<div class="px-3 py-2.5 border-b border-gray-800 flex items-center justify-between">
 				<h3 class="text-sm font-semibold text-gray-200">{statusLabels[col.status]}</h3>
 				<span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
