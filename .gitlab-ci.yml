@@ -1,0 +1,78 @@
+# TeamFlow GitLab CI/CD Pipeline
+# Triggers on push to main branch.
+# Required GitLab CI/CD variables (Settings → CI/CD → Variables, all masked):
+#   AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#   ACR_NAME     — e.g. teamflowacr
+#   APP_NAME     — e.g. teamflow-app
+#   RG           — e.g. teamflow-rg
+
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+
+build:
+  stage: build
+  image: mcr.microsoft.com/azure-cli
+  script:
+    - az login --service-principal
+        --username "$AZURE_CLIENT_ID"
+        --password "$AZURE_CLIENT_SECRET"
+        --tenant "$AZURE_TENANT_ID"
+    - az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+    - echo "==> Building image teamflow:$IMAGE_TAG via ACR (cloud build)"
+    - az acr build
+        --registry "$ACR_NAME"
+        --image "teamflow:$IMAGE_TAG"
+        .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+deploy:
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli
+  script:
+    - az login --service-principal
+        --username "$AZURE_CLIENT_ID"
+        --password "$AZURE_CLIENT_SECRET"
+        --tenant "$AZURE_TENANT_ID"
+    - az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+    - echo "==> Deploying teamflow:$IMAGE_TAG to App Service $APP_NAME"
+    - az webapp config container set
+        --name "$APP_NAME"
+        --resource-group "$RG"
+        --container-image-name "$ACR_NAME.azurecr.io/teamflow:$IMAGE_TAG"
+    - az webapp restart
+        --name "$APP_NAME"
+        --resource-group "$RG"
+    - echo "Deployed https://$APP_NAME.azurewebsites.net @ $IMAGE_TAG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  needs:
+    - build
+
+# Manual deploy: trigger a deploy from any branch without pushing to main.
+# Go to GitLab → CI/CD → Pipelines → Run pipeline → this job will appear as manually triggerable.
+deploy_manual:
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli
+  script:
+    - az login --service-principal
+        --username "$AZURE_CLIENT_ID"
+        --password "$AZURE_CLIENT_SECRET"
+        --tenant "$AZURE_TENANT_ID"
+    - az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+    - echo "==> Manual deploy: teamflow:$IMAGE_TAG to $APP_NAME"
+    - az webapp config container set
+        --name "$APP_NAME"
+        --resource-group "$RG"
+        --container-image-name "$ACR_NAME.azurecr.io/teamflow:$IMAGE_TAG"
+    - az webapp restart
+        --name "$APP_NAME"
+        --resource-group "$RG"
+  rules:
+    - when: manual
+      allow_failure: true
