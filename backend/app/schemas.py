@@ -3,7 +3,16 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.models import InviteStatus, MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus, TaskType, UserRole
+from app.models import (
+    InviteStatus,
+    MilestoneStatus,
+    NotificationEventType,
+    NotificationStatus,
+    TaskPriority,
+    TaskStatus,
+    TaskType,
+    UserRole,
+)
 
 
 def _to_naive_utc(v):
@@ -14,6 +23,7 @@ def _to_naive_utc(v):
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
+
 
 class Token(BaseModel):
     access_token: str
@@ -26,18 +36,21 @@ class TokenData(BaseModel):
 
 # ── User ──────────────────────────────────────────────────────────────────────
 
+
 class UserCreate(BaseModel):
     email: EmailStr
     username: str
     full_name: str
     password: str
     role: str = "member"
+    sub_team_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     role: Optional[str] = None
+    sub_team_id: Optional[int] = None
 
 
 class UserRoleUpdate(BaseModel):
@@ -52,6 +65,7 @@ class UserOut(BaseModel):
     role: str
     avatar_url: Optional[str]
     is_active: bool
+    sub_team_id: Optional[int]
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -59,16 +73,19 @@ class UserOut(BaseModel):
 
 # ── Project ───────────────────────────────────────────────────────────────────
 
+
 class ProjectCreate(BaseModel):
     name: str
     description: Optional[str] = None
     color: str = "#6366f1"
+    sub_team_id: Optional[int] = None
 
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     color: Optional[str] = None
+    sub_team_id: Optional[int] = None
 
 
 class ProjectOut(BaseModel):
@@ -76,12 +93,14 @@ class ProjectOut(BaseModel):
     name: str
     description: Optional[str]
     color: str
+    sub_team_id: Optional[int]
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 # ── Milestone ─────────────────────────────────────────────────────────────────
+
 
 class MilestoneCreate(BaseModel):
     title: str
@@ -91,7 +110,9 @@ class MilestoneCreate(BaseModel):
     due_date: datetime
     project_id: int
 
-    _normalize_dates = field_validator("start_date", "due_date", mode="after")(_to_naive_utc)
+    _normalize_dates = field_validator("start_date", "due_date", mode="after")(
+        _to_naive_utc
+    )
 
 
 class MilestoneUpdate(BaseModel):
@@ -102,7 +123,9 @@ class MilestoneUpdate(BaseModel):
     due_date: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-    _normalize_dates = field_validator("start_date", "due_date", "completed_at", mode="after")(_to_naive_utc)
+    _normalize_dates = field_validator(
+        "start_date", "due_date", "completed_at", mode="after"
+    )(_to_naive_utc)
 
 
 class MilestoneOut(BaseModel):
@@ -120,6 +143,7 @@ class MilestoneOut(BaseModel):
 
 
 # ── Task ──────────────────────────────────────────────────────────────────────
+
 
 class TaskCreate(BaseModel):
     title: str
@@ -151,7 +175,9 @@ class TaskUpdate(BaseModel):
     assignee_id: Optional[int] = None
     completed_at: Optional[datetime] = None
 
-    _normalize_due = field_validator("due_date", "completed_at", mode="after")(_to_naive_utc)
+    _normalize_due = field_validator("due_date", "completed_at", mode="after")(
+        _to_naive_utc
+    )
 
 
 class TaskOut(BaseModel):
@@ -198,6 +224,7 @@ class AiParseResponse(BaseModel):
 
 # ── Schedule ──────────────────────────────────────────────────────────────────
 
+
 class ScheduleCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -209,7 +236,9 @@ class ScheduleCreate(BaseModel):
     recurrence: Optional[str] = None
     task_id: Optional[int] = None
 
-    _normalize_times = field_validator("start_time", "end_time", mode="after")(_to_naive_utc)
+    _normalize_times = field_validator("start_time", "end_time", mode="after")(
+        _to_naive_utc
+    )
 
 
 class ScheduleUpdate(BaseModel):
@@ -223,7 +252,9 @@ class ScheduleUpdate(BaseModel):
     recurrence: Optional[str] = None
     task_id: Optional[int] = None
 
-    _normalize_times = field_validator("start_time", "end_time", mode="after")(_to_naive_utc)
+    _normalize_times = field_validator("start_time", "end_time", mode="after")(
+        _to_naive_utc
+    )
 
 
 class ScheduleOut(BaseModel):
@@ -244,6 +275,7 @@ class ScheduleOut(BaseModel):
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
+
 
 class NotificationCreate(BaseModel):
     event_type: NotificationEventType
@@ -273,6 +305,7 @@ class NotificationOut(BaseModel):
 
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
+
 
 class ChatChannelOut(BaseModel):
     id: int
@@ -307,6 +340,7 @@ class ChatConversationOut(BaseModel):
 
 # ── AI ────────────────────────────────────────────────────────────────────────
 
+
 class AIMessageCreate(BaseModel):
     content: str
     conversation_id: Optional[int] = None
@@ -335,6 +369,7 @@ class AIConversationOut(BaseModel):
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
+
 class DashboardStats(BaseModel):
     total_tasks: int
     todo_tasks: int
@@ -347,6 +382,7 @@ class DashboardStats(BaseModel):
 
 
 # ── Performance ───────────────────────────────────────────────────────────────
+
 
 class TrendDataPoint(BaseModel):
     date: str  # YYYY-MM-DD
@@ -383,6 +419,7 @@ class UserPerformanceDetail(BaseModel):
 
 # ── AI Breakdown ──────────────────────────────────────────────────────────────
 
+
 class AiBreakdownRequest(BaseModel):
     description: str
     project_id: int
@@ -402,6 +439,7 @@ class AiBreakdownResponse(BaseModel):
 
 # ── Project Summary ───────────────────────────────────────────────────────────
 
+
 class ProjectSummaryRequest(BaseModel):
     project_id: int
 
@@ -419,6 +457,7 @@ class ProjectSummaryResponse(BaseModel):
 
 
 # ── Timeline ──────────────────────────────────────────────────────────────────
+
 
 class TimelineTaskOut(BaseModel):
     id: int
@@ -456,11 +495,39 @@ class TimelineProjectOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── SubTeam ────────────────────────────────────────────────────────────────────
+
+
+class SubTeamBase(BaseModel):
+    name: str
+
+
+class SubTeamCreate(SubTeamBase):
+    supervisor_id: Optional[int] = None
+
+
+class SubTeamUpdate(BaseModel):
+    name: Optional[str] = None
+    supervisor_id: Optional[int] = None
+
+
+class SubTeamOut(BaseModel):
+    id: int
+    name: str
+    supervisor_id: Optional[int]
+    created_at: datetime
+    members_count: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+
 # ── Invites ───────────────────────────────────────────────────────────────────
+
 
 class InviteCreate(BaseModel):
     email: EmailStr
     role: UserRole = UserRole.member
+    sub_team_id: Optional[int] = None
 
 
 class InviteOut(BaseModel):
@@ -469,6 +536,7 @@ class InviteOut(BaseModel):
     role: str
     status: InviteStatus
     invited_by_id: int
+    sub_team_id: Optional[int]
     expires_at: datetime
     accepted_at: Optional[datetime]
     created_at: datetime
