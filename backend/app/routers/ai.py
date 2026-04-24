@@ -2,12 +2,12 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-import litellm
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.ai_client import acompletion
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
@@ -222,7 +222,7 @@ async def send_message(
     history.append({"role": "user", "content": user_content})
 
     try:
-        response = await litellm.acompletion(
+        response = await acompletion(
             model=settings.AI_MODEL,
             messages=history,
         )
@@ -268,7 +268,7 @@ async def project_summary(
     )
 
     try:
-        response = await litellm.acompletion(
+        response = await acompletion(
             model=settings.AI_MODEL,
             messages=[
                 {"role": "system", "content": summary_prompt},
@@ -307,7 +307,7 @@ async def quick_chat(
         {"role": "user", "content": payload.content},
     ]
     try:
-        response = await litellm.acompletion(model=settings.AI_MODEL, messages=messages)
+        response = await acompletion(model=settings.AI_MODEL, messages=messages)
         ai_content = response.choices[0].message.content
         model_used = response.model
     except Exception as e:

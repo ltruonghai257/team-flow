@@ -13,7 +13,7 @@ from app.auth import get_current_user, get_sub_team
 from app.config import settings
 from app.database import get_db
 from app.limiter import limiter
-from app.models import SubTeam, Task, TaskPriority, TaskStatus, TaskType, User
+from app.models import Project, SubTeam, Task, TaskPriority, TaskStatus, TaskType, User
 from app.schemas import (
     AiBreakdownRequest,
     AiBreakdownResponse,

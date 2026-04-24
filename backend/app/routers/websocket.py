@@ -5,11 +5,11 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
-import litellm
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai_client import acompletion
 from app.auth import get_user_from_cookie
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -401,7 +401,7 @@ async def handle_assistant_message(ws: WebSocket, user: User, db: AsyncSession, 
     chunk_index = 0
     accumulated = ""
     try:
-        response = await litellm.acompletion(
+        response = await acompletion(
             model=settings.AI_MODEL,
             messages=full_messages,
             stream=True,

@@ -93,7 +93,9 @@ class User(Base):
     )
     schedules = relationship("Schedule", back_populates="user")
     ai_conversations = relationship("AIConversation", back_populates="user")
-    sub_team = relationship("SubTeam", back_populates="members")
+    sub_team = relationship(
+        "SubTeam", back_populates="members", foreign_keys=[sub_team_id]
+    )
 
 
 class Project(Base):
@@ -110,7 +112,7 @@ class Project(Base):
 
     milestones = relationship("Milestone", back_populates="project")
     tasks = relationship("Task", back_populates="project")
-    sub_team = relationship("SubTeam")
+    sub_team = relationship("SubTeam", foreign_keys="Project.sub_team_id")
 
 
 class Milestone(Base):
@@ -345,7 +347,9 @@ class SubTeam(Base):
     )
 
     supervisor = relationship("User", foreign_keys=[supervisor_id])
-    members = relationship("User", back_populates="sub_team")
+    members = relationship(
+        "User", back_populates="sub_team", foreign_keys="User.sub_team_id"
+    )
 
 
 class TeamInvite(Base):
@@ -366,4 +370,4 @@ class TeamInvite(Base):
     )
 
     invited_by = relationship("User", foreign_keys=[invited_by_id])
-    sub_team = relationship("SubTeam")
+    sub_team = relationship("SubTeam", foreign_keys="TeamInvite.sub_team_id")

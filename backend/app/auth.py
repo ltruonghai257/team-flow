@@ -109,7 +109,7 @@ async def get_sub_team(
         result = await db.execute(
             select(SubTeam).where(SubTeam.supervisor_id == current_user.id)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     elif current_user.role == UserRole.admin:
         # Admins use X-SubTeam-ID header (from global switcher)
         if x_sub_team_id is None:
