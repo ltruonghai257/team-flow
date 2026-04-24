@@ -23,11 +23,23 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - **Team members (5–15 people)**: Update task status, create tasks via AI input, chat, see their own and teammates' tasks
 - **Visibility model**: Tasks visible to all team. Performance/evaluation metrics visible to supervisor only.
 
+## Current Milestone: v2.0 Team Hierarchy, Sprints & Advanced Analytics
+
+**Goal:** Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
+
+**Target features:**
+- Multi-team hierarchy (Organization → N sub-teams → members, 1 supervisor per sub-team)
+- Sprint model (sprints as time-boxed iterations within a milestone; tasks assigned to sprint)
+- Custom Kanban statuses (team-wide default, per-project override; supervisor/admin managed)
+- Task types (feature / bug / task / improvement) driving KPI breakdowns
+- Advanced KPI dashboard (velocity, burndown, cycle time by type, throughput, defect/MTTR)
+- Sprint/release reminders (in-app notifications for upcoming sprint ends and milestone releases)
+
 ## Requirements
 
-### Validated
+### Validated (Milestone 1)
 
-- ✓ Task CRUD with status (todo/in_progress/review/done/blocked) and priority — existing
+- ✓ Task CRUD with status (todo/in_progress/review/done/blocked) and priority — Phase 1
 - ✓ Project and Milestone management — existing
 - ✓ Kanban board with drag-and-drop — existing
 - ✓ Agile sprint view — existing
@@ -35,19 +47,27 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - ✓ Real-time WebSocket chat (channels, DMs, presence) — existing
 - ✓ Scheduler / calendar events — existing
 - ✓ Notification reminders (scheduler-driven) — existing
-- ✓ JWT cookie-based authentication — existing
+- ✓ JWT cookie-based authentication — Phase 1
 - ✓ Docker containerization (backend, frontend, postgres) — existing
+- ✓ Alembic migrations, CORS env var, SECRET_KEY validation, rate limiting — Phase 1
+- ✓ RBAC roles (admin/supervisor/member), backend enforcement — Phase 2
+- ✓ Supervisor performance dashboard (/performance) — Phase 3
+- ✓ Team timeline / Gantt-style view (/timeline) — Phase 4
+- ✓ AI task breakdown and AI project status summary — Phase 5
+- ✓ Mobile-responsive UI (hamburger nav, touch Kanban) — Phase 6
+- ✓ Azure deployment + GitHub Actions CI/CD — Phase 7
+- ✓ User invite & team management (email token + code flow) — Phase 8
 
-### Active
+### Active (Milestone 2)
 
-- [ ] Supervisor performance dashboard — per-member metrics (tasks completed, velocity, on-time rate, workload)
-- [ ] Team timeline / Gantt-style view — visual project timeline across team members
-- [ ] AI project status summary — "how is the project going?" answered with real data
-- [ ] AI task breakdown — describe a feature, AI decomposes it into subtasks
-- [ ] Azure production deployment — Azure Web App Service + Azure Database for PostgreSQL (flexible connection string config)
-- [ ] CI/CD pipeline — GitHub Actions auto-deploy to Azure on push to main + manual deploy script fallback
-- [ ] Production hardening — Alembic migrations, env-configurable CORS, secure SECRET_KEY validation, rate limiting on auth/AI endpoints
-- [ ] Mobile-responsive UI — team accesses on phone, not just desktop
+- [ ] Multi-team hierarchy — Organization → N sub-teams → members, 1 supervisor per sub-team
+- [ ] Role-scoped timeline visibility — members see assigned projects only; supervisors see team-wide
+- [ ] Sprint model — sprints as time-boxed iterations within a milestone; milestones belong to one project
+- [ ] Task-sprint assignment — task creation/edit includes milestone and sprint selector
+- [ ] Custom Kanban statuses — team-wide default + per-project override; supervisor/admin managed
+- [ ] Task types — feature / bug / task / improvement field on every task
+- [ ] Advanced KPI metrics — velocity, sprint burndown, cycle time by type, throughput, defect rate, MTTR
+- [ ] Sprint/release reminders — in-app notifications for upcoming sprint end dates and milestone release dates
 
 ### Out of Scope
 
