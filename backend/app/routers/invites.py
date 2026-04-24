@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import (
     create_access_token,
     get_current_user,
+    get_sub_team,
     hash_password,
     require_supervisor_or_admin,
 )
@@ -17,7 +18,7 @@ from app.config import settings
 from app.database import get_db
 from app.email_service import send_invite_email
 from app.limiter import limiter
-from app.models import InviteStatus, TeamInvite, User, UserRole
+from app.models import InviteStatus, SubTeam, TeamInvite, User, UserRole
 from app.schemas import (
     DirectAddRequest,
     InviteAcceptRequest,
@@ -50,6 +51,7 @@ async def send_invite(
     payload: InviteCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_supervisor_or_admin),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
     result = await db.execute(
         select(TeamInvite).where(
@@ -59,15 +61,32 @@ async def send_invite(
     )
     existing = result.scalar_one_or_none()
     if existing:
-        raise HTTPException(status_code=400, detail="A pending invite already exists for this email")
+        raise HTTPException(
+            status_code=400, detail="A pending invite already exists for this email"
+        )
 
     result = await db.execute(select(User).where(User.email == payload.email))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="User with this email is already registered")
+        raise HTTPException(
+            status_code=400, detail="User with this email is already registered"
+        )
+
+    # Determine target sub_team_id from inviter's context per D-16/D-17
+    target_sub_team_id = payload.sub_team_id
+    if target_sub_team_id is None:
+        # Use inviter's current sub-team context
+        if current_user.role == UserRole.admin:
+            target_sub_team_id = sub_team.id if sub_team else None
+        elif current_user.role == UserRole.supervisor:
+            target_sub_team_id = current_user.sub_team_id
+        else:
+            target_sub_team_id = current_user.sub_team_id
 
     token = _generate_token()
     code = _generate_validation_code()
-    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=_INVITE_TTL_HOURS)
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+        hours=_INVITE_TTL_HOURS
+    )
 
     invite = TeamInvite(
         email=payload.email,
@@ -76,6 +95,7 @@ async def send_invite(
         validation_code=code,
         status=InviteStatus.pending,
         invited_by_id=current_user.id,
+        sub_team_id=target_sub_team_id,
         expires_at=expires_at,
     )
     db.add(invite)
@@ -111,7 +131,9 @@ async def direct_add_member(
 
     if payload.role is not None:
         if current_user.role != UserRole.admin and payload.role != UserRole.member:
-            raise HTTPException(status_code=403, detail="Only admins can assign non-member roles")
+            raise HTTPException(
+                status_code=403, detail="Only admins can assign non-member roles"
+            )
         user.role = payload.role
         await db.flush()
         await db.refresh(user)
@@ -152,12 +174,16 @@ async def accept_invite(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(TeamInvite).where(TeamInvite.token == payload.token))
+    result = await db.execute(
+        select(TeamInvite).where(TeamInvite.token == payload.token)
+    )
     invite = result.scalar_one_or_none()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
     if invite.status != InviteStatus.pending:
-        raise HTTPException(status_code=400, detail="Invite has already been used or cancelled")
+        raise HTTPException(
+            status_code=400, detail="Invite has already been used or cancelled"
+        )
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if now > invite.expires_at:
@@ -170,7 +196,9 @@ async def accept_invite(
 
     result = await db.execute(select(User).where(User.email == invite.email))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
+        raise HTTPException(
+            status_code=400, detail="An account with this email already exists"
+        )
 
     result = await db.execute(select(User).where(User.username == payload.username))
     if result.scalar_one_or_none():
@@ -182,6 +210,7 @@ async def accept_invite(
         full_name=payload.full_name,
         hashed_password=hash_password(payload.password),
         role=invite.role,
+        sub_team_id=invite.sub_team_id,  # Per D-18: auto-assign to invite's sub-team
         is_active=True,
     )
     db.add(user)
@@ -231,6 +260,8 @@ async def cancel_invite(
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
     if invite.status != InviteStatus.pending:
-        raise HTTPException(status_code=400, detail="Only pending invites can be cancelled")
+        raise HTTPException(
+            status_code=400, detail="Only pending invites can be cancelled"
+        )
     invite.status = InviteStatus.cancelled
     await db.flush()
