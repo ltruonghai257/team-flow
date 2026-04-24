@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Team Hierarchy, Sprints & Advanced Analytics
-status: planning
+status: active
 last_updated: "2026-04-24T00:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,35 +17,50 @@ progress:
 ## Current Status
 
 **Milestone:** 2 — Team Hierarchy, Sprints & Advanced Analytics
-**Active Phase:** Not started (defining requirements)
-**Last Session:** Milestone v2.0 started — requirements and roadmap in progress
+**Active Phase:** Phase 12 — Task Types (pending)
+**Last Session:** Milestone v2.0 roadmap created — 6 phases (12–17), 26 requirements mapped
 
 ## Session Notes
 
-- Phase 9 planned: Generate VERIFICATION.md for Phases 1-3, update VALIDATION.md frontmatter for Phases 2-3.
-- Phase 5 (Enhanced AI Features) complete.
-- Phase 6 (Mobile-Responsive UI) complete.
-- Phase 7 (Azure Deployment & CI/CD) complete — all 5 plans done.
-- Hamburger sidebar: slide-in overlay on mobile, static on md+, auto-close on nav.
-- Mobile top bar (md:hidden): hamburger + logo + NotificationBell.
-- All routes: p-4 md:p-6 responsive padding.
-- KanbanBoard: touch-action pan-x pan-y, mobile-adjusted max-h.
-- Task modal: max-h-[92dvh] for keyboard-safe scrolling.
-- AI page: conversation sidebar hidden on mobile (sm:flex), dvh-aware height.
+- Milestone 1 complete: all 11 phases done, 100% coverage.
+- Milestone 2 roadmap created: Phases 12–17.
+- Phase 12 (Task Types) is isolated — can run in parallel with Phase 13 if needed.
+- Phase 13 (Multi-Team Hierarchy) includes VIS-* timeline visibility; do NOT defer to a later phase.
+- Phase 15 (Custom Statuses) uses dual-write strategy: retain tasks.status enum alongside new custom_status_id FK; drop enum only after KPIs are verified (deferred cleanup, if needed, goes in a Phase 18).
+- STATUS-04 (is_done flag) must land in Phase 15 before KPI queries are written in Phase 16.
+- Phase 17 (Reminders) depends only on Phase 13 + Phase 14; can be developed in parallel with Phase 16.
 - User preference: Project uses **Bun** for frontend operations.
-- SvelteKit switched to adapter-static with fallback: 200.html (SPA mode).
+- SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
 - Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
-- svelte.config.js: prerender.handleHttpError/handleUnseenRoutes set to 'warn' for dynamic routes.
+- Zero new npm or Python packages — all needed libs already installed.
+- All schema changes via Alembic migrations only.
 
 ## Resume Point
 
-All phases complete. Milestone 1 ready for final review and deployment.
+Roadmap defined. Begin with Phase 12 (Task Types) — run `/gsd-plan-phase 12`.
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
-- Phase 8 added: Allow supervisor or admin to add/invite user to team. If invite, send email, and have validation code and link
+- Milestone 1 (Phases 1–11) complete.
+- Milestone 2 (Phases 12–17) roadmap created 2026-04-24.
+
+### Architecture Decisions (Milestone 2)
+
+- SubTeam not Team: single-org deployment; Organization wrapper adds a join with zero value.
+- Dual-write for status migration: retain tasks.status enum alongside new tasks.custom_status_id for the full feature-build period; drop old column after KPI queries verified.
+- is_done replaces hardcoded done check: update_task endpoint must use custom_status.is_done == true after Phase 15, not TaskStatus.done enum comparison.
+- Sprint reminders via existing EventNotification table: insert rows on sprint activation; the existing 60s poll delivers them; unique constraint on (event_type, event_ref_id, user_id) prevents duplicates.
+- KPI queries: all aggregations as single GROUP BY queries — no N+1.
+- Verify layerchart version at Phase 16 kickoff (installed as next tag; code comments suggest it was bypassed).
+
+### Watch-Out List
+
+1. Unscoped queries after Phase 13: audit tasks.py, projects.py, milestones.py, timeline.py, performance.py, dashboard.py, ai.py — all must gain sub_team_id predicates.
+2. Postgres enum drop sequence: multi-step, explicit op.execute() calls; do not use alembic autogenerate for this step.
+3. completed_at not set for custom terminal statuses: test that a task moved to a custom is_done status has completed_at set (Phase 15 completion gate).
+4. Sprint reminders lost on process restart: APScheduler run_date jobs are in-memory; store as EventNotification rows instead.
 
 ## Flags
 

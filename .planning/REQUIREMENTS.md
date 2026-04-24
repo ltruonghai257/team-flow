@@ -17,32 +17,32 @@
 | REQ-05 | Azure Deployment | Critical | 7 | ✓ Done |
 | REQ-06 | Mobile-Responsive UI | Medium | 6 | ✓ Done |
 | REQ-07 | Role-Based Access Control | Medium | 2 | ✓ Done |
-| TEAM-01 | Admin creates/manages sub-teams | High | TBD | Pending |
-| TEAM-02 | Member belongs to one sub-team | High | TBD | Pending |
-| TEAM-03 | Projects scoped to sub-team | High | TBD | Pending |
-| TEAM-04 | Supervisor sees only their sub-team | High | TBD | Pending |
-| TEAM-05 | Admin sees all teams org-wide | High | TBD | Pending |
-| VIS-01 | Members see only assigned projects on timeline | Medium | TBD | Pending |
-| VIS-02 | Supervisors see sub-team projects on timeline | Medium | TBD | Pending |
-| VIS-03 | Admin sees all projects on timeline | Medium | TBD | Pending |
-| SPRINT-01 | Sprints as time-boxed iterations within milestone | High | TBD | Pending |
-| SPRINT-02 | Milestones belong to one project | High | TBD | Pending |
-| SPRINT-03 | Task create/edit includes sprint selector | High | TBD | Pending |
-| SPRINT-04 | Sprint board filters tasks by sprint | High | TBD | Pending |
-| STATUS-01 | Supervisor/admin manages team-wide statuses | High | TBD | Pending |
-| STATUS-02 | Per-project status override | Medium | TBD | Pending |
-| STATUS-03 | Existing statuses migrated to DB records | Critical | TBD | Pending |
-| STATUS-04 | Status has is_done flag (replaces hardcoded done slug) | Critical | TBD | Pending |
-| TYPE-01 | Task type field: feature/bug/task/improvement | High | TBD | Pending |
-| TYPE-02 | Type visible on cards, filterable on board | Medium | TBD | Pending |
-| TYPE-03 | Existing tasks default to task type on migration | High | TBD | Pending |
-| KPI-01 | Velocity per sprint (task count + story points) | High | TBD | Pending |
-| KPI-02 | Sprint burndown chart | High | TBD | Pending |
-| KPI-03 | Cycle time per task type | Medium | TBD | Pending |
-| KPI-04 | Throughput by member and type | Medium | TBD | Pending |
-| KPI-05 | Defect metrics: bugs reported/resolved, MTTR | Medium | TBD | Pending |
-| REMIND-01 | In-app reminder N days before sprint end | Medium | TBD | Pending |
-| REMIND-02 | In-app reminder N days before milestone due date | Medium | TBD | Pending |
+| TEAM-01 | Admin creates/manages sub-teams | High | 13 | Pending |
+| TEAM-02 | Member belongs to one sub-team | High | 13 | Pending |
+| TEAM-03 | Projects scoped to sub-team | High | 13 | Pending |
+| TEAM-04 | Supervisor sees only their sub-team | High | 13 | Pending |
+| TEAM-05 | Admin sees all teams org-wide | High | 13 | Pending |
+| VIS-01 | Members see only assigned projects on timeline | Medium | 13 | Pending |
+| VIS-02 | Supervisors see sub-team projects on timeline | Medium | 13 | Pending |
+| VIS-03 | Admin sees all projects on timeline | Medium | 13 | Pending |
+| SPRINT-01 | Sprints as time-boxed iterations within milestone | High | 14 | Pending |
+| SPRINT-02 | Milestones belong to one project | High | 14 | Pending |
+| SPRINT-03 | Task create/edit includes sprint selector | High | 14 | Pending |
+| SPRINT-04 | Sprint board filters tasks by sprint | High | 14 | Pending |
+| STATUS-01 | Supervisor/admin manages team-wide statuses | High | 15 | Pending |
+| STATUS-02 | Per-project status override | Medium | 15 | Pending |
+| STATUS-03 | Existing statuses migrated to DB records | Critical | 15 | Pending |
+| STATUS-04 | Status has is_done flag (replaces hardcoded done slug) | Critical | 15 | Pending |
+| TYPE-01 | Task type field: feature/bug/task/improvement | High | 12 | Pending |
+| TYPE-02 | Type visible on cards, filterable on board | Medium | 12 | Pending |
+| TYPE-03 | Existing tasks default to task type on migration | High | 12 | Pending |
+| KPI-01 | Velocity per sprint (task count + story points) | High | 16 | Pending |
+| KPI-02 | Sprint burndown chart | High | 16 | Pending |
+| KPI-03 | Cycle time per task type | Medium | 16 | Pending |
+| KPI-04 | Throughput by member and type | Medium | 16 | Pending |
+| KPI-05 | Defect metrics: bugs reported/resolved, MTTR | Medium | 16 | Pending |
+| REMIND-01 | In-app reminder N days before sprint end | Medium | 17 | Pending |
+| REMIND-02 | In-app reminder N days before milestone due date | Medium | 17 | Pending |
 
 ---
 

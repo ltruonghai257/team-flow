@@ -1,272 +1,182 @@
 # Roadmap: TeamFlow
 
-*Created: 2026-04-22*
-*Milestone 1: Production-Ready Team Management Platform*
+*Updated: 2026-04-24*
 
 ---
 
-## Milestone 1 Overview
+## Milestone 1 History: Production-Ready Team Management Platform
 
-**Goal:** Ship a production-deployed TeamFlow with supervisor analytics, Azure hosting, and CI/CD - replacing Jira/Trello for a 5–15 person team.
+**Status:** Complete ✓ (Phases 1–11)
+**Completed:** 2026-04-24
 
-**Definition of Done:** Supervisor can access `/performance` dashboard with real team data; app deployed on Azure App Service; CI/CD pipeline live; mobile-responsive.
-
----
-
-## Phase 1: Production Hardening
-
-**Goal:** Fix all critical issues that block production deployment.
-
-**Delivers:**
-- Alembic migrations set up, initial migration generated
-- `create_all` replaced with `alembic upgrade head` at startup
-- `SECRET_KEY` startup validation (rejects default value)
-- CORS origins from env var (`ALLOWED_ORIGINS`)
-- Rate limiting on auth and AI endpoints (`slowapi`)
-- `datetime.utcnow()` → `datetime.now(timezone.utc)` throughout
-
-**Depends on:** Nothing (foundational)
-
-**Canonical refs:**
-- `.planning/codebase/CONCERNS.md` - items 1, 2, 11, 12
-- `backend/app/main.py`
-- `backend/app/config.py`
-- `backend/app/database.py`
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 1 | Production Hardening | REQ-01 | ✓ Done |
+| 2 | RBAC & Role Model | REQ-07 | ✓ Done |
+| 3 | Supervisor Performance Dashboard | REQ-02 | ✓ Done |
+| 4 | Team Timeline View | REQ-03 | ✓ Done |
+| 5 | Enhanced AI Features | REQ-04 | ✓ Done |
+| 6 | Mobile-Responsive UI | REQ-06 | ✓ Done |
+| 7 | Azure Deployment & CI/CD | REQ-05 | ✓ Done |
+| 8 | User Invite & Team Management | — | ✓ Done |
+| 9 | Verification Docs (Phases 1–3) | — | ✓ Done |
+| 10 | Verification Docs (Phases 4–5) | — | ✓ Done |
+| 11 | Verification Docs (Phases 6–8) | — | ✓ Done |
 
 ---
 
-## Phase 2: RBAC & Role Model
+## Milestone 2: Team Hierarchy, Sprints & Advanced Analytics
 
-**Goal:** Formalize the role system so supervisor-only features are enforced server-side.
+**Goal:** Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
 
-**Delivers:**
-- `User.role` enum: `admin`, `supervisor`, `member`
-- Backend dependency `require_supervisor()` for protected endpoints
-- Registration defaults to `member`; role change by admin only
-- Frontend routes guard based on role from auth store
-
-**Depends on:** Phase 1 (needs stable auth layer)
-
-**Canonical refs:**
-- `backend/app/auth.py`
-- `backend/app/models.py`
-- `backend/app/routers/users.py`
-- `.planning/REQUIREMENTS.md` REQ-07
+**Definition of Done:** Admin can create sub-teams and assign supervisors; supervisors see only their sub-team's data (API-enforced); sprints exist within milestones; Kanban board columns driven from DB statuses; performance dashboard shows velocity, burndown, cycle time, throughput, and defect metrics; in-app reminders fire before sprint end and milestone due dates; all existing data migrated without loss.
 
 ---
 
-## Phase 3: Supervisor Performance Dashboard
+## Phases
 
-**Goal:** Build the `/performance` route and backing API so supervisors can evaluate team output.
-
-**Delivers:**
-- `GET /api/dashboard/performance` - per-member metrics (active tasks, completed 30d, on-time rate, avg cycle time, overdue count)
-- `/performance` frontend route (supervisor-only, redirect others)
-- Team overview table with traffic-light status indicator
-- Workload bar chart (active tasks per member)
-- At-risk panel (tasks due within 2 days, not done)
-- Individual member detail view (weekly completions, on-time trend, active task list)
-
-**Depends on:** Phase 2 (role checks)
-
-**Canonical refs:**
-- `.planning/REQUIREMENTS.md` REQ-02
-- `.planning/research/RESEARCH.md` §2 (metrics formulas)
-- `backend/app/models.py` - Task, User models
-- `backend/app/routers/dashboard.py`
+- [ ] **Phase 12: Task Types** — Add task type field (feature/bug/task/improvement) to every task; visible on cards, filterable on board; backfill existing tasks to `task` type
+- [ ] **Phase 13: Multi-Team Hierarchy + Timeline Visibility** — Introduce SubTeam model, scope all data access by sub-team, enforce role-aware timeline visibility for members, supervisors, and admins
+- [ ] **Phase 14: Sprint Model** — Sprints as time-boxed iterations within milestones; tasks assigned to sprints; sprint board filters by sprint; sprint close flow
+- [ ] **Phase 15: Custom Kanban Statuses** — Migrate hardcoded enum to DB-driven statuses; supervisor-managed team-wide and per-project status sets; `is_done` flag replaces hardcoded done slug
+- [ ] **Phase 16: Advanced KPI Dashboard** — Velocity per sprint, burndown chart, cycle time by type, throughput by member, defect metrics and MTTR; all queries use `is_done` and task types
+- [ ] **Phase 17: Sprint & Release Reminders** — In-app notifications N days before sprint end and milestone due dates; configurable offset; deduplication via EventNotification rows
 
 ---
 
-## Phase 4: Team Timeline View
+## Phase Details
 
-**Goal:** Give supervisors and team members a Gantt-style visual of project progress.
+### Phase 12: Task Types
+**Goal**: Every task has a type (feature/bug/task/improvement) that is visible on the board and usable as a filter
+**Depends on**: Nothing (fully isolated column addition)
+**Requirements**: TYPE-01, TYPE-02, TYPE-03
+**Success Criteria** (what must be TRUE):
+  1. User can set task type when creating or editing a task; type defaults to `task` if not selected
+  2. Task type is visible as an icon or badge on every Kanban card
+  3. User can filter the Kanban board to show only tasks of a specific type
+  4. All existing tasks show type `task` after migration with no null values
+**Plans**: TBD
+**UI hint**: yes
 
-**Delivers:**
-- `/timeline` frontend route (all roles)
-- Horizontal timeline showing milestones and tasks per project
-- Color-coded by project, overdue items visually distinct
-- Time range selector (week / month / custom)
-- Task bars with assignee initials, status color, click-to-edit
+### Phase 13: Multi-Team Hierarchy + Timeline Visibility
+**Goal**: The app is organized into sub-teams; every user, project, and task is scoped to a sub-team; the timeline shows only what each role is permitted to see
+**Depends on**: Phase 12 (parallel is acceptable; 13 requires nothing from 12)
+**Requirements**: TEAM-01, TEAM-02, TEAM-03, TEAM-04, TEAM-05, VIS-01, VIS-02, VIS-03
+**Success Criteria** (what must be TRUE):
+  1. Admin can create a sub-team, assign a supervisor, rename it, and reassign its supervisor from the settings page
+  2. A supervisor's dashboard, performance page, and timeline show only their sub-team's members and projects — cross-team data is inaccessible even via direct API calls
+  3. A member sees only projects where they have at least one assigned task on the timeline
+  4. Admin can view all sub-teams, switch between them, and see org-wide aggregates on the dashboard
+  5. All existing users and projects are migrated to a default sub-team with zero data loss
+**Plans**: TBD
+**UI hint**: yes
 
-**Depends on:** Phase 1 (stable DB), Phase 3 (establishes performance page pattern)
+### Phase 14: Sprint Model
+**Goal**: Supervisors can create time-boxed sprints within milestones; team members can assign tasks to sprints; the board can be filtered to show a single sprint's work
+**Depends on**: Phase 13 (sprint scoping requires sub-team context)
+**Requirements**: SPRINT-01, SPRINT-02, SPRINT-03, SPRINT-04
+**Success Criteria** (what must be TRUE):
+  1. Supervisor can create, edit, and close a sprint with a name, start date, and end date within a milestone
+  2. Task creation and edit forms include a sprint selector; selecting a sprint associates the task with that sprint
+  3. Sprint board view filters to tasks in the selected sprint; unassigned tasks are visible in a Backlog column
+  4. Closing a sprint prompts the user to move incomplete tasks to backlog or next sprint before closing
+**Plans**: TBD
+**UI hint**: yes
 
-**Canonical refs:**
-- `.planning/REQUIREMENTS.md` REQ-03
-- `backend/app/models.py` - Milestone, Task, Project
-- `frontend/src/routes/` - routing pattern
+### Phase 15: Custom Kanban Statuses
+**Goal**: Kanban columns are driven from database-stored statuses instead of hardcoded enum values; supervisors can create, reorder, and manage statuses; task completion is determined by the `is_done` flag
+**Depends on**: Phase 14 (sprint burndown and `is_done` logic must be written correctly from the start, not retrofitted)
+**Requirements**: STATUS-01, STATUS-02, STATUS-03, STATUS-04
+**Success Criteria** (what must be TRUE):
+  1. Supervisor can create a custom status with a name and color, reorder statuses via drag-and-drop, and set one as the completion status (`is_done`)
+  2. Kanban board columns reflect the current DB-stored status list, not hardcoded values; changes take effect immediately without a deploy
+  3. A project can define its own status set; projects with no custom statuses inherit the team-wide defaults
+  4. All existing tasks are migrated from the enum to the new DB-backed statuses with zero data loss; task completion timestamps (`completed_at`) are preserved correctly
+  5. Moving a task to any status marked `is_done` sets its completion timestamp; moving it back clears the timestamp
+**Plans**: TBD
+**UI hint**: yes
 
----
+### Phase 16: Advanced KPI Dashboard
+**Goal**: The supervisor performance dashboard exposes data-grounded sprint and team metrics — velocity, burndown, cycle time, throughput, and defect metrics — all computed from real sprint and task type data
+**Depends on**: Phase 13 (team scoping), Phase 14 (sprint data), Phase 15 (is_done flag and task types from Phase 12)
+**Requirements**: KPI-01, KPI-02, KPI-03, KPI-04, KPI-05
+**Success Criteria** (what must be TRUE):
+  1. Supervisor can view a velocity chart showing tasks completed per sprint per member over the last 6 sprints
+  2. Supervisor can view a burndown chart for the active sprint and any closed sprint, showing remaining tasks vs elapsed time
+  3. Performance dashboard shows average cycle time broken down by task type (feature/bug/task/improvement) over the last 3 months
+  4. Performance dashboard shows tasks completed per week per member grouped by type as a stacked bar chart over the last 8 weeks
+  5. Performance dashboard shows bugs reported vs bugs resolved per period, and MTTR per member for the last 30 days
+**Plans**: TBD
+**UI hint**: yes
 
-## Phase 5: Enhanced AI Features
-
-**Goal:** Extend AI from task creation to task breakdown and project status summary.
-
-**Delivers:**
-- `POST /api/tasks/ai-breakdown` - NLP description → list of subtask drafts
-- `POST /api/ai/project-summary` - project_id → natural-language status summary (data-grounded)
-- Frontend: "Break down with AI" button on task creation (shows editable subtask list)
-- Frontend: "Summarize" button on project detail page
-- AI assistant chat understands "summarize project X" intent
-
-**Depends on:** Phase 1 (stable AI rate limiting), Phase 3 (project data for summaries)
-
-**Canonical refs:**
-- `.planning/REQUIREMENTS.md` REQ-04
-- `backend/app/routers/ai.py` - existing LiteLLM pattern
-- `backend/app/routers/tasks.py` - existing ai-parse pattern
-- `.planning/research/RESEARCH.md` §2 (metrics for summary prompt)
-
----
-
-## Phase 6: Mobile-Responsive UI
-
-**Goal:** Make TeamFlow usable on phones so team members can update tasks on the go.
-
-**Delivers:**
-- Sidebar collapses to hamburger menu on mobile (375px+)
-- All existing routes mobile-adapted
-- Kanban board horizontal scroll on mobile
-- Performance dashboard table horizontally scrollable
-- Task forms usable on mobile keyboard
-
-**Depends on:** Phase 3, Phase 4 (need final UI structure before mobile pass)
-
-**Canonical refs:**
-- `.planning/REQUIREMENTS.md` REQ-06
-- `frontend/src/routes/+layout.svelte` - sidebar
-- `frontend/src/lib/components/tasks/KanbanBoard.svelte`
-
----
-
-## Phase 8: User Invite & Team Management
-
-**Goal:** Allow supervisors and admins to add or invite users to the team, with email-based invitation flow including a validation code and confirmation link.
-
-**Delivers:**
-- `POST /api/teams/invite` - send email invitation with unique token + 6-digit validation code (expires 72h)
-- `POST /api/teams/add` - directly add an existing user to a team (supervisor/admin only)
-- `GET /api/invites/validate?token=…` - validate invite token and return invite metadata
-- `POST /api/invites/accept` - accept invite with token + validation code → creates/activates user account
-- Email template: invite email with team name, sender name, validation code, and accept link
-- Frontend: "Invite Member" modal on team management page (email input, role selector)
-- Frontend: "Add Member" direct-add flow for existing users
-- Frontend: Invite acceptance page at `/invite/accept?token=…` (code entry + account setup)
-- Pending invites list visible to supervisors/admins
-- Backend guards: `require_supervisor_or_admin()` dependency on invite/add endpoints
-
-**Depends on:** Phase 2 (RBAC roles), Phase 1 (stable auth layer)
-
-**Canonical refs:**
-- `.planning/REQUIREMENTS.md`
-- `backend/app/auth.py`
-- `backend/app/models.py`
-- `backend/app/routers/`
-- `frontend/src/routes/`
+### Phase 17: Sprint & Release Reminders
+**Goal**: Team members and supervisors receive in-app notifications before sprint end dates and milestone due dates, with configurable lead time and no duplicate reminders
+**Depends on**: Phase 13 (team membership for fanout), Phase 14 (sprint model for trigger events)
+**Requirements**: REMIND-01, REMIND-02
+**Success Criteria** (what must be TRUE):
+  1. All sprint participants receive an in-app notification N days before the sprint end date (default: 2 days); N is configurable per team by the supervisor or admin
+  2. Supervisor and admin receive an in-app notification N days before a milestone due date (default: 3 days); N is configurable per team
+  3. Reminders are not duplicated if the sprint or milestone date is unchanged; a reminder is re-created if the date is moved
+  4. Reminders persist across app restarts and Azure deploys (stored as EventNotification rows, not in-memory scheduler jobs)
+**Plans**: TBD
 
 ---
 
-## Phase 7: Azure Deployment & CI/CD
+## Progress Table
 
-**Goal:** Deploy TeamFlow to Azure App Service with automated CI/CD pipeline.
-
-**Delivers:**
-- `scripts/setup-azure.sh` - one-time Azure resource provisioning (ACR, App Service plans, App Services, PostgreSQL Flexible Server)
-- `scripts/deploy.sh` - manual deploy script (ACR build + App Service update)
-- `.github/workflows/deploy.yml` - CI/CD pipeline (OIDC auth, push-to-main trigger, builds backend + frontend Docker images, deploys to Azure)
-- `backend/.env.azure.example` - full env var template for Azure App Settings
-- Backend startup command: `alembic upgrade head && uvicorn app.main:app`
-- README: Azure setup guide and deployment instructions
-- App accessible at `https://teamflow-api.azurewebsites.net` (backend) and `https://teamflow.azurewebsites.net` (frontend)
-
-**Depends on:** All prior phases (deploy the complete app)
-
-**Canonical refs:**
-- `.planning/REQUIREMENTS.md` REQ-05
-- `.planning/research/RESEARCH.md` §1 (Azure App Service + ACR), §3 (GitHub Actions)
-- `docker-compose.yml` - existing Docker setup
-- `backend/Dockerfile`, `frontend/Dockerfile`
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 12. Task Types | 0/? | Not started | - |
+| 13. Multi-Team Hierarchy + Timeline Visibility | 0/? | Not started | - |
+| 14. Sprint Model | 0/? | Not started | - |
+| 15. Custom Kanban Statuses | 0/? | Not started | - |
+| 16. Advanced KPI Dashboard | 0/? | Not started | - |
+| 17. Sprint & Release Reminders | 0/? | Not started | - |
 
 ---
 
-## Phase Sequence
+## Phase Sequencing
 
 ```
-Phase 1 - Production Hardening     [Critical blocker]
-  └─ Phase 2 - RBAC                [Enables supervisor features]
-       ├─ Phase 3 - Performance    [Core supervisor value]
-       │    ├─ Phase 4 - Timeline  [Parallel to Phase 5 possible]
-       │    └─ Phase 5 - AI        [Parallel to Phase 4 possible]
-       │          └─ Phase 6 - Mobile UI
-       │                └─ Phase 7 - Azure Deploy
-       └─ Phase 8 - User Invite    [Parallel workstream from Phase 2]
+Phase 12 - Task Types               [Isolated; can run parallel to 13]
+Phase 13 - Multi-Team Hierarchy     [Gates all scoping; includes timeline visibility]
+  └─ Phase 14 - Sprint Model        [Requires team context for scoping]
+       └─ Phase 15 - Custom Statuses [Riskiest migration; burndown written once against is_done]
+            └─ Phase 16 - KPI Dashboard [Requires 12+13+14+15 all complete]
+Phase 13+14 → Phase 17 - Reminders  [Parallel workstream to 16; requires only hierarchy + sprints]
 ```
 
 ---
 
-## Phase 9: Generate Verification Documentation (Phases 1-3)
+## Coverage
 
-**Goal:** Create VERIFICATION.md files for foundational phases to enable requirement verification.
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TYPE-01 | Phase 12 | Pending |
+| TYPE-02 | Phase 12 | Pending |
+| TYPE-03 | Phase 12 | Pending |
+| TEAM-01 | Phase 13 | Pending |
+| TEAM-02 | Phase 13 | Pending |
+| TEAM-03 | Phase 13 | Pending |
+| TEAM-04 | Phase 13 | Pending |
+| TEAM-05 | Phase 13 | Pending |
+| VIS-01 | Phase 13 | Pending |
+| VIS-02 | Phase 13 | Pending |
+| VIS-03 | Phase 13 | Pending |
+| SPRINT-01 | Phase 14 | Pending |
+| SPRINT-02 | Phase 14 | Pending |
+| SPRINT-03 | Phase 14 | Pending |
+| SPRINT-04 | Phase 14 | Pending |
+| STATUS-01 | Phase 15 | Pending |
+| STATUS-02 | Phase 15 | Pending |
+| STATUS-03 | Phase 15 | Pending |
+| STATUS-04 | Phase 15 | Pending |
+| KPI-01 | Phase 16 | Pending |
+| KPI-02 | Phase 16 | Pending |
+| KPI-03 | Phase 16 | Pending |
+| KPI-04 | Phase 16 | Pending |
+| KPI-05 | Phase 16 | Pending |
+| REMIND-01 | Phase 17 | Pending |
+| REMIND-02 | Phase 17 | Pending |
 
-**Delivers:**
-- VERIFICATION.md for Phase 1 (Production Hardening) - REQ-01 coverage table
-- VERIFICATION.md for Phase 2 (RBAC Role Model) - REQ-07 coverage table
-- VERIFICATION.md for Phase 3 (Supervisor Performance Dashboard) - REQ-02 coverage table
-- VALIDATION.md frontmatter updates for Phases 2 and 3 (nyquist_compliant status)
-
-**Depends on:** Phases 1, 2, 3 complete (documentation only)
-
-**Canonical refs:**
-- `.planning/v1.0-MILESTONE-AUDIT.md` - verification gaps
-- `.planning/REQUIREMENTS.md` - REQ-01, REQ-02, REQ-07 acceptance criteria
-- `.claude/get-shit-done/templates/VALIDATION.md` - template
-
----
-
-## Phase 10: Generate Verification Documentation (Phases 4-5)
-
-**Goal:** Create VERIFICATION.md files for feature phases to enable requirement verification.
-
-**Delivers:**
-- VERIFICATION.md for Phase 4 (Team Timeline View) - REQ-03 coverage table
-- VERIFICATION.md for Phase 5 (Enhanced AI Features) - REQ-04 coverage table
-- VALIDATION.md files for Phases 4 and 5 (missing entirely)
-
-**Depends on:** Phases 4, 5 complete (documentation only)
-
-**Canonical refs:**
-- `.planning/v1.0-MILESTONE-AUDIT.md` - verification gaps
-- `.planning/REQUIREMENTS.md` - REQ-03, REQ-04 acceptance criteria
-- `.claude/get-shit-done/templates/VALIDATION.md` - template
-
----
-
-## Phase 11: Generate Verification Documentation (Phases 6-8)
-
-**Goal:** Create VERIFICATION.md files for deployment and management phases to enable requirement verification.
-
-**Delivers:**
-- VERIFICATION.md for Phase 6 (Mobile Responsive UI) - REQ-06 coverage table
-- VERIFICATION.md for Phase 7 (Azure Deployment CI/CD) - REQ-05 coverage table
-- VERIFICATION.md for Phase 8 (User Invite Team Management) - verification documentation
-- VALIDATION.md files for Phases 7 and 8 (missing entirely)
-- VALIDATION.md fix for Phase 6 (set nyquist_compliant: true)
-
-**Depends on:** Phases 6, 7, 8 complete (documentation only)
-
-**Canonical refs:**
-- `.planning/v1.0-MILESTONE-AUDIT.md` - verification gaps
-- `.planning/REQUIREMENTS.md` - REQ-05, REQ-06 acceptance criteria
-- `.claude/get-shit-done/templates/VALIDATION.md` - template
-
----
-
-## Milestone 1 Exit Criteria
-
-- [ ] All 11 phases complete (8 implementation + 3 verification)
-- [ ] `/performance` dashboard live with real team data
-- [ ] `/timeline` view operational
-- [ ] AI breakdown and project summary working
-- [ ] App mobile-responsive
-- [ ] Deployed on Azure - accessible via URL
-- [ ] GitHub Actions CI/CD pipeline passing
-- [ ] Manual deploy script documented
+**Coverage: 26/26 requirements mapped ✓**
