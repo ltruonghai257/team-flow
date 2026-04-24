@@ -5,6 +5,7 @@
 	export let subtask: {
 		title: string;
 		priority: string;
+		type: string;
 		estimated_hours: number;
 		description: string;
 		milestone_id: string;
@@ -47,6 +48,20 @@
 				<option value="medium">Medium</option>
 				<option value="high">High</option>
 				<option value="critical">Critical</option>
+			</select>
+		</div>
+		<div class="flex-1">
+			<label class="label" for="st-type-{subtask.title}">Type</label>
+			<select
+				id="st-type-{subtask.title}"
+				class="input"
+				value={subtask.type || 'task'}
+				on:change={(e) => update('type', e.currentTarget.value)}
+			>
+				<option value="feature">Feature</option>
+				<option value="bug">Bug</option>
+				<option value="task">Task</option>
+				<option value="improvement">Improve</option>
 			</select>
 		</div>
 		<div>

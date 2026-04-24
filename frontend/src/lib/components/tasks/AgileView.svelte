@@ -1,6 +1,15 @@
 <script lang="ts">
-	import { formatDate, isOverdue, statusColors, statusLabels, priorityColors, initials } from '$lib/utils';
-	import { Pencil, Trash2 } from 'lucide-svelte';
+	import {
+		formatDate,
+		isOverdue,
+		statusColors,
+		statusLabels,
+		priorityColors,
+		taskTypeColors,
+		taskTypeLabels,
+		initials
+	} from '$lib/utils';
+	import { Pencil, Trash2, Sparkles, Bug, CheckSquare, Wrench } from 'lucide-svelte';
 
 	export let tasks: any[] = [];
 	export let milestones: any[] = [];
@@ -14,6 +23,12 @@
 		review: 'done',
 		done: 'todo',
 		blocked: 'todo'
+	};
+	const taskTypeIcons: Record<string, any> = {
+		feature: Sparkles,
+		bug: Bug,
+		task: CheckSquare,
+		improvement: Wrench
 	};
 
 	type Group = {
@@ -50,6 +65,10 @@
 		const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
 		for (const t of group.tasks) counts[t.priority] = (counts[t.priority] ?? 0) + 1;
 		return counts;
+	}
+
+	function taskTypeValue(t: any) {
+		return t.type || 'task';
 	}
 
 	async function cycleStatus(task: any) {
@@ -108,6 +127,10 @@
 								{t.title}
 							</p>
 						</div>
+						<span class="badge {taskTypeColors[taskTypeValue(t)]} text-[10px] flex items-center gap-1 flex-shrink-0">
+							<svelte:component this={taskTypeIcons[taskTypeValue(t)] || CheckSquare} size={10} />
+							{taskTypeLabels[taskTypeValue(t)]}
+						</span>
 						<span class="badge {priorityColors[t.priority]} text-[10px] flex-shrink-0">{t.priority}</span>
 						{#if t.due_date}
 							<span

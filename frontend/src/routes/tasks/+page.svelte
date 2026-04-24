@@ -6,9 +6,31 @@
 		projects as projectsApi,
 		milestones as milestonesApi
 	} from '$lib/api';
-	import { formatDate, statusColors, statusLabels, priorityColors, isOverdue } from '$lib/utils';
+	import {
+		formatDate,
+		statusColors,
+		statusLabels,
+		priorityColors,
+		taskTypeColors,
+		taskTypeLabels,
+		taskTypeOptions,
+		isOverdue
+	} from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import { Plus, Pencil, Trash2, X, Filter, List, Columns, Layers } from 'lucide-svelte';
+	import {
+		Plus,
+		Pencil,
+		Trash2,
+		X,
+		Filter,
+		List,
+		Columns,
+		Layers,
+		Sparkles,
+		Bug,
+		CheckSquare,
+		Wrench
+	} from 'lucide-svelte';
 	import KanbanBoard from '$lib/components/tasks/KanbanBoard.svelte';
 	import AgileView from '$lib/components/tasks/AgileView.svelte';
 	import AiTaskInput from '$lib/components/tasks/AiTaskInput.svelte';
@@ -23,17 +45,25 @@
 	let showModal = false;
 	let editingTask: any = null;
 	let filterStatus = '';
+	let selectedTypes: string[] = [];
 	let filterMine = false;
 	let viewMode: ViewMode = 'list';
 	let aiMode: 'form' | 'nlp' | 'json' | 'breakdown' = 'form';
 
 	const VIEW_KEY = 'tasks_view_mode';
+	const taskTypeIcons: Record<string, any> = {
+		feature: Sparkles,
+		bug: Bug,
+		task: CheckSquare,
+		improvement: Wrench
+	};
 
 	let form = {
 		title: '',
 		description: '',
 		status: 'todo',
 		priority: 'medium',
+		type: 'task',
 		due_date: '',
 		estimated_hours: '',
 		tags: '',
@@ -69,6 +99,7 @@
 	async function loadTasks() {
 		const params: any = {};
 		if (filterStatus) params.status = filterStatus;
+		if (selectedTypes.length > 0) params.types = selectedTypes.join(',');
 		if (filterMine) params.my_tasks = 'true';
 		taskList = (await tasksApi.list(params)) as any[];
 	}
@@ -79,6 +110,7 @@
 			description: '',
 			status: 'todo',
 			priority: 'medium',
+			type: 'task',
 			due_date: '',
 			estimated_hours: '',
 			tags: '',
@@ -102,6 +134,7 @@
 			description: t.description || '',
 			status: t.status,
 			priority: t.priority,
+			type: t.type || 'task',
 			due_date: t.due_date ? t.due_date.slice(0, 10) : '',
 			estimated_hours: t.estimated_hours || '',
 			tags: t.tags || '',
@@ -127,6 +160,7 @@
 			...(fields.description !== undefined ? { description: fields.description ?? '' } : {}),
 			...(fields.status ? { status: fields.status } : {}),
 			...(fields.priority ? { priority: fields.priority } : {}),
+			...(fields.type ? { type: fields.type } : {}),
 			...(fields.due_date ? { due_date: fields.due_date } : {}),
 			...(fields.estimated_hours !== undefined
 				? { estimated_hours: String(fields.estimated_hours ?? '') }
@@ -171,6 +205,20 @@
 		}
 	}
 
+	function taskTypeIcon(type: string) {
+		return taskTypeIcons[type] || CheckSquare;
+	}
+
+	function taskTypeValue(t: any) {
+		return t.type || 'task';
+	}
+
+	function toggleTypeFilter(type: string) {
+		selectedTypes = selectedTypes.includes(type)
+			? selectedTypes.filter((t) => t !== type)
+			: [...selectedTypes, type];
+	}
+
 	async function toggleStatus(t: any) {
 		const next = t.status === 'done' ? 'todo' : 'done';
 		await changeStatus(t.id, next);
@@ -188,7 +236,7 @@
 		}
 	}
 
-	$: filterStatus, filterMine, loadTasks();
+	$: filterStatus, selectedTypes, filterMine, loadTasks();
 </script>
 
 <svelte:head><title>Tasks · TeamFlow</title></svelte:head>
@@ -260,6 +308,21 @@
 			/>
 			My tasks only
 		</label>
+		<div class="flex items-center gap-2 flex-wrap">
+			<span class="text-sm text-gray-500">Type</span>
+			{#each taskTypeOptions as type}
+				<button
+					type="button"
+					on:click={() => toggleTypeFilter(type)}
+					class="badge flex items-center gap-1 transition-colors {selectedTypes.includes(type)
+						? taskTypeColors[type]
+						: 'bg-gray-800 text-gray-400 hover:text-gray-200'}"
+				>
+					<svelte:component this={taskTypeIcon(type)} size={12} />
+					{taskTypeLabels[type]}
+				</button>
+			{/each}
+		</div>
 	</div>
 
 	{#if loading}
@@ -304,6 +367,10 @@
 								{/if}
 								<div class="flex items-center gap-2 mt-2 flex-wrap">
 									<span class="badge {statusColors[t.status]}">{statusLabels[t.status]}</span>
+									<span class="badge {taskTypeColors[taskTypeValue(t)]} flex items-center gap-1">
+										<svelte:component this={taskTypeIcon(taskTypeValue(t))} size={11} />
+										{taskTypeLabels[taskTypeValue(t)]}
+									</span>
 									<span class="badge {priorityColors[t.priority]}">{t.priority}</span>
 									{#if t.due_date}
 										<span
@@ -371,7 +438,7 @@
 								<textarea id="t-desc" bind:value={form.description} class="input resize-none" rows="3"
 								></textarea>
 							</div>
-							<div class="grid grid-cols-2 gap-4">
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 								<div>
 									<label class="label" for="t-status">Status</label>
 									<select id="t-status" bind:value={form.status} class="input">
@@ -389,6 +456,14 @@
 										<option value="medium">Medium</option>
 										<option value="high">High</option>
 										<option value="critical">Critical</option>
+									</select>
+								</div>
+								<div>
+									<label class="label" for="t-type">Type</label>
+									<select id="t-type" bind:value={form.type} class="input">
+										{#each taskTypeOptions as type}
+											<option value={type}>{taskTypeLabels[type]}</option>
+										{/each}
 									</select>
 								</div>
 							</div>
@@ -450,7 +525,7 @@
 							<textarea id="t-desc-e" bind:value={form.description} class="input resize-none" rows="3"
 							></textarea>
 						</div>
-						<div class="grid grid-cols-2 gap-4">
+						<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 							<div>
 								<label class="label" for="t-status-e">Status</label>
 								<select id="t-status-e" bind:value={form.status} class="input">
@@ -468,6 +543,14 @@
 									<option value="medium">Medium</option>
 									<option value="high">High</option>
 									<option value="critical">Critical</option>
+								</select>
+							</div>
+							<div>
+								<label class="label" for="t-type-e">Type</label>
+								<select id="t-type-e" bind:value={form.type} class="input">
+									{#each taskTypeOptions as type}
+										<option value={type}>{taskTypeLabels[type]}</option>
+									{/each}
 								</select>
 							</div>
 						</div>

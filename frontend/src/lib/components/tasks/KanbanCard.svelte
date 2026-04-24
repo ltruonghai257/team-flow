@@ -1,9 +1,20 @@
 <script lang="ts">
-	import { formatDate, isOverdue, priorityColors, initials } from '$lib/utils';
-	import { Pencil } from 'lucide-svelte';
+	import { formatDate, isOverdue, priorityColors, taskTypeColors, taskTypeLabels, initials } from '$lib/utils';
+	import { Pencil, Sparkles, Bug, CheckSquare, Wrench } from 'lucide-svelte';
 
 	export let task: any;
 	export let onEdit: (t: any) => void = () => {};
+
+	const taskTypeIcons: Record<string, any> = {
+		feature: Sparkles,
+		bug: Bug,
+		task: CheckSquare,
+		improvement: Wrench
+	};
+
+	function taskTypeValue(t: any) {
+		return t.type || 'task';
+	}
 </script>
 
 <div class="bg-gray-800/80 hover:bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-sm cursor-grab active:cursor-grabbing transition-colors group">
@@ -23,6 +34,10 @@
 	{/if}
 
 	<div class="flex items-center gap-1.5 mt-2.5 flex-wrap">
+		<span class="badge {taskTypeColors[taskTypeValue(task)]} text-[10px] px-1.5 py-0.5 flex items-center gap-1">
+			<svelte:component this={taskTypeIcons[taskTypeValue(task)] || CheckSquare} size={10} />
+			{taskTypeLabels[taskTypeValue(task)]}
+		</span>
 		<span class="badge {priorityColors[task.priority]} text-[10px] px-1.5 py-0.5">{task.priority}</span>
 		{#if task.due_date}
 			<span

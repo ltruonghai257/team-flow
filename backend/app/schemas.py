@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.models import InviteStatus, MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus, UserRole
+from app.models import InviteStatus, MilestoneStatus, NotificationEventType, NotificationStatus, TaskPriority, TaskStatus, TaskType, UserRole
 
 
 def _to_naive_utc(v):
@@ -126,6 +126,7 @@ class TaskCreate(BaseModel):
     description: Optional[str] = None
     status: TaskStatus = TaskStatus.todo
     priority: TaskPriority = TaskPriority.medium
+    type: TaskType = TaskType.task
     due_date: Optional[datetime] = None
     estimated_hours: Optional[int] = None
     tags: Optional[str] = None
@@ -141,6 +142,7 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
+    type: Optional[TaskType] = None
     due_date: Optional[datetime] = None
     estimated_hours: Optional[int] = None
     tags: Optional[str] = None
@@ -158,6 +160,7 @@ class TaskOut(BaseModel):
     description: Optional[str]
     status: TaskStatus
     priority: TaskPriority
+    type: TaskType
     due_date: Optional[datetime]
     completed_at: Optional[datetime]
     estimated_hours: Optional[int]
@@ -184,6 +187,7 @@ class AiParseResponse(BaseModel):
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
+    type: Optional[TaskType] = None
     due_date: Optional[datetime] = None
     estimated_hours: Optional[int] = None
     tags: Optional[str] = None
@@ -387,6 +391,7 @@ class AiBreakdownRequest(BaseModel):
 class AiBreakdownSubtask(BaseModel):
     title: str
     priority: str
+    type: TaskType = TaskType.task
     estimated_hours: int
     description: str
 

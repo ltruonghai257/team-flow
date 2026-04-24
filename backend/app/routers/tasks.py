@@ -13,14 +13,14 @@ from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.limiter import limiter
-from app.models import Task, TaskPriority, TaskStatus, User
+from app.models import Task, TaskPriority, TaskStatus, TaskType, User
 from app.schemas import AiBreakdownRequest, AiBreakdownResponse, AiBreakdownSubtask, AiParseRequest, AiParseResponse, TaskCreate, TaskOut, TaskUpdate
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 _AI_BREAKDOWN_SYSTEM_PROMPT = """You are a task breakdown assistant. The user describes a feature or work item.
 Decompose it into 3–8 concrete subtasks. Respond with ONLY a valid JSON array (no markdown, no prose):
-[{"title":"...", "priority":"low|medium|high|critical", "estimated_hours": integer, "description":"1-2 sentences"}]
+[{"title":"...", "priority":"low|medium|high|critical", "type":"feature|bug|task|improvement (default task)", "estimated_hours": integer, "description":"1-2 sentences"}]
 Return between 3 and 8 items. No code fences. No explanations."""
 
 _AI_PARSE_SYSTEM_PROMPT = """You are a task extraction assistant. The user will describe a task in natural language.
@@ -29,6 +29,7 @@ Extract the task fields and respond with ONLY a valid JSON object (no markdown, 
   "title": "string (required, concise)",
   "description": "string or null (longer details if given)",
   "priority": "low|medium|high|critical (default medium)",
+  "type": "feature|bug|task|improvement (default task)",
   "status": "todo|in_progress|review|done|blocked (default todo)",
   "due_date": "ISO 8601 date string (YYYY-MM-DD) or null",
   "estimated_hours": "integer or null",
@@ -43,6 +44,7 @@ def _coerce_ai_parse(data: dict) -> AiParseResponse:
     """Normalize a raw dict into AiParseResponse, dropping invalid enum values."""
     valid_status = {s.value for s in TaskStatus}
     valid_priority = {p.value for p in TaskPriority}
+    valid_type = {t.value for t in TaskType}
 
     out: dict = {}
     if data.get("title"):
@@ -55,6 +57,9 @@ def _coerce_ai_parse(data: dict) -> AiParseResponse:
     priority = data.get("priority")
     if isinstance(priority, str) and priority in valid_priority:
         out["priority"] = priority
+    task_type = data.get("type")
+    if isinstance(task_type, str) and task_type in valid_type:
+        out["type"] = task_type
     due = data.get("due_date")
     if due:
         try:
@@ -81,6 +86,7 @@ async def list_tasks(
     milestone_id: Optional[int] = None,
     assignee_id: Optional[int] = None,
     status: Optional[TaskStatus] = None,
+    types: Optional[str] = None,
     my_tasks: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -94,6 +100,15 @@ async def list_tasks(
         query = query.where(Task.assignee_id == assignee_id)
     if status:
         query = query.where(Task.status == status)
+    if types:
+        type_values = []
+        for raw_type in [t.strip() for t in types.split(",") if t.strip()]:
+            try:
+                type_values.append(TaskType(raw_type))
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Invalid task type filter")
+        if type_values:
+            query = query.where(Task.type.in_(type_values))
     if my_tasks:
         query = query.where(Task.assignee_id == current_user.id)
     query = query.order_by(Task.created_at.desc())
@@ -168,6 +183,7 @@ async def delete_task(
 def _coerce_ai_breakdown(raw: list) -> list[AiBreakdownSubtask]:
     """Normalize a raw list into AiBreakdownSubtask items, dropping invalid entries."""
     valid_priority = {p.value for p in TaskPriority}
+    valid_type = {t.value for t in TaskType}
     result = []
     for item in raw:
         if not isinstance(item, dict):
@@ -178,6 +194,9 @@ def _coerce_ai_breakdown(raw: list) -> list[AiBreakdownSubtask]:
         priority = item.get("priority", "medium")
         if not isinstance(priority, str) or priority not in valid_priority:
             priority = "medium"
+        task_type = item.get("type", "task")
+        if not isinstance(task_type, str) or task_type not in valid_type:
+            task_type = "task"
         hours = item.get("estimated_hours", 0)
         if not isinstance(hours, (int, float)) or hours < 0:
             hours = 0
@@ -185,6 +204,7 @@ def _coerce_ai_breakdown(raw: list) -> list[AiBreakdownSubtask]:
         result.append(AiBreakdownSubtask(
             title=title,
             priority=priority,
+            type=task_type,
             estimated_hours=int(hours),
             description=description,
         ))

@@ -16,6 +16,7 @@
 	type SubtaskDraft = {
 		title: string;
 		priority: string;
+		type: string;
 		estimated_hours: number;
 		description: string;
 		milestone_id: string;
@@ -43,6 +44,7 @@
 			)) as { subtasks: any[] };
 			subtasks = result.subtasks.map((s) => ({
 				...s,
+				type: s.type || 'task',
 				estimated_hours: s.estimated_hours ?? 0,
 				milestone_id: breakdownMilestone
 			}));
@@ -63,6 +65,7 @@
 					title: subtasks[i].title,
 					description: subtasks[i].description || null,
 					priority: subtasks[i].priority,
+					type: subtasks[i].type || 'task',
 					estimated_hours: subtasks[i].estimated_hours || null,
 					project_id: Number(breakdownProject),
 					milestone_id: subtasks[i].milestone_id ? Number(subtasks[i].milestone_id) : null,

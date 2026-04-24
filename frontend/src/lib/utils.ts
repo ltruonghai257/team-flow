@@ -43,6 +43,22 @@ export const priorityColors: Record<string, string> = {
 	critical: 'bg-red-900 text-red-300'
 };
 
+export const taskTypeOptions = ['feature', 'bug', 'task', 'improvement'];
+
+export const taskTypeLabels: Record<string, string> = {
+	feature: 'Feature',
+	bug: 'Bug',
+	task: 'Task',
+	improvement: 'Improve'
+};
+
+export const taskTypeColors: Record<string, string> = {
+	feature: 'bg-cyan-900 text-cyan-300',
+	bug: 'bg-red-900 text-red-300',
+	task: 'bg-gray-700 text-gray-300',
+	improvement: 'bg-emerald-900 text-emerald-300'
+};
+
 export const milestoneStatusColors: Record<string, string> = {
 	planned: 'bg-gray-700 text-gray-300',
 	in_progress: 'bg-blue-900 text-blue-300',

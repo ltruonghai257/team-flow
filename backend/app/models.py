@@ -37,6 +37,13 @@ class TaskPriority(str, enum.Enum):
     critical = "critical"
 
 
+class TaskType(str, enum.Enum):
+    feature = "feature"
+    bug = "bug"
+    task = "task"
+    improvement = "improvement"
+
+
 class MilestoneStatus(str, enum.Enum):
     planned = "planned"
     in_progress = "in_progress"
@@ -119,6 +126,7 @@ class Task(Base):
     description = Column(Text, nullable=True)
     status = Column(Enum(TaskStatus), default=TaskStatus.todo)
     priority = Column(Enum(TaskPriority), default=TaskPriority.medium)
+    type = Column(Enum(TaskType), default=TaskType.task, nullable=False)
     due_date = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     estimated_hours = Column(Integer, nullable=True)
