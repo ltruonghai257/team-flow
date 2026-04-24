@@ -1,12 +1,12 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, hash_password, require_admin
+from app.auth import get_current_user, get_sub_team, hash_password, require_admin
 from app.database import get_db
-from app.models import User
+from app.models import SubTeam, User
 from app.schemas import UserOut, UserRoleUpdate, UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -15,9 +15,14 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 @router.get("/", response_model=List[UserOut])
 async def list_users(
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    result = await db.execute(select(User).where(User.is_active == True))
+    stmt = select(User).where(User.is_active == True)
+    # Apply sub-team filter (non-admins only see their sub-team's members)
+    if sub_team:
+        stmt = stmt.where(User.sub_team_id == sub_team.id)
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 

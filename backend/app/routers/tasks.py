@@ -3,18 +3,27 @@ import re
 from datetime import datetime, timezone
 from typing import List, Optional
 
-import litellm
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import get_current_user
+from app.ai_client import acompletion
+from app.auth import get_current_user, get_sub_team
 from app.config import settings
 from app.database import get_db
 from app.limiter import limiter
-from app.models import Task, TaskPriority, TaskStatus, TaskType, User
-from app.schemas import AiBreakdownRequest, AiBreakdownResponse, AiBreakdownSubtask, AiParseRequest, AiParseResponse, TaskCreate, TaskOut, TaskUpdate
+from app.models import SubTeam, Task, TaskPriority, TaskStatus, TaskType, User
+from app.schemas import (
+    AiBreakdownRequest,
+    AiBreakdownResponse,
+    AiBreakdownSubtask,
+    AiParseRequest,
+    AiParseResponse,
+    TaskCreate,
+    TaskOut,
+    TaskUpdate,
+)
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -90,8 +99,15 @@ async def list_tasks(
     my_tasks: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
     query = select(Task).options(selectinload(Task.assignee))
+
+    # Apply sub-team filter (admin may have None = all teams)
+    if sub_team:
+        query = query.join(Project, Task.project_id == Project.id).where(
+            Project.sub_team_id == sub_team.id
+        )
     if project_id:
         query = query.where(Task.project_id == project_id)
     if milestone_id:
@@ -130,8 +146,14 @@ async def create_task(
 
 
 @router.get("/{task_id}", response_model=TaskOut)
-async def get_task(task_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
-    result = await db.execute(select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id))
+async def get_task(
+    task_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id)
+    )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -145,7 +167,9 @@ async def update_task(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id))
+    result = await db.execute(
+        select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id)
+    )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -154,7 +178,9 @@ async def update_task(
     if "status" in update_data:
         new_status = update_data["status"]
         if new_status == TaskStatus.done and task.status != TaskStatus.done:
-            update_data["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+            update_data["completed_at"] = datetime.now(timezone.utc).replace(
+                tzinfo=None
+            )
         elif new_status != TaskStatus.done and task.status == TaskStatus.done:
             update_data["completed_at"] = None
 
@@ -201,13 +227,15 @@ def _coerce_ai_breakdown(raw: list) -> list[AiBreakdownSubtask]:
         if not isinstance(hours, (int, float)) or hours < 0:
             hours = 0
         description = str(item.get("description", ""))[:500]
-        result.append(AiBreakdownSubtask(
-            title=title,
-            priority=priority,
-            type=task_type,
-            estimated_hours=int(hours),
-            description=description,
-        ))
+        result.append(
+            AiBreakdownSubtask(
+                title=title,
+                priority=priority,
+                type=task_type,
+                estimated_hours=int(hours),
+                description=description,
+            )
+        )
     return result[:8]
 
 
@@ -219,7 +247,7 @@ async def ai_breakdown(
     _: User = Depends(get_current_user),
 ):
     try:
-        response = await litellm.acompletion(
+        response = await acompletion(
             model=settings.AI_MODEL,
             messages=[
                 {"role": "system", "content": _AI_BREAKDOWN_SYSTEM_PROMPT},
@@ -245,7 +273,9 @@ async def ai_breakdown(
         if not isinstance(data, list):
             raise ValueError("Expected JSON array")
     except (json.JSONDecodeError, ValueError):
-        raise HTTPException(status_code=502, detail="AI did not return a valid JSON array")
+        raise HTTPException(
+            status_code=502, detail="AI did not return a valid JSON array"
+        )
 
     subtasks = _coerce_ai_breakdown(data)
     if not subtasks:
@@ -273,9 +303,11 @@ async def ai_parse_task(
 
     # NLP mode — call LiteLLM
     model = payload.model or settings.AI_MODEL
-    prompt = _AI_PARSE_SYSTEM_PROMPT.replace("{today}", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    prompt = _AI_PARSE_SYSTEM_PROMPT.replace(
+        "{today}", datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    )
     try:
-        response = await litellm.acompletion(
+        response = await acompletion(
             model=model,
             messages=[
                 {"role": "system", "content": prompt},

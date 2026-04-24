@@ -1,75 +1,81 @@
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select, extract, case, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import require_supervisor
+from app.auth import require_supervisor, get_sub_team
 from app.database import get_db
-from app.models import User, Task, TaskStatus, ChatMessage
+from app.models import Project, SubTeam, User, Task, TaskStatus, ChatMessage
 from app.schemas import (
     PerformanceDashboard,
     TeamMemberPerformance,
     UserPerformanceDetail,
     TrendDataPoint,
-    TaskOut
+    TaskOut,
 )
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
 
+
 @router.get("/team", response_model=PerformanceDashboard)
 async def get_team_performance(
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_supervisor),
+    current_user: User = Depends(require_supervisor),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     thirty_days_ago = now - timedelta(days=30)
     forty_eight_hours_ahead = now + timedelta(hours=48)
 
     # 1. Main Metrics Query (Aggregate Filter Pattern)
-    metrics_stmt = (
-        select(
-            User.id,
-            User.full_name,
-            User.avatar_url,
-            # Active Tasks: all except 'done'
-            func.count(Task.id).filter(Task.status != TaskStatus.done).label("active_tasks"),
-            # Completed (30d)
-            func.count(Task.id).filter(
-                Task.status == TaskStatus.done,
-                Task.completed_at >= thirty_days_ago
-            ).label("completed_30d"),
-            # Cycle Time (Hours)
-            func.avg(
-                extract("epoch", Task.completed_at - Task.created_at) / 3600
-            ).filter(Task.status == TaskStatus.done).label("avg_cycle_time"),
-            # On-Time Count
-            func.count(Task.id).filter(
-                Task.status == TaskStatus.done,
-                Task.completed_at <= Task.due_date
-            ).label("on_time_count"),
-            # Total with Due Date (Completed)
-            func.count(Task.id).filter(
-                Task.status == TaskStatus.done,
-                Task.due_date.is_not(None)
-            ).label("total_completed_with_due_date"),
-            # Overdue Count (Active tasks past due date)
-            func.count(Task.id).filter(
-                Task.status != TaskStatus.done,
-                Task.due_date < now
-            ).label("overdue_count"),
-            # Due Soon (Active tasks due within 48h)
-            func.count(Task.id).filter(
-                Task.status != TaskStatus.done,
-                Task.due_date >= now,
-                Task.due_date <= forty_eight_hours_ahead
-            ).label("due_soon_count")
+    metrics_stmt = select(
+        User.id,
+        User.full_name,
+        User.avatar_url,
+        # Active Tasks: all except 'done'
+        func.count(Task.id)
+        .filter(Task.status != TaskStatus.done)
+        .label("active_tasks"),
+        # Completed (30d)
+        func.count(Task.id)
+        .filter(Task.status == TaskStatus.done, Task.completed_at >= thirty_days_ago)
+        .label("completed_30d"),
+        # Cycle Time (Hours)
+        func.avg(extract("epoch", Task.completed_at - Task.created_at) / 3600)
+        .filter(Task.status == TaskStatus.done)
+        .label("avg_cycle_time"),
+        # On-Time Count
+        func.count(Task.id)
+        .filter(Task.status == TaskStatus.done, Task.completed_at <= Task.due_date)
+        .label("on_time_count"),
+        # Total with Due Date (Completed)
+        func.count(Task.id)
+        .filter(Task.status == TaskStatus.done, Task.due_date.is_not(None))
+        .label("total_completed_with_due_date"),
+        # Overdue Count (Active tasks past due date)
+        func.count(Task.id)
+        .filter(Task.status != TaskStatus.done, Task.due_date < now)
+        .label("overdue_count"),
+        # Due Soon (Active tasks due within 48h)
+        func.count(Task.id)
+        .filter(
+            Task.status != TaskStatus.done,
+            Task.due_date >= now,
+            Task.due_date <= forty_eight_hours_ahead,
         )
-        .join(Task, User.id == Task.assignee_id, isouter=True)
-        .group_by(User.id)
-    )
+        .label("due_soon_count"),
+    ).join(Task, User.id == Task.assignee_id, isouter=True)
+
+    # Apply sub-team filter
+    if sub_team:
+        metrics_stmt = metrics_stmt.join(Project, Task.project_id == Project.id).where(
+            Project.sub_team_id == sub_team.id
+        )
+
+    metrics_stmt = metrics_stmt.group_by(User.id)
 
     metrics_result = await db.execute(metrics_stmt)
     metrics_rows = metrics_result.all()
@@ -94,7 +100,7 @@ async def get_team_performance(
         active_tasks = row.active_tasks
         overdue_count = row.overdue_count
         due_soon_count = row.due_soon_count
-        
+
         # Calculate On-Time Rate
         on_time_count = row.on_time_count
         with_due = row.total_completed_with_due_date
@@ -111,29 +117,36 @@ async def get_team_performance(
         else:
             status = "green"
 
-        team_metrics.append(TeamMemberPerformance(
-            user_id=user_id,
-            full_name=row.full_name,
-            avatar_url=row.avatar_url,
-            active_tasks=active_tasks,
-            completed_30d=row.completed_30d,
-            avg_cycle_time=round(row.avg_cycle_time, 1) if row.avg_cycle_time else None,
-            on_time_rate=round(on_time_rate, 1),
-            collaboration_score=collab_score,
-            status=status
-        ))
+        team_metrics.append(
+            TeamMemberPerformance(
+                user_id=user_id,
+                full_name=row.full_name,
+                avatar_url=row.avatar_url,
+                active_tasks=active_tasks,
+                completed_30d=row.completed_30d,
+                avg_cycle_time=(
+                    round(row.avg_cycle_time, 1) if row.avg_cycle_time else None
+                ),
+                on_time_rate=round(on_time_rate, 1),
+                collaboration_score=collab_score,
+                status=status,
+            )
+        )
 
         total_active += active_tasks
         total_on_time += on_time_count
         total_with_due += with_due
 
-    overall_on_time = (total_on_time / total_with_due * 100) if total_with_due > 0 else 100.0
+    overall_on_time = (
+        (total_on_time / total_with_due * 100) if total_with_due > 0 else 100.0
+    )
 
     return PerformanceDashboard(
         team_metrics=team_metrics,
         overall_on_time_rate=round(overall_on_time, 1),
-        total_active_tasks=total_active
+        total_active_tasks=total_active,
     )
+
 
 @router.get("/user/{user_id}", response_model=UserPerformanceDetail)
 async def get_user_performance_detail(
@@ -152,43 +165,39 @@ async def get_user_performance_detail(
 
     # 1. Fetch Metrics (Similar to team query but for single user)
     # We can reuse the logic or run a simpler version
-    metrics_stmt = (
-        select(
-            func.count(Task.id).filter(Task.status != TaskStatus.done).label("active_tasks"),
-            func.count(Task.id).filter(
-                Task.status == TaskStatus.done,
-                Task.completed_at >= thirty_days_ago
-            ).label("completed_30d"),
-            func.avg(
-                extract("epoch", Task.completed_at - Task.created_at) / 3600
-            ).filter(Task.status == TaskStatus.done).label("avg_cycle_time"),
-            func.count(Task.id).filter(
-                Task.status == TaskStatus.done,
-                Task.completed_at <= Task.due_date
-            ).label("on_time_count"),
-            func.count(Task.id).filter(
-                Task.status == TaskStatus.done,
-                Task.due_date.is_not(None)
-            ).label("total_completed_with_due_date"),
-            func.count(Task.id).filter(
-                Task.status != TaskStatus.done,
-                Task.due_date < now
-            ).label("overdue_count"),
-            func.count(Task.id).filter(
-                Task.status != TaskStatus.done,
-                Task.due_date >= now,
-                Task.due_date <= now + timedelta(hours=48)
-            ).label("due_soon_count")
+    metrics_stmt = select(
+        func.count(Task.id)
+        .filter(Task.status != TaskStatus.done)
+        .label("active_tasks"),
+        func.count(Task.id)
+        .filter(Task.status == TaskStatus.done, Task.completed_at >= thirty_days_ago)
+        .label("completed_30d"),
+        func.avg(extract("epoch", Task.completed_at - Task.created_at) / 3600)
+        .filter(Task.status == TaskStatus.done)
+        .label("avg_cycle_time"),
+        func.count(Task.id)
+        .filter(Task.status == TaskStatus.done, Task.completed_at <= Task.due_date)
+        .label("on_time_count"),
+        func.count(Task.id)
+        .filter(Task.status == TaskStatus.done, Task.due_date.is_not(None))
+        .label("total_completed_with_due_date"),
+        func.count(Task.id)
+        .filter(Task.status != TaskStatus.done, Task.due_date < now)
+        .label("overdue_count"),
+        func.count(Task.id)
+        .filter(
+            Task.status != TaskStatus.done,
+            Task.due_date >= now,
+            Task.due_date <= now + timedelta(hours=48),
         )
-        .where(Task.assignee_id == user_id)
-    )
+        .label("due_soon_count"),
+    ).where(Task.assignee_id == user_id)
     metrics_result = await db.execute(metrics_stmt)
     m = metrics_result.one()
 
     # 2. Collaboration Score
-    collab_stmt = (
-        select(func.count(ChatMessage.id))
-        .where(ChatMessage.sender_id == user_id, ChatMessage.created_at >= thirty_days_ago)
+    collab_stmt = select(func.count(ChatMessage.id)).where(
+        ChatMessage.sender_id == user_id, ChatMessage.created_at >= thirty_days_ago
     )
     collab_score = (await db.execute(collab_stmt)).scalar() or 0
 
@@ -197,18 +206,21 @@ async def get_user_performance_detail(
     trend_stmt = (
         select(
             func.date(Task.completed_at).label("date"),
-            func.count(Task.id).label("count")
+            func.count(Task.id).label("count"),
         )
         .where(
             Task.assignee_id == user_id,
             Task.status == TaskStatus.done,
-            Task.completed_at >= eight_weeks_ago
+            Task.completed_at >= eight_weeks_ago,
         )
         .group_by(func.date(Task.completed_at))
         .order_by(func.date(Task.completed_at))
     )
     trend_result = await db.execute(trend_stmt)
-    trend_data = [TrendDataPoint(date=str(row[0]), completed_count=row[1]) for row in trend_result.all()]
+    trend_data = [
+        TrendDataPoint(date=str(row[0]), completed_count=row[1])
+        for row in trend_result.all()
+    ]
 
     # 4. Recent Completed Tasks
     recent_tasks_stmt = (
@@ -229,7 +241,11 @@ async def get_user_performance_detail(
     else:
         status = "green"
 
-    on_time_rate = (m.on_time_count / m.total_completed_with_due_date * 100) if m.total_completed_with_due_date > 0 else 100.0
+    on_time_rate = (
+        (m.on_time_count / m.total_completed_with_due_date * 100)
+        if m.total_completed_with_due_date > 0
+        else 100.0
+    )
 
     performance = TeamMemberPerformance(
         user_id=user.id,
@@ -240,7 +256,7 @@ async def get_user_performance_detail(
         avg_cycle_time=round(m.avg_cycle_time, 1) if m.avg_cycle_time else None,
         on_time_rate=round(on_time_rate, 1),
         collaboration_score=collab_score,
-        status=status
+        status=status,
     )
 
     return UserPerformanceDetail(
@@ -248,5 +264,5 @@ async def get_user_performance_detail(
         full_name=user.full_name,
         metrics=performance,
         trend_data=trend_data,
-        recent_completed_tasks=recent_tasks
+        recent_completed_tasks=recent_tasks,
     )
