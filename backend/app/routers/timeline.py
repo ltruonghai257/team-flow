@@ -1,13 +1,13 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_sub_team
 from app.database import get_db
-from app.models import Milestone, Project, Task, User
+from app.models import Milestone, Project, SubTeam, Task, User, UserRole
 from app.schemas import TimelineProjectOut, TimelineTaskOut, TimelineMilestoneOut
 
 router = APIRouter(prefix="/api/timeline", tags=["timeline"])
@@ -17,15 +17,30 @@ router = APIRouter(prefix="/api/timeline", tags=["timeline"])
 async def get_timeline(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    # Fetch all projects with eager-loaded milestones -> tasks -> assignee
-    stmt = (
-        select(Project)
-        .options(
-            selectinload(Project.milestones).selectinload(Milestone.tasks).selectinload(Task.assignee)
-        )
-        .order_by(Project.name)
+    # Fetch projects with eager-loaded milestones -> tasks -> assignee
+    stmt = select(Project).options(
+        selectinload(Project.milestones)
+        .selectinload(Milestone.tasks)
+        .selectinload(Task.assignee)
     )
+
+    # Apply sub-team filter (admin may have None = all teams)
+    if sub_team:
+        stmt = stmt.where(Project.sub_team_id == sub_team.id)
+
+    # Apply role-specific filtering per D-22/D-23/D-24
+    if current_user.role == UserRole.member:
+        # Members see only projects where they have assigned tasks
+        stmt = (
+            stmt.join(Task, Project.id == Task.project_id)
+            .where(Task.assignee_id == current_user.id)
+            .distinct()
+        )
+    # Supervisors and admins see all projects in their scoped view (already filtered by sub_team above)
+
+    stmt = stmt.order_by(Project.name)
     result = await db.execute(stmt)
     projects = result.scalars().unique().all()
 
@@ -59,8 +74,7 @@ async def get_timeline(
         )
         unassigned_result = await db.execute(unassigned_stmt)
         unassigned_tasks = [
-            TimelineTaskOut.model_validate(t)
-            for t in unassigned_result.scalars().all()
+            TimelineTaskOut.model_validate(t) for t in unassigned_result.scalars().all()
         ]
 
         response.append(
