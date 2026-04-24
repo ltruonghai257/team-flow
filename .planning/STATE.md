@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Team Hierarchy, Sprints & Advanced Analytics
 status: active
-last_updated: "2026-04-24T09:14:07.000Z"
+last_updated: '2026-04-24T10:58:00.000Z'
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 1
-  completed_plans: 0
-  percent: 0
+    total_phases: 6
+    completed_phases: 0
+    total_plans: 1
+    completed_plans: 0
+    percent: 0
 ---
 
 # State: TeamFlow
@@ -17,43 +17,51 @@ progress:
 ## Current Status
 
 **Milestone:** 2 — Team Hierarchy, Sprints & Advanced Analytics
-**Active Phase:** Phase 12 — Task Types (implemented; pending verification)
-**Last Session:** Phase 12 executed — task type field implemented across backend, AI flows, and task views
+**Active Phase:** Phase 13 — Multi-Team Hierarchy + Timeline Visibility (context gathered; ready for planning)
+**Last Session:** Phase 13 context gathered — decisions locked on default sub-team migration, global switcher pattern, and API scoping approach
 
 ## Session Notes
 
-- Milestone 1 complete: all 11 phases done, 100% coverage.
-- Milestone 2 roadmap created: Phases 12–17.
-- Phase 12 (Task Types) is isolated — can run in parallel with Phase 13 if needed.
-- Phase 13 (Multi-Team Hierarchy) includes VIS-* timeline visibility; do NOT defer to a later phase.
-- Phase 15 (Custom Statuses) uses dual-write strategy: retain tasks.status enum alongside new custom_status_id FK; drop enum only after KPIs are verified (deferred cleanup, if needed, goes in a Phase 18).
-- STATUS-04 (is_done flag) must land in Phase 15 before KPI queries are written in Phase 16.
-- Phase 17 (Reminders) depends only on Phase 13 + Phase 14; can be developed in parallel with Phase 16.
-- User preference: Project uses **Bun** for frontend operations.
-- SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
-- Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
-- Zero new npm or Python packages — all needed libs already installed.
-- All schema changes via Alembic migrations only.
+-   Milestone 1 complete: all 11 phases done, 100% coverage.
+-   Milestone 2 roadmap created: Phases 12–17.
+-   Phase 12 (Task Types) is isolated — can run in parallel with Phase 13 if needed.
+-   Phase 13 (Multi-Team Hierarchy) includes VIS-\* timeline visibility; do NOT defer to a later phase.
+-   Phase 15 (Custom Statuses) uses dual-write strategy: retain tasks.status enum alongside new custom_status_id FK; drop enum only after KPIs are verified (deferred cleanup, if needed, goes in a Phase 18).
+-   STATUS-04 (is_done flag) must land in Phase 15 before KPI queries are written in Phase 16.
+-   Phase 17 (Reminders) depends only on Phase 13 + Phase 14; can be developed in parallel with Phase 16.
+-   Phase 13 decisions (2026-04-24):
+    -   Default sub-team: one "Default Team", no supervisor pre-assigned; admin manually creates sub-teams and assigns supervisors post-migration.
+    -   Sub-team UI: extends existing `/team` page with sub-team tabs/sections.
+    -   Global sub-team switcher: admin has a persistent context switcher (sidebar/top nav) that scopes all pages; supervisor/member have implicit scope.
+    -   Project creation: scoped to active sub-team (admin via switcher, supervisor implicit); no per-form dropdowns.
+    -   Invite flow: scoped to inviter's active sub-team; no per-form selector.
+    -   API enforcement: 403 for cross-team access attempts; server-side filtering on all data endpoints.
+-   User preference: Project uses **Bun** for frontend operations.
+-   SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
+-   Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
+-   Zero new npm or Python packages — all needed libs already installed.
+-   All schema changes via Alembic migrations only.
 
 ## Resume Point
 
 Phase 12 implemented. Next run `/gsd-verify-work 12`.
+Phase 13 context gathered. Next run `/gsd-plan-phase 13`.
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
-- Milestone 1 (Phases 1–11) complete.
-- Milestone 2 (Phases 12–17) roadmap created 2026-04-24.
+-   Milestone 1 (Phases 1–11) complete.
+-   Milestone 2 (Phases 12–17) roadmap created 2026-04-24.
 
 ### Architecture Decisions (Milestone 2)
 
-- SubTeam not Team: single-org deployment; Organization wrapper adds a join with zero value.
-- Dual-write for status migration: retain tasks.status enum alongside new tasks.custom_status_id for the full feature-build period; drop old column after KPI queries verified.
-- is_done replaces hardcoded done check: update_task endpoint must use custom_status.is_done == true after Phase 15, not TaskStatus.done enum comparison.
-- Sprint reminders via existing EventNotification table: insert rows on sprint activation; the existing 60s poll delivers them; unique constraint on (event_type, event_ref_id, user_id) prevents duplicates.
-- KPI queries: all aggregations as single GROUP BY queries — no N+1.
-- Verify layerchart version at Phase 16 kickoff (installed as next tag; code comments suggest it was bypassed).
+-   SubTeam not Team: single-org deployment; Organization wrapper adds a join with zero value.
+-   Dual-write for status migration: retain tasks.status enum alongside new tasks.custom_status_id for the full feature-build period; drop old column after KPI queries verified.
+-   is_done replaces hardcoded done check: update_task endpoint must use custom_status.is_done == true after Phase 15, not TaskStatus.done enum comparison.
+-   Sprint reminders via existing EventNotification table: insert rows on sprint activation; the existing 60s poll delivers them; unique constraint on (event_type, event_ref_id, user_id) prevents duplicates.
+-   KPI queries: all aggregations as single GROUP BY queries — no N+1.
+-   Verify layerchart version at Phase 16 kickoff (installed as next tag; code comments suggest it was bypassed).
 
 ### Watch-Out List
 
