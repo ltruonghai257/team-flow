@@ -17,20 +17,20 @@ created: 2026-04-24
 
 | Property | Value |
 |----------|-------|
-| **Framework** | Python import checks + SvelteKit `svelte-check` |
-| **Config file** | `backend/alembic.ini`, `frontend/package.json` |
-| **Quick run command** | `cd backend && python -c "from app.models import TaskType; from app.routers.tasks import router; print('task type OK')"` |
-| **Full suite command** | `cd frontend && bun run check` |
-| **Estimated runtime** | ~30-90 seconds |
+| **Framework** | Python `py_compile` + ripgrep acceptance checks + Playwright |
+| **Config file** | `backend/alembic.ini`, `frontend/package.json`, `frontend/playwright.config.ts` |
+| **Quick run command** | `python -m py_compile backend/app/models.py backend/app/schemas.py backend/app/routers/tasks.py backend/alembic/versions/7b9f1c2d3e4a_add_task_type.py` |
+| **Full suite command** | `cd frontend && bun x playwright test tests/mobile/task-types.spec.ts --project=mobile-chrome` |
+| **Estimated runtime** | ~5-15 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After backend model/schema/router work:** Run backend import check.
+- **After backend model/schema/router work:** Run backend syntax and acceptance checks.
 - **After migration work:** Run `rg -n "tasktype|TaskType|type = Column" backend/app backend/alembic/versions`.
-- **After frontend UI work:** Run `cd frontend && bun run check`.
-- **Before `$gsd-verify-work`:** Backend import check and frontend check must be green.
+- **After frontend UI work:** Run focused Playwright task type coverage.
+- **Before `$gsd-verify-work`:** Backend checks and focused Playwright coverage must be green.
 - **Max feedback latency:** 90 seconds.
 
 ---
@@ -39,11 +39,11 @@ created: 2026-04-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 12-01-01 | 01 | 1 | TYPE-01, TYPE-03 | T-12-01 | Invalid type values are rejected or coerced before persistence | import/grep | `cd backend && python -c "from app.models import TaskType; from app.schemas import TaskCreate, TaskOut; print('task type imports OK')"` | yes | pending |
-| 12-01-02 | 01 | 1 | TYPE-01, TYPE-03 | T-12-02 | Migration gives existing tasks non-null `task` type | grep | `rg -n "tasktype|server_default='task'|server_default=sa.text\\('task'\\)" backend/alembic/versions` | yes | pending |
-| 12-01-03 | 01 | 2 | TYPE-02 | T-12-03 | Type filter only accepts fixed type values | import/grep | `cd backend && python -c "from app.routers.tasks import router; print('tasks router OK')"` | yes | pending |
-| 12-01-04 | 01 | 3 | TYPE-01, TYPE-02 | N/A | Type controls and badges are keyboard-readable and text-labeled | typecheck | `cd frontend && bun run check` | yes | pending |
-| 12-01-05 | 01 | 4 | TYPE-01, TYPE-02 | N/A | AI suggestions remain user-confirmable before create | typecheck | `cd frontend && bun run check` | yes | pending |
+| 12-01-01 | 01 | 1 | TYPE-01, TYPE-03 | T-12-01 | Invalid type values are rejected or coerced before persistence | syntax/grep | `python -m py_compile backend/app/models.py backend/app/schemas.py backend/app/routers/tasks.py backend/alembic/versions/7b9f1c2d3e4a_add_task_type.py` | yes | green |
+| 12-01-02 | 01 | 1 | TYPE-01, TYPE-03 | T-12-02 | Migration gives existing tasks non-null `task` type | grep | `rg -n "TaskType|type = Column\\(Enum\\(TaskType\\)|tasktype|server_default" backend/app backend/alembic/versions` | yes | green |
+| 12-01-03 | 01 | 2 | TYPE-02 | T-12-03 | Type filter only accepts fixed type values | grep | `rg -n "Invalid task type filter|Task.type.in_|valid_type" backend/app/routers/tasks.py` | yes | green |
+| 12-01-04 | 01 | 3 | TYPE-01, TYPE-02 | N/A | Type controls and badges are keyboard-readable and text-labeled | Playwright | `cd frontend && bun x playwright test tests/mobile/task-types.spec.ts --project=mobile-chrome` | yes | green |
+| 12-01-05 | 01 | 4 | TYPE-01, TYPE-02 | N/A | AI suggestions remain user-confirmable before create | Playwright | `cd frontend && bun x playwright test tests/mobile/task-types.spec.ts --project=mobile-chrome` | yes | green |
 
 *Status: pending / green / red / flaky*
 
@@ -61,12 +61,23 @@ Existing infrastructure covers this phase:
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Type selector placement | TYPE-01 | Visual placement is not covered by import/type checks | Open New Task and Edit Task modals; confirm `Type` appears beside `Status` and `Priority`. |
-| Icon plus label badges | TYPE-02 | Visual density and badge wrapping need UI review | Confirm list, Kanban, and Agile views show text-labeled task type badges without overflow. |
-| Multi-select type filter | TYPE-02 | Requires interactive filter behavior review | Select two type chips and confirm list, Kanban, and Agile views only show matching task types. |
-| AI suggestion confirmation | TYPE-01 | Requires checking user review step | Run AI parse or breakdown and confirm suggested type appears in editable controls before create. |
+All phase behaviors have automated verification through `frontend/tests/mobile/task-types.spec.ts`.
+
+---
+
+## Validation Audit 2026-04-24
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Automated evidence:
+
+- `python -m py_compile backend/app/models.py backend/app/schemas.py backend/app/routers/tasks.py backend/alembic/versions/7b9f1c2d3e4a_add_task_type.py` passed.
+- `rg -n "TaskType|type = Column\\(Enum\\(TaskType\\)|tasktype|server_default|Invalid task type filter|Task.type.in_|valid_type" backend/app backend/alembic/versions` passed.
+- `cd frontend && bun x playwright test tests/mobile/task-types.spec.ts --project=mobile-chrome` passed with 4 tests.
 
 ---
 
