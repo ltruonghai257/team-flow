@@ -1,6 +1,6 @@
 # Requirements: TeamFlow
 
-*Defined: 2026-04-22*
+*Updated: 2026-04-24*
 *Stack: FastAPI (Python 3.13) + SvelteKit 5 + PostgreSQL 16 + TailwindCSS*
 *Deployment: Azure App Service (Linux) + Azure Database for PostgreSQL Flexible Server*
 
@@ -10,192 +10,369 @@
 
 | REQ-ID | Description | Priority | Phase | Status |
 |--------|-------------|----------|-------|--------|
-| REQ-01 | Production Hardening | Critical | 09 (gap closure) | Pending |
-| REQ-02 | Supervisor Performance Dashboard | High | 09 (gap closure) | Pending |
-| REQ-03 | Team Timeline / Project Overview | High | 10 (gap closure) | Pending |
-| REQ-04 | Enhanced AI Capabilities | Medium | 10 (gap closure) | Pending |
-| REQ-05 | Azure Deployment | Critical | 11 (gap closure) | Pending |
-| REQ-06 | Mobile-Responsive UI | Medium | 11 (gap closure) | Pending |
-| REQ-07 | Role-Based Access Control | Medium | 09 (gap closure) | Pending |
-
-**Coverage:** 0/7 requirements satisfied (all pending verification documentation)
+| REQ-01 | Production Hardening | Critical | 1 | ✓ Done |
+| REQ-02 | Supervisor Performance Dashboard | High | 3 | ✓ Done |
+| REQ-03 | Team Timeline / Project Overview | High | 4 | ✓ Done |
+| REQ-04 | Enhanced AI Capabilities | Medium | 5 | ✓ Done |
+| REQ-05 | Azure Deployment | Critical | 7 | ✓ Done |
+| REQ-06 | Mobile-Responsive UI | Medium | 6 | ✓ Done |
+| REQ-07 | Role-Based Access Control | Medium | 2 | ✓ Done |
+| TEAM-01 | Admin creates/manages sub-teams | High | TBD | Pending |
+| TEAM-02 | Member belongs to one sub-team | High | TBD | Pending |
+| TEAM-03 | Projects scoped to sub-team | High | TBD | Pending |
+| TEAM-04 | Supervisor sees only their sub-team | High | TBD | Pending |
+| TEAM-05 | Admin sees all teams org-wide | High | TBD | Pending |
+| VIS-01 | Members see only assigned projects on timeline | Medium | TBD | Pending |
+| VIS-02 | Supervisors see sub-team projects on timeline | Medium | TBD | Pending |
+| VIS-03 | Admin sees all projects on timeline | Medium | TBD | Pending |
+| SPRINT-01 | Sprints as time-boxed iterations within milestone | High | TBD | Pending |
+| SPRINT-02 | Milestones belong to one project | High | TBD | Pending |
+| SPRINT-03 | Task create/edit includes sprint selector | High | TBD | Pending |
+| SPRINT-04 | Sprint board filters tasks by sprint | High | TBD | Pending |
+| STATUS-01 | Supervisor/admin manages team-wide statuses | High | TBD | Pending |
+| STATUS-02 | Per-project status override | Medium | TBD | Pending |
+| STATUS-03 | Existing statuses migrated to DB records | Critical | TBD | Pending |
+| STATUS-04 | Status has is_done flag (replaces hardcoded done slug) | Critical | TBD | Pending |
+| TYPE-01 | Task type field: feature/bug/task/improvement | High | TBD | Pending |
+| TYPE-02 | Type visible on cards, filterable on board | Medium | TBD | Pending |
+| TYPE-03 | Existing tasks default to task type on migration | High | TBD | Pending |
+| KPI-01 | Velocity per sprint (task count + story points) | High | TBD | Pending |
+| KPI-02 | Sprint burndown chart | High | TBD | Pending |
+| KPI-03 | Cycle time per task type | Medium | TBD | Pending |
+| KPI-04 | Throughput by member and type | Medium | TBD | Pending |
+| KPI-05 | Defect metrics: bugs reported/resolved, MTTR | Medium | TBD | Pending |
+| REMIND-01 | In-app reminder N days before sprint end | Medium | TBD | Pending |
+| REMIND-02 | In-app reminder N days before milestone due date | Medium | TBD | Pending |
 
 ---
 
-## Milestone 1: Production-Ready Team Management Platform
+## Milestone 1: Production-Ready Team Management Platform (Complete ✓)
+
+All REQ-01 through REQ-07 satisfied. See MILESTONES.md for full exit criteria.
+
+---
+
+## Milestone 2: Team Hierarchy, Sprints & Advanced Analytics
 
 ### Goal
-Transform the existing TeamFlow codebase into a production-deployed, team-usable application with a supervisor performance layer — replacing Jira/Trello for a team of 5–15 people across multiple parallel projects.
+Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
 
 ---
 
-## REQ-01: Production Hardening
+## TEAM-01: Admin Creates/Manages Sub-Teams
 
-**Priority:** Critical — must be done before any deployment
+**Priority:** High
 
 ### Acceptance Criteria
-- [ ] Alembic migrations set up and initial migration generated from existing `models.py`
-- [ ] `create_all` replaced with `alembic upgrade head` run at container startup
-- [ ] `SECRET_KEY` startup validation: app refuses to start if value matches the default (`"change-me-in-production"`)
-- [ ] CORS allowed origins read from `ALLOWED_ORIGINS` env var (comma-separated), not hardcoded
-- [ ] Rate limiting on `POST /api/auth/token` (max 10 req/min per IP)
-- [ ] Rate limiting on `POST /api/ai/*` endpoints (max 30 req/min per user)
-- [ ] All `datetime.utcnow()` replaced with `datetime.now(timezone.utc).replace(tzinfo=None)`
-
-**Existing code refs:**
-- `backend/app/main.py` — CORS setup
-- `backend/app/config.py` — SECRET_KEY default
-- `backend/app/database.py` — replace create_all
+- [ ] Admin can create a sub-team with a name and assign exactly one supervisor
+- [ ] Admin can rename a sub-team and reassign its supervisor
+- [ ] Admin can delete a sub-team (only if no members or projects are attached)
+- [ ] Sub-team management UI accessible from admin settings page
 
 ---
 
-## REQ-02: Supervisor Performance Dashboard
+## TEAM-02: Member Belongs to One Sub-Team
 
-**Priority:** High — core supervisor value
+**Priority:** High
 
 ### Acceptance Criteria
-- [ ] New route `/performance` (supervisor-only, redirect non-supervisors to `/`)
-- [ ] Team overview table: all members with columns: Name | Active Tasks | Completed (30d) | On-time Rate | Avg Cycle Time | Status
-- [ ] Status column uses traffic-light indicator: green (on track) / yellow (watch) / red (overloaded or has overdue tasks)
-- [ ] Workload chart: bar chart showing active task count per member (visual scan for balance)
-- [ ] At-risk panel: tasks where `due_date < now + 2 days` and status is `todo` or `in_progress`
-- [ ] Clicking a member name opens their individual profile view
-- [ ] Individual member view: tasks completed per week (last 8 weeks), on-time rate trend, current active tasks list
-- [ ] Performance data is supervisor-only (role check: `current_user.role === "admin"` or `"supervisor"`)
-- [ ] New `/api/dashboard/performance` endpoint returning aggregated per-member metrics
-
-**Metrics computed from existing `Task` fields:**
-- Completed (30d): `completed_at > now-30d AND status = done`
-- On-time rate: `completed_at <= due_date` ratio (only tasks with due_date set)
-- Avg cycle time: average `(completed_at - created_at)` in hours
-- Active tasks: tasks where `assignee_id = member.id AND status NOT IN (done, blocked)`
-- Overdue: `due_date < now AND status NOT IN (done)`
+- [ ] Every user (member role) belongs to exactly one sub-team
+- [ ] Admin can reassign a member from one sub-team to another
+- [ ] A member cannot exist without a sub-team after migration (nullable during transition)
+- [ ] Existing users assigned to a default sub-team on migration
 
 ---
 
-## REQ-03: Team Timeline / Project Overview
+## TEAM-03: Projects Scoped to Sub-Team
 
-**Priority:** High — supervisor daily use
+**Priority:** High
 
 ### Acceptance Criteria
-- [ ] New route `/timeline` visible to all team members
-- [ ] Horizontal Gantt-style timeline showing milestones and their tasks per project
-- [ ] Color-coded by project (uses existing `project.color`)
-- [ ] Time range selector: current week / current month / custom range
-- [ ] Task bars show: title, assignee avatar initials, status color
-- [ ] Overdue milestones/tasks visually distinct (red outline or marker)
-- [ ] Milestone markers on the timeline axis
-- [ ] Clicking a task opens task detail / edit
+- [ ] Every project has a sub-team association
+- [ ] Admin and the sub-team's supervisor can create projects for that sub-team
+- [ ] Members can only see and interact with projects in their sub-team
+- [ ] Existing projects assigned to a default sub-team on migration
 
 ---
 
-## REQ-04: Enhanced AI Capabilities
+## TEAM-04: Supervisor Sees Only Their Sub-Team
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Supervisor's dashboard, performance page, and timeline show only their sub-team's members and projects
+- [ ] All API endpoints filter results by the requesting user's sub-team (not just frontend routing)
+- [ ] Supervisor cannot access members, tasks, or projects from other sub-teams via API
+
+---
+
+## TEAM-05: Admin Sees All Teams Org-Wide
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Admin can view all sub-teams and switch between them in dashboard/timeline/performance views
+- [ ] Admin performance dashboard shows org-wide aggregates and per-sub-team breakdown
+
+---
+
+## VIS-01: Members See Only Assigned Projects on Timeline
 
 **Priority:** Medium
 
-### REQ-04a: AI Task Breakdown
-- [ ] New endpoint `POST /api/tasks/ai-breakdown` — accepts `{"description": "...", "project_id": N}` and returns a list of subtask drafts
-- [ ] AI decomposes the description into 3–8 concrete tasks with title, priority, estimated_hours
-- [ ] Frontend: button "Break down with AI" on task creation form — shows subtask list for review before creating
-- [ ] User can edit/remove individual subtasks before batch-creating them
-
-### REQ-04b: AI Project Status Summary
-- [ ] New endpoint `POST /api/ai/project-summary` — accepts `{"project_id": N}` and returns natural-language status summary
-- [ ] Summary includes: milestone progress, overdue tasks, recent completions, at-risk items
-- [ ] Summary is generated from real project data (not just LLM hallucination) — data injected into prompt
-- [ ] Accessible from project detail page via "Summarize" button
-- [ ] Supervisor can also ask via AI assistant chat: "Summarize project X"
+### Acceptance Criteria
+- [ ] Timeline `/timeline` filters to projects where the member has at least one assigned task
+- [ ] Filter applied server-side (not just frontend)
 
 ---
 
-## REQ-05: Azure Deployment
+## VIS-02: Supervisors See Sub-Team Projects on Timeline
 
-**Priority:** Critical — delivery mechanism
-
-### REQ-05a: Infrastructure
-- [ ] Azure Container Registry (ACR) for Docker images
-- [ ] Azure App Service (Linux, B1 SKU) for backend (FastAPI) — separate instance from frontend
-- [ ] Azure App Service (Linux, B1 SKU) for frontend (SvelteKit node adapter)
-- [ ] Azure Database for PostgreSQL Flexible Server — connection via `DATABASE_URL` connection string env var
-- [ ] All secrets (SECRET_KEY, AI keys, DB URL) stored as Azure App Service Application Settings
-
-### REQ-05b: GitHub Actions CI/CD Pipeline
-- [ ] `.github/workflows/deploy.yml` triggered on push to `main`
-- [ ] Uses OIDC federated credentials (no stored service principal secrets)
-- [ ] Pipeline steps: checkout → Azure login → build backend image to ACR → build frontend image to ACR → deploy backend App Service → deploy frontend App Service
-- [ ] Alembic migration runs as backend container startup command (not in CI)
-- [ ] Pipeline status visible in GitHub — green/red badge
-
-### REQ-05c: Manual Deploy Script
-- [ ] `scripts/deploy.sh` — manually triggers ACR build + App Service container update
-- [ ] `scripts/setup-azure.sh` — one-time Azure resource provisioning (ACR, App Service plan, App Services, DB)
-- [ ] README section: step-by-step Azure setup and first deploy instructions
-
-### REQ-05d: Environment Configuration
-- [ ] `backend/.env.azure.example` — template for all Azure App Service env vars
-- [ ] `ALLOWED_ORIGINS` includes the Azure App Service URLs
-- [ ] `COOKIE_SECURE=True` default confirmed for HTTPS-only Azure deployment
-- [ ] `DATABASE_URL` format: `postgresql+asyncpg://user:pass@host:5432/dbname?ssl=require`
-
----
-
-## REQ-06: Mobile-Responsive UI
-
-**Priority:** Medium — team adoption
+**Priority:** Medium
 
 ### Acceptance Criteria
-- [ ] All existing routes (dashboard, tasks, projects, milestones, team, schedule, AI) render correctly on mobile (375px+)
-- [ ] Sidebar collapses to hamburger menu on mobile
-- [ ] Kanban board scrolls horizontally on mobile (columns don't collapse)
-- [ ] Performance dashboard table is scrollable horizontally on mobile
-- [ ] Task creation form is usable on mobile (inputs not obscured by keyboard)
+- [ ] Supervisor sees all projects belonging to their sub-team on the timeline
+- [ ] Cross-team projects not visible unless admin
 
 ---
 
-## REQ-07: Role-Based Access Control (RBAC) Clarification
+## VIS-03: Admin Sees All Projects on Timeline
 
-**Priority:** Medium — existing partial implementation
+**Priority:** Medium
 
 ### Acceptance Criteria
-- [ ] `User.role` enum values formally defined: `admin`, `supervisor`, `member`
-- [ ] Supervisor and admin can: create/delete projects, view performance dashboard
-- [ ] Members can: create tasks, update task status, view their own metrics
-- [ ] Backend middleware enforces role checks (not just frontend routing)
-- [ ] Registration defaults to `member` role; role upgrade done by admin only
+- [ ] Admin sees all projects from all sub-teams on the timeline
+- [ ] Admin can filter timeline by sub-team
 
 ---
 
-## Non-Requirements (Out of Scope for Milestone 1)
+## SPRINT-01: Sprints as Time-Boxed Iterations
 
-- Native iOS/Android apps
-- Multi-tenant / SaaS features
-- Email notifications
-- OAuth / SSO (existing username/password auth is sufficient)
-- Public API / webhooks
-- Custom domain setup (Azure default `.azurewebsites.net` URL is acceptable for v1)
-- Time tracking / billing integration
-- File attachments on tasks
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Sprint model: `name`, `start_date`, `end_date`, `milestone_id` (FK), `status` (planning/active/closed)
+- [ ] Supervisor/admin can create, edit, and close sprints within a milestone
+- [ ] Sprint list view shows all sprints for a project with status and date range
+- [ ] Closing a sprint moves incomplete tasks to backlog or next sprint (user chooses)
+
+---
+
+## SPRINT-02: Milestones Belong to One Project
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Milestone model has a required `project_id` FK
+- [ ] Existing milestones without a project association assigned to a default project on migration
+- [ ] Milestone creation UI requires selecting a project
+
+---
+
+## SPRINT-03: Task Create/Edit Includes Sprint Selector
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Task creation form includes a sprint dropdown (filtered to active/planning sprints for the task's project)
+- [ ] Task edit form allows reassigning to a different sprint or removing sprint association
+- [ ] Sprint assignment stored as nullable `sprint_id` FK on Task
+
+---
+
+## SPRINT-04: Sprint Board Filters Tasks by Sprint
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Sprint board view shows only tasks assigned to the selected sprint
+- [ ] Sprint selector at top of board; defaults to the active sprint
+- [ ] Unassigned tasks visible in a "Backlog" column alongside sprint board
+
+---
+
+## STATUS-01: Supervisor/Admin Manages Team-Wide Statuses
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Supervisor/admin can create custom statuses with name, color, and order
+- [ ] Statuses can be reordered via drag-and-drop
+- [ ] Each status has an `is_done` boolean flag (marks task as complete for KPI calculations)
+- [ ] A status cannot be deleted if tasks are currently assigned to it
+
+---
+
+## STATUS-02: Per-Project Status Override
+
+**Priority:** Medium
+
+### Acceptance Criteria
+- [ ] A project can define its own status set (create/reorder/delete per-project statuses)
+- [ ] If a project has no custom statuses, it inherits the team-wide default set
+- [ ] Switching from per-project statuses back to team default migrates tasks to matching team statuses
+
+---
+
+## STATUS-03: Existing Statuses Migrated to DB Records
+
+**Priority:** Critical
+
+### Acceptance Criteria
+- [ ] Existing `TaskStatus` enum values (todo/in_progress/review/done/blocked) created as DB records in the team-wide default set
+- [ ] All existing tasks migrated from enum value to FK reference in a single Alembic migration
+- [ ] Zero data loss during migration (verified by row count check)
+
+---
+
+## STATUS-04: Status `is_done` Flag Drives Completion Logic
+
+**Priority:** Critical
+
+### Acceptance Criteria
+- [ ] `Task.completed_at` is set when task moves to any status with `is_done = true`
+- [ ] `Task.completed_at` is cleared when task moves from a done status back to a non-done status
+- [ ] All KPI queries and cycle time calculations use `is_done` flag, not hardcoded status slug
+
+---
+
+## TYPE-01: Task Type Field
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Task has a `type` field with values: `feature / bug / task / improvement`
+- [ ] Type is required on task creation (defaults to `task` if not selected)
+- [ ] Type is included in all task API responses
+
+---
+
+## TYPE-02: Type Visible on Cards and Filterable
+
+**Priority:** Medium
+
+### Acceptance Criteria
+- [ ] Task type displayed as an icon or badge on Kanban cards
+- [ ] Kanban board has a filter by type (show all / feature / bug / task / improvement)
+- [ ] Task list view sortable and filterable by type
+
+---
+
+## TYPE-03: Existing Tasks Default to `task` Type
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Migration sets `type = 'task'` for all existing tasks with no type set
+- [ ] No null values for `type` after migration
+
+---
+
+## KPI-01: Velocity per Sprint
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Performance dashboard shows velocity chart: tasks completed per sprint per member
+- [ ] Velocity displayed as task count (story points shown if field is populated)
+- [ ] Chart covers last 6 sprints
+
+---
+
+## KPI-02: Sprint Burndown Chart
+
+**Priority:** High
+
+### Acceptance Criteria
+- [ ] Burndown chart shows remaining tasks vs elapsed sprint time for the active sprint
+- [ ] Computed on-the-fly from task completion dates within the sprint window
+- [ ] Supervisor can view burndown for any closed sprint
+
+---
+
+## KPI-03: Cycle Time per Task Type
+
+**Priority:** Medium
+
+### Acceptance Criteria
+- [ ] Performance dashboard shows average cycle time broken down by task type
+- [ ] Cycle time = `completed_at - created_at` (only completed tasks with both dates set)
+- [ ] Trend line over last 3 months
+
+---
+
+## KPI-04: Throughput by Member and Type
+
+**Priority:** Medium
+
+### Acceptance Criteria
+- [ ] Performance dashboard shows tasks completed per week per member, grouped by type
+- [ ] Stacked bar chart: feature / bug / task / improvement per member per week
+- [ ] Covers last 8 weeks
+
+---
+
+## KPI-05: Defect Metrics
+
+**Priority:** Medium
+
+### Acceptance Criteria
+- [ ] Performance dashboard shows: bugs reported (created with type=bug) vs bugs resolved (completed) per period
+- [ ] MTTR per member: average time from bug creation to completion (type=bug only)
+- [ ] Covers last 30 days
+
+---
+
+## REMIND-01: Sprint End Reminders
+
+**Priority:** Medium
+
+### Acceptance Criteria
+- [ ] In-app notification sent to all sprint participants N days before sprint end date (default: 2 days)
+- [ ] N is configurable per team (supervisor/admin setting)
+- [ ] Reminder stored as `EventNotification` row (persists across restarts)
+- [ ] No duplicate reminders if sprint date is unchanged
+
+---
+
+## REMIND-02: Milestone Due Date Reminders
+
+**Priority:** Medium
+
+### Acceptance Criteria
+- [ ] In-app notification sent to supervisor/admin N days before a milestone due date (default: 3 days)
+- [ ] N is configurable per team (supervisor/admin setting)
+- [ ] Reminder stored as `EventNotification` row
+
+---
+
+## Non-Requirements (Out of Scope for Milestone 2)
+
+- Cross-sub-team project collaboration (projects belong to exactly one sub-team)
+- Git/CI integration for code-quality KPIs (Code Coverage, Code Stability, MTTR from CI)
+- Historical burndown snapshots (on-the-fly computation is sufficient for v2.0)
+- Story points estimation enforcement (nullable, not required)
+- Email notifications for reminders (in-app only)
+- Extensible/custom task types (fixed four values)
 
 ---
 
 ## Constraints
 
-- Must run on existing tech stack (no framework changes)
-- PostgreSQL schema changes via Alembic only (no manual DB edits)
-- All AI calls via LiteLLM (model swappable via `AI_MODEL` env var)
-- Single Azure region deployment (no geo-redundancy for v1)
-- Azure B1 SKU budget constraint (~$26/month total for both App Services)
+- No framework changes — FastAPI + SvelteKit 5 + PostgreSQL 16 only
+- Zero new npm or Python packages (all needed libs already installed)
+- All schema changes via Alembic migrations only
+- Task.status enum→FK migration must use dual-write strategy (no single-shot ALTER TYPE)
+- All API endpoints must enforce sub-team scoping server-side (not just frontend routing)
 
 ---
 
-## Definition of Done (Milestone 1)
+## Definition of Done (Milestone 2)
 
-- [ ] All REQ-01 items passing
-- [ ] Supervisor can log in and see the `/performance` dashboard with real team data
-- [ ] `/timeline` route shows project milestones and tasks across projects
-- [ ] AI task breakdown and AI project summary working end-to-end
-- [ ] App is deployed and accessible at Azure App Service URL
-- [ ] GitHub Actions pipeline deploys successfully on push to `main`
-- [ ] Manual deploy script documented and tested
-- [ ] App loads on mobile (iPhone-sized viewport)
-- [ ] README updated with deployment instructions
+- [ ] Admin can create sub-teams and assign supervisors
+- [ ] Supervisors see only their sub-team's data across all views (API-enforced)
+- [ ] Sprints exist within milestones; tasks can be assigned to a sprint
+- [ ] Kanban board columns are driven from DB statuses, not hardcoded enum
+- [ ] Performance dashboard shows velocity, burndown, cycle time by type, throughput, and defect metrics
+- [ ] In-app reminders fire before sprint end and milestone due dates
+- [ ] All existing data migrated without loss (zero data loss verified)

@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Skill(gsd-plan-phase)"
+      "Skill(gsd-plan-phase)",
+      "Skill(gsd-progress)",
+      "WebFetch(domain:innotech-vn.com)",
+      "Bash(git add *)",
+      "Bash(python3 /tmp/write_summary.py)",
+      "Bash(python3 -c \"open\\('/tmp/ws.py','w'\\).write\\('ok'\\)\")",
+      "Bash(echo \"test\")",
+      "Read(//tmp/**)",
+      "Bash(> \"$OUTFILE\")"
     ]
   }
 }
