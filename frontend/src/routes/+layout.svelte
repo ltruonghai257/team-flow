@@ -5,8 +5,10 @@
 	import { goto } from '$app/navigation';
 	import { authStore, isLoggedIn, isSupervisor } from '$lib/stores/auth';
 	import { notificationStore, type NotificationItem } from '$lib/stores/notifications';
+	import { subTeamStore } from '$lib/stores/subTeam';
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
 	import { Toaster, toast } from 'svelte-sonner';
+	import { sub_teams } from '$lib/api';
 	import {
 		LayoutDashboard,
 		CheckSquare,
@@ -17,6 +19,7 @@
 		LogOut,
 		FolderOpen,
 		ChevronRight,
+		ChevronDown,
 		TrendingUp,
 		GanttChartSquare,
 		Menu,
@@ -34,9 +37,15 @@
 		{ href: '/ai', label: 'AI Assistant', icon: Bot }
 	];
 
-	$: sidebarItems = $isSupervisor 
+	$: sidebarItems = $isSupervisor
 		? [...navItems.slice(0, 1), { href: '/performance', label: 'Performance', icon: TrendingUp }, ...navItems.slice(1)]
 		: navItems;
+
+	$: isAdmin = $authStore.user?.role === 'admin';
+
+	let subTeams: any[] = [];
+	let expanded = false;
+	let selectedSubTeam: any = null;
 
 	onMount(async () => {
 		await authStore.loadMe();
@@ -44,7 +53,24 @@
 		if (!$isLoggedIn && path !== '/login' && path !== '/register' && !path.startsWith('/invite/accept')) {
 			goto('/login');
 		}
+		if (isAdmin) {
+			subTeams = await sub_teams.list();
+		}
 	});
+
+	subTeamStore.subscribe((v) => selectedSubTeam = v);
+
+	function selectSubTeam(subTeam: any) {
+		subTeamStore.set(subTeam);
+		expanded = false;
+		window.location.reload();
+	}
+
+	function selectAllTeams() {
+		subTeamStore.set(null);
+		expanded = false;
+		window.location.reload();
+	}
 
 	// Start/stop notification polling with auth state.
 	$: if (typeof window !== 'undefined') {
@@ -116,6 +142,28 @@
 
 			<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 				<NotificationBell />
+				{#if isAdmin}
+				<div class="sub-team-switcher">
+					<button on:click={() => expanded = !expanded} class="switcher-button">
+						{selectedSubTeam ? selectedSubTeam.name : 'All Teams'}
+						<ChevronDown />
+					</button>
+					{#if expanded}
+					<div class="dropdown">
+						<button on:click={selectAllTeams} class="dropdown-item">All Teams</button>
+						{#each subTeams as subTeam}
+						<button
+							on:click={() => selectSubTeam(subTeam)}
+							class:dropdown-item-selected={selectedSubTeam?.id === subTeam.id}
+							class="dropdown-item"
+						>
+							{subTeam.name}
+						</button>
+						{/each}
+					</div>
+					{/if}
+				</div>
+				{/if}
 				{#each sidebarItems as item}
 					{@const active = $page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/')}
 					<a
@@ -187,3 +235,21 @@
 		<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 	</div>
 {/if}
+
+<style>
+	.sub-team-switcher {
+		@apply px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg;
+	}
+	.switcher-button {
+		@apply w-full flex items-center justify-between text-sm font-medium text-gray-300 hover:text-white;
+	}
+	.dropdown {
+		@apply mt-2 space-y-1;
+	}
+	.dropdown-item {
+		@apply w-full text-left px-2 py-1 text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded;
+	}
+	.dropdown-item-selected {
+		@apply bg-primary-500/20 text-primary-400;
+	}
+</style>
