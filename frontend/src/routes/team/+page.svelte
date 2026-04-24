@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { users as usersApi, tasks as tasksApi, invites as invitesApi } from '$lib/api';
+	import { users as usersApi, tasks as tasksApi, invites as invitesApi, sub_teams as subTeamsApi } from '$lib/api';
 	import { initials, statusColors, statusLabels, priorityColors, formatDate } from '$lib/utils';
 	import { authStore, isSupervisor } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';
-	import { Mail, Users, UserPlus, UserCheck, X, Loader2 } from 'lucide-svelte';
+	import { Mail, Users, UserPlus, UserCheck, X, Loader2, Layers, Plus, Edit, Trash2 } from 'lucide-svelte';
 
 	let userList: any[] = [];
 	let taskMap: Record<number, any[]> = {};
@@ -28,6 +28,14 @@
 	let pendingInvites: any[] = [];
 	let loadingInvites = false;
 
+	// Sub-Teams
+	let subTeams: any[] = [];
+	let activeTab = 'members';
+	let editingSubTeam: any = null;
+	let showSubTeamModal = false;
+	let subTeamName = '';
+	let subTeamSupervisorId: number | null = null;
+
 	onMount(async () => {
 		loading = true;
 		try {
@@ -38,6 +46,7 @@
 			}
 			if ($isSupervisor) {
 				await loadPendingInvites();
+				await loadSubTeams();
 			}
 		} finally {
 			loading = false;
@@ -53,6 +62,62 @@
 		} finally {
 			loadingInvites = false;
 		}
+	}
+
+	async function loadSubTeams() {
+		try {
+			subTeams = await subTeamsApi.list();
+		} catch {
+			subTeams = [];
+		}
+	}
+
+	async function saveSubTeam() {
+		if (!subTeamName) return;
+		try {
+			const data: any = { name: subTeamName };
+			if (subTeamSupervisorId !== null) data.supervisor_id = subTeamSupervisorId;
+
+			if (editingSubTeam) {
+				await subTeamsApi.update(editingSubTeam.id, data);
+				toast.success('Sub-team updated');
+			} else {
+				await subTeamsApi.create(data);
+				toast.success('Sub-team created');
+			}
+			showSubTeamModal = false;
+			subTeamName = '';
+			subTeamSupervisorId = null;
+			editingSubTeam = null;
+			await loadSubTeams();
+		} catch (e: any) {
+			toast.error(e.message || 'Failed to save sub-team');
+		}
+	}
+
+	async function deleteSubTeam(id: number) {
+		if (!confirm('Are you sure you want to delete this sub-team?')) return;
+		try {
+			await subTeamsApi.delete(id);
+			toast.success('Sub-team deleted');
+			await loadSubTeams();
+		} catch (e: any) {
+			toast.error(e.message || 'Failed to delete sub-team');
+		}
+	}
+
+	function editSubTeam(subTeam: any) {
+		editingSubTeam = subTeam;
+		subTeamName = subTeam.name;
+		subTeamSupervisorId = subTeam.supervisor_id;
+		showSubTeamModal = true;
+	}
+
+	function createSubTeam() {
+		editingSubTeam = null;
+		subTeamName = '';
+		subTeamSupervisorId = null;
+		showSubTeamModal = true;
 	}
 
 	async function sendInvite() {
@@ -139,6 +204,32 @@
 			<h1 class="text-2xl font-bold text-white">Team</h1>
 			<p class="text-gray-400 text-sm mt-1">Manage your team members and their workload</p>
 		</div>
+	</div>
+
+	<!-- Tabs -->
+	{#if $isSupervisor}
+	<div class="mb-6 flex gap-2 border-b border-gray-800">
+		<button
+			on:click={() => (activeTab = 'members')}
+			class="px-4 py-2 text-sm font-medium transition-colors {activeTab === 'members'
+				? 'text-white border-b-2 border-primary-600'
+				: 'text-gray-500 hover:text-gray-300'}"
+		>
+			Members
+		</button>
+		<button
+			on:click={() => (activeTab = 'sub-teams')}
+			class="px-4 py-2 text-sm font-medium transition-colors {activeTab === 'sub-teams'
+				? 'text-white border-b-2 border-primary-600'
+				: 'text-gray-500 hover:text-gray-300'}"
+		>
+			Sub-Teams
+		</button>
+	</div>
+	{/if}
+
+	{#if activeTab === 'members'}
+	<div class="mb-6 flex items-start justify-between gap-4">
 		{#if $isSupervisor}
 			<div class="flex gap-2 flex-shrink-0">
 				<button
@@ -285,6 +376,63 @@
 			</div>
 		{/if}
 	{/if}
+	{/if}
+
+	<!-- Sub-Teams Tab -->
+	{#if activeTab === 'sub-teams'}
+	<div class="mb-6 flex items-start justify-between gap-4">
+		<button
+			on:click={createSubTeam}
+			class="btn-primary flex items-center gap-1.5 text-sm"
+		>
+			<Plus size={15} />
+			Create Sub-Team
+		</button>
+	</div>
+
+	{#if subTeams.length === 0}
+		<div class="card text-center py-12">
+			<Layers class="mx-auto text-gray-600 mb-3" size={36} />
+			<p class="text-gray-500">No sub-teams yet.</p>
+		</div>
+	{:else}
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			{#each subTeams as subTeam}
+			<div class="card">
+				<div class="flex items-start justify-between mb-4">
+					<div class="flex-1">
+						<h3 class="font-semibold text-white">{subTeam.name}</h3>
+						{#if subTeam.supervisor_id}
+							{@const supervisor = userList.find((u) => u.id === subTeam.supervisor_id)}
+							{#if supervisor}
+								<p class="text-xs text-gray-500">Supervisor: {supervisor.full_name}</p>
+							{/if}
+						{:else}
+							<p class="text-xs text-gray-500">No supervisor</p>
+						{/if}
+					</div>
+					<div class="flex gap-2">
+						<button
+							on:click={() => editSubTeam(subTeam)}
+							class="text-gray-500 hover:text-gray-300 transition-colors"
+							title="Edit"
+						>
+							<Edit size={16} />
+						</button>
+						<button
+							on:click={() => deleteSubTeam(subTeam.id)}
+							class="text-gray-500 hover:text-red-400 transition-colors"
+							title="Delete"
+						>
+							<Trash2 size={16} />
+						</button>
+					</div>
+				</div>
+			</div>
+			{/each}
+		</div>
+	{/if}
+	{/if}
 </div>
 
 <!-- Invite Member Modal -->
@@ -407,6 +555,55 @@
 					</button>
 				</div>
 			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Sub-Team Modal -->
+{#if showSubTeamModal}
+	<div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+		<div class="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-md p-6">
+			<div class="flex items-center justify-between mb-5">
+				<h2 class="text-lg font-semibold text-white">{editingSubTeam ? 'Edit Sub-Team' : 'Create Sub-Team'}</h2>
+				<button on:click={() => (showSubTeamModal = false)} class="text-gray-500 hover:text-gray-300">
+					<X size={20} />
+				</button>
+			</div>
+			<form on:submit|preventDefault={saveSubTeam} class="space-y-4">
+				<div>
+					<label class="block text-sm font-medium text-gray-300 mb-1.5" for="subTeamName">Name</label>
+					<input
+						id="subTeamName"
+						type="text"
+						bind:value={subTeamName}
+						required
+						placeholder="Engineering Team"
+						class="input w-full"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-300 mb-1.5" for="subTeamSupervisor">Supervisor</label>
+					<select id="subTeamSupervisor" bind:value={subTeamSupervisorId} class="input w-full">
+						<option value={null}>No supervisor</option>
+						{#each userList.filter(u => u.role === 'supervisor' || u.role === 'admin') as user}
+							<option value={user.id}>{user.full_name} (@{user.username})</option>
+						{/each}
+					</select>
+				</div>
+				<div class="flex gap-3 pt-1">
+					<button
+						type="button"
+						on:click={() => (showSubTeamModal = false)}
+						class="btn-secondary flex-1"
+					>Cancel</button>
+					<button
+						type="submit"
+						class="btn-primary flex-1"
+					>
+						{editingSubTeam ? 'Update' : 'Create'}
+					</button>
+				</div>
+			</form>
 		</div>
 	</div>
 {/if}
