@@ -40,6 +40,14 @@
 
 Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
 
+### Completed Phases
+
+| Phase | Name | Status | Completed |
+|-------|------|--------|-----------|
+| 15 | Custom Kanban Statuses | ✅ Done | 2026-04-26 |
+
+Phase 15 delivered: DB-backed `StatusSet`/`CustomStatus` models, backend CRUD/reorder/safe-delete/project-override API, frontend API client + 5 reusable status components, Kanban board driven by DB statuses, `is_done` completion semantics, Manage Statuses panel on `/tasks`, Statuses panel on `/projects`.
+
 ### Current Note
 
 v2.0 work remains available in prior roadmap and phase artifacts. The active planning focus moved to v2.1 on 2026-04-26 for an independent structural refactor before continuing feature expansion.
