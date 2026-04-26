@@ -111,7 +111,12 @@ _Updated: 2026-04-26_
 3. A project can define its own status set; projects with no custom statuses inherit the team-wide defaults
 4. All existing tasks are migrated from the enum to the new DB-backed statuses with zero data loss; task completion timestamps (`completed_at`) are preserved correctly
 5. Moving a task to any status marked `is_done` sets its completion timestamp; moving it back clears the timestamp
-   **Plans**: TBD
+   **Plans**:
+- [ ] 15-01-PLAN.md — Backend Status Schema, Migration, and Seed Backfill
+- [ ] 15-02-PLAN.md — Backend Status APIs and Task Dual-Write
+- [ ] 15-03-PLAN.md — Frontend API and Reusable Status Components
+- [ ] 15-04-PLAN.md — Integrate DB Statuses into Tasks, Kanban, and Projects UI
+- [ ] 15-05-PLAN.md — End-to-End Verification and Phase 16 Readiness
    **UI hint**: yes
 
 ### Phase 16: Advanced KPI Dashboard
