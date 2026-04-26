@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { performance } from '$lib/api';
+	import KpiScoreCard from '$lib/components/performance/KpiScoreCard.svelte';
 	// layerchart removed — using inline SVG area chart below
 	import { 
 		TrendingUp, 
@@ -18,6 +19,7 @@
 
 	let loading = $state(true);
 	let data = $state<any>(null);
+	let kpiScorecard = $state<any>(null);
 	const userId = parseInt($page.params.id ?? '0');
 
 	onMount(async () => {
@@ -28,6 +30,10 @@
 		} finally {
 			loading = false;
 		}
+		try {
+			const overview = await performance.kpiOverview();
+			kpiScorecard = (overview?.scorecards ?? []).find((s: any) => s.user_id === userId) ?? null;
+		} catch (e) { /* non-blocking */ }
 	});
 
 	const getStatusColor = (status: string) => {
@@ -138,6 +144,13 @@
 						</div>
 					</div>
 				</div>
+
+				{#if kpiScorecard}
+				<div>
+					<h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">KPI Score</h3>
+					<KpiScoreCard member={kpiScorecard} />
+				</div>
+				{/if}
 
 				<div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6">
 					<h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Recent Activity</h3>
