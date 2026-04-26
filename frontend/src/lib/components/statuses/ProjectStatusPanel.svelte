@@ -6,6 +6,7 @@
 	export let project: { id: number; name: string; sub_team_id: number | null };
 	export let statusSet: StatusSet | null = null;
 	export let onRefresh: () => void = () => {};
+	export let canManage: boolean = false;
 
 	let reverting = false;
 	let revertError = '';
@@ -45,22 +46,24 @@
 			</span>
 		</div>
 		<div class="flex gap-2">
-			{#if !hasOverride}
-				<button
-					on:click={handleCreateOverride}
-					disabled={creating}
-					class="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
-				>
-					{creating ? 'Creating…' : 'Create project override'}
-				</button>
-			{:else}
-				<button
-					on:click={handleRevert}
-					disabled={reverting}
-					class="rounded bg-gray-600 px-2 py-1 text-xs text-gray-200 hover:bg-gray-500 disabled:opacity-60"
-				>
-					{reverting ? 'Reverting…' : 'Revert to defaults'}
-				</button>
+			{#if canManage}
+				{#if !hasOverride}
+					<button
+						on:click={handleCreateOverride}
+						disabled={creating}
+						class="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+					>
+						{creating ? 'Creating…' : 'Create project override'}
+					</button>
+				{:else}
+					<button
+						on:click={handleRevert}
+						disabled={reverting}
+						class="rounded bg-gray-600 px-2 py-1 text-xs text-gray-200 hover:bg-gray-500 disabled:opacity-60"
+					>
+						{reverting ? 'Reverting…' : 'Revert to defaults'}
+					</button>
+				{/if}
 			{/if}
 		</div>
 	</div>
@@ -79,7 +82,7 @@
 	<StatusSetManager
 		{statusSet}
 		scopeLabel={hasOverride ? `${project.name} override` : 'Sub-team default'}
-		canManage={hasOverride}
+		canManage={canManage && hasOverride}
 		isMixedProjectView={false}
 		{onRefresh}
 	/>

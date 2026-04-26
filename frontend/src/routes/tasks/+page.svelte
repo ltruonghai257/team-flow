@@ -10,6 +10,7 @@
 	} from '$lib/api';
 	import type { CustomStatus, StatusSet } from '$lib/api';
 	import StatusSetManager from '$lib/components/statuses/StatusSetManager.svelte';
+	import { isSupervisor } from '$lib/stores/auth';
 	import {
 		formatDate,
 		statusColors,
@@ -90,7 +91,8 @@
 	};
 
 	$: activeStatuses = statusSetData?.statuses.filter((s: CustomStatus) => !s.is_archived) ?? [];
-	$: isMixedProjectView = !filterProjectId && projectList.length > 1;
+	$: isMixedProjectView =
+		statusSetData?.scope === 'project' && !filterProjectId && projectList.length > 1;
 	$: isTaskDone = (t: any) =>
 		t.custom_status?.is_done ?? (t.status === 'done');
 
@@ -419,12 +421,14 @@
 			</select>
 		</div>
 
-		<button
-			on:click={() => (showStatusManager = !showStatusManager)}
-			class="text-xs text-gray-400 hover:text-white border border-gray-700 rounded px-2 py-1.5 transition-colors"
-		>
-			Manage Statuses
-		</button>
+		{#if $isSupervisor}
+			<button
+				on:click={() => (showStatusManager = !showStatusManager)}
+				class="text-xs text-gray-400 hover:text-white border border-gray-700 rounded px-2 py-1.5 transition-colors"
+			>
+				Manage Statuses
+			</button>
+		{/if}
 		<label class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
 			<input
 				type="checkbox"
@@ -455,7 +459,7 @@
 			<StatusSetManager
 				statusSet={statusSetData}
 				scopeLabel={filterProjectId && !isMixedProjectView ? 'Project' : 'Sub-team default'}
-				canManage={true}
+				canManage={$isSupervisor}
 				{isMixedProjectView}
 				onRefresh={loadStatusSet}
 			/>

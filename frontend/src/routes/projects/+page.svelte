@@ -7,6 +7,7 @@
 	import { Plus, Pencil, Trash2, X, FolderOpen, Sparkles } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import ProjectStatusPanel from '$lib/components/statuses/ProjectStatusPanel.svelte';
+	import { isSupervisor } from '$lib/stores/auth';
 
 	let projectList: any[] = [];
 	let loading = true;
@@ -209,6 +210,7 @@
 							<ProjectStatusPanel
 								project={p}
 								statusSet={statusSetMap[p.id] ?? null}
+								canManage={$isSupervisor}
 								onRefresh={() => loadProjectStatusSet(p.id)}
 							/>
 						</div>
