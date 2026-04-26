@@ -51,6 +51,12 @@ class MilestoneStatus(str, enum.Enum):
     delayed = "delayed"
 
 
+class SprintStatus(str, enum.Enum):
+    planned = "planned"
+    active = "active"
+    closed = "closed"
+
+
 class NotificationStatus(str, enum.Enum):
     pending = "pending"
     sent = "sent"
@@ -132,6 +138,24 @@ class Milestone(Base):
 
     project = relationship("Project", back_populates="milestones")
     tasks = relationship("Task", back_populates="milestone")
+    sprints = relationship("Sprint", back_populates="milestone")
+
+
+class Sprint(Base):
+    __tablename__ = "sprints"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    status = Column(Enum(SprintStatus), default=SprintStatus.planned)
+    milestone_id = Column(Integer, ForeignKey("milestones.id"), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+
+    milestone = relationship("Milestone", back_populates="sprints")
+    tasks = relationship("Task", back_populates="sprint")
 
 
 class Task(Base):
@@ -150,6 +174,7 @@ class Task(Base):
 
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     milestone_id = Column(Integer, ForeignKey("milestones.id"), nullable=True)
+    sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(
@@ -163,6 +188,7 @@ class Task(Base):
 
     project = relationship("Project", back_populates="tasks")
     milestone = relationship("Milestone", back_populates="tasks")
+    sprint = relationship("Sprint", back_populates="tasks")
     assignee = relationship(
         "User", back_populates="assigned_tasks", foreign_keys=[assignee_id]
     )
