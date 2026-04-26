@@ -27,14 +27,35 @@ _Updated: 2026-04-26_
 
 ### Milestone 2.0: Team Hierarchy, Sprints & Advanced Analytics
 
-**Status:** Paused for v2.1 structural refactor
+**Status:** In progress — Phases 15–17 remaining before v2.1 structural refactor begins
 **Phases:** 12-17
 
-The v2.0 roadmap and phase artifacts remain available in git history and `.planning/phases/`. Current active planning has moved to v2.1 so the codebase structure can be cleaned up before further feature expansion.
+| Phase | Name | Status |
+|-------|------|--------|
+| 12 | Task Types | ✅ Done |
+| 13 | Multi-team Hierarchy & Timeline Visibility | ✅ Done |
+| 14 | Sprint Model | ✅ Done |
+| 15 | Custom Kanban Statuses | ✅ Done |
+| 16 | Advanced KPI Dashboard | 🗂 Planned |
+| 17 | Sprint & Release Reminders | 🗂 Not started |
+
+**Phase 17: Sprint & Release Reminders**
+- **Goal:** Team members and supervisors receive in-app notifications N days before sprint end and milestone due dates; configurable lead time; no duplicate reminders via `EventNotification` rows
+- **Depends on:** Phase 13 (team membership for fanout), Phase 14 (sprint model for trigger events)
+- **Requirements:** REMIND-01, REMIND-02
+- **Success Criteria:**
+  1. All sprint participants receive an in-app notification N days before sprint end date (default 2 days); N is configurable per sub-team by supervisor/admin
+  2. Milestone due-date reminders are sent to all project members
+  3. Duplicate reminders are prevented via `EventNotification` unique constraint on `(event_type, event_ref_id, user_id)`
+  4. Reminders are delivered through the existing 60s notification poll
+
+**Sequencing:** Complete Phases 16 and 17 first, then begin Milestone v2.1 structural refactor.
 
 ---
 
 ## Milestone v2.1: Open WebUI-Style Project Structure Refactor
+
+> **Starts after Milestone 2.0 (Phases 16–17) is complete.**
 
 **Goal:** Refactor TeamFlow's FastAPI backend and SvelteKit frontend into a clearer Open WebUI-inspired structure while preserving behavior.
 
