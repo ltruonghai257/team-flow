@@ -9,6 +9,7 @@ from app.models import (
     NotificationEventType,
     NotificationStatus,
     SprintStatus,
+    StatusSetScope,
     TaskPriority,
     TaskStatus,
     TaskType,
@@ -179,6 +180,65 @@ class SprintClosePayload(BaseModel):
     task_mapping: Dict[int, Optional[int]]
 
 
+# ── Status Sets ───────────────────────────────────────────────────────────────
+
+
+class CustomStatusOut(BaseModel):
+    id: int
+    status_set_id: int
+    name: str
+    slug: str
+    color: str
+    position: int
+    is_done: bool
+    is_archived: bool
+    legacy_status: Optional[TaskStatus]
+    task_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class StatusSetOut(BaseModel):
+    id: int
+    scope: StatusSetScope
+    sub_team_id: Optional[int]
+    project_id: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+    statuses: List[CustomStatusOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class CustomStatusCreate(BaseModel):
+    name: str
+    color: str = "#64748b"
+    is_done: bool = False
+    position: Optional[int] = None
+
+
+class CustomStatusUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    is_done: Optional[bool] = None
+    is_archived: Optional[bool] = None
+
+
+class StatusReorderPayload(BaseModel):
+    status_ids: List[int]
+
+
+class StatusDeletePayload(BaseModel):
+    mode: str
+    replacement_status_id: Optional[int] = None
+
+
+class ProjectStatusRevertPayload(BaseModel):
+    fallback_mappings: Dict[int, int] = {}
+
+
 # ── Task ──────────────────────────────────────────────────────────────────────
 
 
@@ -195,6 +255,7 @@ class TaskCreate(BaseModel):
     milestone_id: Optional[int] = None
     sprint_id: Optional[int] = None
     assignee_id: Optional[int] = None
+    custom_status_id: Optional[int] = None
 
     _normalize_due = field_validator("due_date", mode="after")(_to_naive_utc)
 
@@ -213,6 +274,7 @@ class TaskUpdate(BaseModel):
     sprint_id: Optional[int] = None
     assignee_id: Optional[int] = None
     completed_at: Optional[datetime] = None
+    custom_status_id: Optional[int] = None
 
     _normalize_due = field_validator("due_date", "completed_at", mode="after")(
         _to_naive_utc
@@ -238,6 +300,8 @@ class TaskOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     assignee: Optional[UserOut] = None
+    custom_status_id: Optional[int] = None
+    custom_status: Optional[CustomStatusOut] = None
 
     model_config = {"from_attributes": True}
 
