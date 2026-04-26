@@ -1,0 +1,106 @@
+{
+  "phase": "18",
+  "phase_name": "status-transition-graph",
+  "timestamp": "2026-04-26T21:34:44+0700",
+  "areas_completed": ["Transition Editing UI", "Enforcement Rules", "User Feedback"],
+  "areas_remaining": ["Project Override Behavior"],
+  "decisions": {
+    "Transition Editing UI": [
+      {
+        "question": "How should supervisors/admins edit transition rules?",
+        "answer": "Hybrid: matrix/table is the primary editing surface, with a read-only graph preview if practical.",
+        "options_presented": ["Matrix table", "Visual graph", "Hybrid", "You decide"]
+      },
+      {
+        "question": "How strict should validation be while supervisors configure rules?",
+        "answer": "Agent discretion, with a bias toward non-blocking warnings over hard save failures.",
+        "options_presented": ["Warnings only", "Block invalid graphs", "Minimal validation", "You decide"]
+      },
+      {
+        "question": "What should the preview part of the hybrid editor show?",
+        "answer": "Read-only graph view showing statuses as nodes and allowed transitions as edges.",
+        "options_presented": ["Compact flow preview", "Warnings summary only", "Full graph view", "You decide"]
+      },
+      {
+        "question": "Where should transition rules live inside the existing status manager?",
+        "answer": "Agent discretion; tabs are preferred if StatusSetManager starts feeling crowded.",
+        "options_presented": ["Expandable section under statuses", "Tabs inside StatusSetManager", "Separate modal/panel", "You decide"]
+      },
+      {
+        "question": "Should there be a quick-start action when a status set has no transition rules yet?",
+        "answer": "Provide an explicit Generate linear flow action that creates ordered forward transitions from each active status to the next active status.",
+        "options_presented": ["Generate linear flow", "Start empty", "Use common defaults", "You decide"]
+      },
+      {
+        "question": "Should supervisors be able to add self-transitions?",
+        "answer": "Self-transitions should be hidden or disabled in the editor.",
+        "options_presented": ["Hide/disable self-transitions", "Allow self-transitions", "You decide"]
+      },
+      {
+        "question": "Should transition editing include archived statuses?",
+        "answer": "Transition editing uses active statuses only; archived statuses stay out of the transition rule editor.",
+        "options_presented": ["Active statuses only", "Show archived read-only", "Include archived fully", "You decide"]
+      }
+    ],
+    "Enforcement Rules": [
+      {
+        "question": "When transition rules exist for a status set, what should happen if a task has no current custom_status_id yet?",
+        "answer": "Resolve through the existing legacy-status mapping first, then apply transition enforcement.",
+        "options_presented": ["Resolve then enforce", "Allow first move", "Reject until normalized", "You decide"]
+      },
+      {
+        "question": "Should transition enforcement run only when custom_status_id changes, or also when related task fields change?",
+        "answer": "Enforce on status changes and project changes. Ordinary task edits should not be blocked.",
+        "options_presented": ["Status changes only", "Any task update", "Status and project changes", "You decide"]
+      },
+      {
+        "question": "If a status set has at least one transition defined, should all non-listed transitions be blocked?",
+        "answer": "Strict allowlist: if a status set has any transition rules, non-listed status moves are blocked.",
+        "options_presented": ["Yes, strict allowlist", "Per-status strictness", "Require explicit enable flag", "You decide"]
+      },
+      {
+        "question": "How should transitions into is_done statuses behave?",
+        "answer": "No runtime exception. Moving into done requires an explicit allowed transition when rules exist.",
+        "options_presented": ["No special treatment", "Always allow into done", "Require path to done warning only", "You decide"]
+      },
+      {
+        "question": "How should blocked transitions be represented in the backend response?",
+        "answer": "Return HTTP 422 with structured detail, including a stable error code plus current/target status context.",
+        "options_presented": ["HTTP 422 with structured detail", "HTTP 422 with simple message", "HTTP 400", "You decide"]
+      }
+    ],
+    "User Feedback": [
+      {
+        "question": "For Kanban drag-drop, should blocked moves be prevented before the drop or reverted after the drop attempt?",
+        "answer": "Hybrid feedback model: mark/prevent obvious invalid targets client-side where practical, but still handle backend 422 by reverting and showing a toast.",
+        "options_presented": ["Prevent before drop", "Allow drop then revert with toast", "Hybrid", "You decide"]
+      },
+      {
+        "question": "For the toast/error message, what tone should blocked moves use?",
+        "answer": "Agent discretion, with a bias toward direct and status-specific messages from the structured backend response.",
+        "options_presented": ["Direct rule message", "Actionable message", "Admin-focused message", "You decide"]
+      },
+      {
+        "question": "For the task edit form status dropdown, how should restricted statuses appear?",
+        "answer": "Show allowed target statuses plus the current status so the selected value never disappears.",
+        "options_presented": ["Show only allowed statuses", "Show all, disable blocked ones", "Allowed statuses plus current status", "You decide"]
+      },
+      {
+        "question": "Should the UI show workflow hints on Kanban column headers?",
+        "answer": "Use small hint icons/tooltips for transition restrictions, not always-visible labels.",
+        "options_presented": ["Small hint icons only", "Visible allowed-next labels", "No header hints", "You decide"]
+      },
+      {
+        "question": "When rules change while users already have the board open, how fresh does the client-side transition data need to be?",
+        "answer": "If the backend returns a blocked-transition 422, the frontend should refresh status set/transition data.",
+        "options_presented": ["Refresh on status-set reload only", "Refresh after blocked backend response", "Live refresh", "You decide"]
+      }
+    ]
+  },
+  "deferred_ideas": [],
+  "canonical_refs": [
+    ".planning/ROADMAP.md",
+    ".planning/todos/pending/2026-04-26-status-transition-graph-workflow.md",
+    ".planning/phases/15-custom-kanban-statuses/15-CONTEXT.md"
+  ]
+}
