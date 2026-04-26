@@ -23,8 +23,9 @@ async function request<T = any>(
         selectedSubTeam = v;
     });
     unsubscribe();
-    if (selectedSubTeam && selectedSubTeam.id) {
-        headers['X-SubTeam-ID'] = selectedSubTeam.id.toString();
+    const activeSubTeam = selectedSubTeam as SubTeam | null;
+    if (activeSubTeam && activeSubTeam.id) {
+        headers['X-SubTeam-ID'] = activeSubTeam.id.toString();
     }
 
     const res = await fetch(`${BASE}${path}`, {
@@ -291,6 +292,68 @@ export const invites = {
     pending: () => request('/invites/pending'),
     cancel: (inviteId: number) =>
         request(`/invites/${inviteId}`, { method: 'DELETE' }),
+};
+
+// Status Sets — types
+export type StatusSetScope = 'sub_team_default' | 'project';
+
+export interface CustomStatus {
+    id: number;
+    status_set_id: number;
+    name: string;
+    slug: string;
+    color: string;
+    position: number;
+    is_done: boolean;
+    is_archived: boolean;
+    legacy_status: string | null;
+    task_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface StatusSet {
+    id: number;
+    scope: StatusSetScope;
+    sub_team_id: number | null;
+    project_id: number | null;
+    created_at: string;
+    updated_at: string;
+    statuses: CustomStatus[];
+}
+
+// Status Sets
+export const statusSets = {
+    getDefault: () => request('/status-sets/default'),
+    getEffective: (projectId?: number) =>
+        request(`/status-sets/effective${projectId ? `?project_id=${projectId}` : ''}`),
+    createStatus: (data: object) =>
+        request('/status-sets/default/statuses', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    updateStatus: (statusId: number, data: object) =>
+        request(`/status-sets/statuses/${statusId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }),
+    reorder: (statusSetId: number, statusIds: number[]) =>
+        request(`/status-sets/${statusSetId}/reorder`, {
+            method: 'POST',
+            body: JSON.stringify({ status_ids: statusIds }),
+        }),
+    deleteStatus: (statusId: number, payload: { mode: string; replacement_status_id?: number }) =>
+        request(`/status-sets/statuses/${statusId}/delete`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }),
+    createProjectOverride: (projectId: number) =>
+        request(`/status-sets/projects/${projectId}/override`, { method: 'POST' }),
+    revertProjectOverride: (projectId: number, fallbackMappings: Record<number, number> = {}) =>
+        request(`/status-sets/projects/${projectId}/override`, {
+            method: 'DELETE',
+            body: JSON.stringify({ fallback_mappings: fallbackMappings }),
+        }),
 };
 
 // SubTeams

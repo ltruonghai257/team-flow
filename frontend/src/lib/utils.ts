@@ -36,6 +36,45 @@ export const statusLabels: Record<string, string> = {
 	blocked: 'Blocked'
 };
 
+export const statusColorPalette: string[] = [
+	'#64748b',
+	'#0ea5e9',
+	'#f59e0b',
+	'#10b981',
+	'#f43f5e',
+	'#8b5cf6',
+	'#06b6d4',
+	'#f97316',
+];
+
+export function statusDisplayName(status: { name?: string; slug?: string } | null | undefined): string {
+	if (status?.name) return status.name;
+	const slug = status?.slug ?? '';
+	return statusLabels[slug] ?? slug;
+}
+
+export function statusDisplayColor(status: { color?: string; slug?: string } | null | undefined): string {
+	if (status?.color) return status.color;
+	const slug = status?.slug ?? '';
+	return statusColors[slug] ? statusColors[slug].replace(/^bg-/, '#') : '#64748b';
+}
+
+export function getStatusColor(status: { color?: string; slug?: string } | null | undefined, legacySlug?: string): string {
+	if (status?.color) {
+		return status.color;
+	}
+	const slug = status?.slug ?? legacySlug ?? '';
+	return statusColors[slug] ?? 'bg-gray-700 text-gray-300';
+}
+
+export function getStatusLabel(status: { name?: string; slug?: string } | null | undefined, legacySlug?: string): string {
+	if (status?.name) {
+		return status.name;
+	}
+	const slug = status?.slug ?? legacySlug ?? '';
+	return statusLabels[slug] ?? slug;
+}
+
 export const priorityColors: Record<string, string> = {
 	low: 'bg-gray-700 text-gray-300',
 	medium: 'bg-blue-900 text-blue-300',
