@@ -10,52 +10,6 @@
 	import KpiWeightSettings from '$lib/components/performance/KpiWeightSettings.svelte';
 	import { toast } from 'svelte-sonner';
 
-	const DEMO_OVERVIEW = {
-		summary: { average_score: 74, active_tasks: 31, completed_tasks: 58, average_cycle_time_hours: 36.5, defect_count: 4 },
-		scorecards: [
-			{
-				user_id: 1, full_name: 'La Truong Hai', avatar_url: null, kpi_score: 68, trend: 'stable',
-				reasons: [{ label: 'Low velocity', severity: 'warning' }, { label: 'Low on-time rate', severity: 'warning' }],
-				breakdown: { workload: 100, velocity: 50, cycle_time: 70, on_time: 62, defects: 100 }
-			},
-			{
-				user_id: 2, full_name: 'Doan Duc Kien', avatar_url: null, kpi_score: 48, trend: 'down',
-				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }, { label: 'Low on-time rate', severity: 'warning' }],
-				breakdown: { workload: 40, velocity: 50, cycle_time: 40, on_time: 55, defects: 70 }
-			},
-			{
-				user_id: 3, full_name: 'Carla Müller', avatar_url: null, kpi_score: 55, trend: 'down',
-				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }],
-				breakdown: { workload: 40, velocity: 70, cycle_time: 40, on_time: 60, defects: 70 }
-			},
-			{
-				user_id: 4, full_name: 'David Park', avatar_url: null, kpi_score: 93, trend: 'up',
-				reasons: [],
-				breakdown: { workload: 100, velocity: 100, cycle_time: 100, on_time: 92, defects: 100 }
-			},
-			{
-				user_id: 5, full_name: 'Eva Rossi', avatar_url: null, kpi_score: 63, trend: 'stable',
-				reasons: [{ label: 'Low on-time rate', severity: 'warning' }, { label: 'High bug MTTR', severity: 'warning' }],
-				breakdown: { workload: 70, velocity: 60, cycle_time: 70, on_time: 52, defects: 70 }
-			},
-		],
-		needs_attention: [
-			{
-				user_id: 2, full_name: 'Doan Duc Kien', avatar_url: null, kpi_score: 48, trend: 'down',
-				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }, { label: 'Low on-time rate', severity: 'warning' }],
-				breakdown: { workload: 40, velocity: 50, cycle_time: 40, on_time: 55, defects: 70 }
-			},
-			{
-				user_id: 3, full_name: 'Carla Müller', avatar_url: null, kpi_score: 55, trend: 'down',
-				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }],
-				breakdown: { workload: 40, velocity: 70, cycle_time: 40, on_time: 60, defects: 70 }
-			},
-		],
-		weights: { id: 0, sub_team_id: null, workload_weight: 20, velocity_weight: 25, cycle_time_weight: 20, on_time_weight: 20, defect_weight: 15, updated_at: null },
-	};
-
-	let isDemo = $state(false);
-
 	const TABS = [
 		{ id: 'overview', label: 'Overview' },
 		{ id: 'sprint', label: 'Sprint' },
@@ -99,18 +53,9 @@
 	async function loadOverview() {
 		overviewLoading = true;
 		try {
-			const res = await performance.kpiOverview();
-			if (res?.scorecards?.length) {
-				overviewData = res;
-				isDemo = false;
-			} else {
-				overviewData = DEMO_OVERVIEW;
-				isDemo = true;
-			}
+			overviewData = await performance.kpiOverview();
 		} catch (e) {
 			console.error(e);
-			overviewData = DEMO_OVERVIEW;
-			isDemo = true;
 		} finally { overviewLoading = false; }
 	}
 
@@ -245,7 +190,7 @@
 					<h2 class="text-lg font-semibold text-gray-100 mb-3">Member Scorecards</h2>
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 						{#each overviewData.scorecards as member}
-							<KpiScoreCard {member} hideDetailLink={isDemo} onDrilldown={(m) => openDrilldown('overview', { member_id: m.user_id }, m.full_name)} />
+							<KpiScoreCard {member} onDrilldown={(m) => openDrilldown('overview', { member_id: m.user_id }, m.full_name)} />
 						{/each}
 					</div>
 				</div>
@@ -259,19 +204,13 @@
 				{:else}
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 						{#each overviewData.needs_attention as member}
-							<KpiScoreCard {member} hideDetailLink={isDemo} />
+							<KpiScoreCard {member} />
 						{/each}
 					</div>
 				{/if}
 			</div>
 		{:else}
 			<p class="text-gray-500 text-sm py-8 text-center">No overview data available.</p>
-		{/if}
-		{#if isDemo && overviewData}
-			<div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-900/30 border border-indigo-700/50 text-indigo-300 text-xs">
-				<span class="text-lg">🎭</span>
-				<span><strong>Demo mode</strong> — no real team data yet. Scorecards above show example values so you can explore every feature.</span>
-			</div>
 		{/if}
 	{/if}
 

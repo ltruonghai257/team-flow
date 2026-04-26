@@ -1,21 +1,24 @@
-"""Seed demo data for local development / timeline verification.
+"""Seed demo data for local development.
 
 Creates:
-  - 1 supervisor user  (supervisor / password123)
-  - 3 member users     (alice, bob, carol / password123)
-  - 2 projects with distinct colors
-  - 2 milestones per project
-  - ~16 tasks spread across milestones and assignees, with varied
-    statuses, due dates (past, present, future), and one unscheduled task
-  - notifications for each user
-  - chat messages across projects
-  - schedules for each user
-  - 1 pending team invite
+  - 1 sub-team  (Engineering Team)
+  - 1 supervisor (Sam Supervisor — supervisor of the sub-team)
+  - 5 members   (alice, bob, carol, latruonghai, doanduckien)
+  - 1 StatusSet + 5 CustomStatuses (is_done semantics for KPI)
+  - 2 projects (scoped to the sub-team)
+  - 4 milestones
+  - KPI-targeted tasks per member producing realistic score distribution:
+      Alice       ~92  Good
+      Bob         ~73  Fair
+      Carol       ~68  Fair
+      La Truong Hai ~74  Fair
+      Doan Duc Kien ~37  At Risk
+  - Schedules, chat channels/messages, DMs, notifications, invite
 
 Run from the backend directory:
     python -m app.scripts.seed_demo
 
-Safe to re-run — skips creation if data already exists (checks by email).
+Safe to re-run — skips rows that already exist.
 """
 
 import asyncio
@@ -27,17 +30,25 @@ def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _days(n: int) -> datetime:
-    return (_now() + timedelta(days=n))
+def _days(n: float) -> datetime:
+    return _now() + timedelta(days=n)
+
+
+def _h(hours_ago: float) -> datetime:
+    """Return a datetime that is `hours_ago` hours in the past."""
+    return _now() - timedelta(hours=hours_ago)
 
 
 async def main() -> None:
     from sqlalchemy import select
     from app.database import AsyncSessionLocal
     from app.models import (
-        User, UserRole, Project, Milestone, MilestoneStatus, Task,
-        TaskStatus, TaskPriority, NotificationStatus, NotificationEventType,
-        EventNotification, Schedule, ChatChannel, ChatChannelMember,
+        User, UserRole, SubTeam,
+        StatusSet, StatusSetScope, CustomStatus,
+        Project, Milestone, MilestoneStatus,
+        Task, TaskStatus, TaskPriority, TaskType,
+        NotificationStatus, NotificationEventType, EventNotification,
+        Schedule, ChatChannel, ChatChannelMember,
         ChatConversation, ChatMessage, TeamInvite, InviteStatus,
     )
     from app.auth import hash_password
@@ -48,23 +59,19 @@ async def main() -> None:
         # Users
         # ------------------------------------------------------------------
         users_data = [
-            dict(email="supervisor@demo.com",          username="supervisor", full_name="Sam Supervisor",  role=UserRole.supervisor),
-            dict(email="alice@demo.com",               username="alice",      full_name="Alice Chen",      role=UserRole.member),
-            dict(email="bob@demo.com",                 username="bob",        full_name="Bob Kim",         role=UserRole.member),
-            dict(email="carol@demo.com",               username="carol",      full_name="Carol Davis",     role=UserRole.member),
-            dict(email="latruonghai@gmail.com",        username="latruonghai",  full_name="La Truong Hai",   role=UserRole.member),
-            dict(email="doanduckien.2001@gmail.com",   username="doanduckien",  full_name="Doan Duc Kien",   role=UserRole.member),
+            dict(email="supervisor@demo.com",        username="supervisor",  full_name="Sam Supervisor", role=UserRole.supervisor),
+            dict(email="alice@demo.com",             username="alice",       full_name="Alice Chen",     role=UserRole.member),
+            dict(email="bob@demo.com",               username="bob",         full_name="Bob Kim",        role=UserRole.member),
+            dict(email="carol@demo.com",             username="carol",       full_name="Carol Davis",    role=UserRole.member),
+            dict(email="latruonghai@gmail.com",      username="latruonghai", full_name="La Truong Hai",  role=UserRole.member),
+            dict(email="doanduckien.2001@gmail.com", username="doanduckien", full_name="Doan Duc Kien",  role=UserRole.member),
         ]
         users: dict[str, User] = {}
         for ud in users_data:
             result = await db.execute(select(User).where(User.email == ud["email"]))
             u = result.scalar_one_or_none()
             if not u:
-                u = User(
-                    **ud,
-                    hashed_password=hash_password("password123"),
-                    is_active=True,
-                )
+                u = User(**ud, hashed_password=hash_password("password123"), is_active=True)
                 db.add(u)
                 await db.flush()
                 print(f"  created user: {ud['username']}")
@@ -73,7 +80,70 @@ async def main() -> None:
             users[ud["username"]] = u
 
         # ------------------------------------------------------------------
-        # Projects
+        # Sub-team  (supervisor manages all members)
+        # ------------------------------------------------------------------
+        result = await db.execute(select(SubTeam).where(SubTeam.name == "Engineering Team"))
+        sub_team = result.scalar_one_or_none()
+        if not sub_team:
+            sub_team = SubTeam(name="Engineering Team", supervisor_id=users["supervisor"].id)
+            db.add(sub_team)
+            await db.flush()
+            print("  created sub-team: Engineering Team")
+        else:
+            print("  skipped sub-team (exists)")
+
+        # Assign all members (and supervisor) to the sub-team
+        for username in ("supervisor", "alice", "bob", "carol", "latruonghai", "doanduckien"):
+            u = users[username]
+            if u.sub_team_id != sub_team.id:
+                u.sub_team_id = sub_team.id
+        await db.flush()
+
+        # ------------------------------------------------------------------
+        # StatusSet + CustomStatuses
+        # ------------------------------------------------------------------
+        result = await db.execute(
+            select(StatusSet).where(
+                StatusSet.scope == StatusSetScope.sub_team_default,
+                StatusSet.sub_team_id == sub_team.id,
+            )
+        )
+        status_set = result.scalar_one_or_none()
+        if not status_set:
+            status_set = StatusSet(scope=StatusSetScope.sub_team_default, sub_team_id=sub_team.id)
+            db.add(status_set)
+            await db.flush()
+            print("  created status set")
+        else:
+            print("  skipped status set (exists)")
+
+        cs_specs = [
+            dict(name="To Do",       slug="todo",        color="#64748b", is_done=False, position=0),
+            dict(name="In Progress", slug="in_progress", color="#3b82f6", is_done=False, position=1),
+            dict(name="In Review",   slug="in_review",   color="#a855f7", is_done=False, position=2),
+            dict(name="Done",        slug="done",        color="#22c55e", is_done=True,  position=3),
+            dict(name="Blocked",     slug="blocked",     color="#ef4444", is_done=False, position=4),
+        ]
+        cs: dict[str, CustomStatus] = {}
+        for spec in cs_specs:
+            result = await db.execute(
+                select(CustomStatus).where(
+                    CustomStatus.status_set_id == status_set.id,
+                    CustomStatus.slug == spec["slug"],
+                )
+            )
+            c = result.scalar_one_or_none()
+            if not c:
+                c = CustomStatus(**spec, status_set_id=status_set.id)
+                db.add(c)
+                await db.flush()
+                print(f"  created custom status: {spec['name']}")
+            else:
+                print(f"  skipped custom status (exists): {spec['name']}")
+            cs[spec["slug"]] = c
+
+        # ------------------------------------------------------------------
+        # Projects  (scoped to sub-team so KPI filters work)
         # ------------------------------------------------------------------
         projects_data = [
             dict(name="TeamFlow Backend", color="#6366f1", description="API & database layer"),
@@ -84,11 +154,13 @@ async def main() -> None:
             result = await db.execute(select(Project).where(Project.name == pd["name"]))
             p = result.scalar_one_or_none()
             if not p:
-                p = Project(**pd)
+                p = Project(**pd, sub_team_id=sub_team.id)
                 db.add(p)
                 await db.flush()
                 print(f"  created project: {pd['name']}")
             else:
+                if p.sub_team_id != sub_team.id:
+                    p.sub_team_id = sub_team.id
                 print(f"  skipped project (exists): {pd['name']}")
             projects.append(p)
 
@@ -98,13 +170,13 @@ async def main() -> None:
         # Milestones
         # ------------------------------------------------------------------
         ms_data = [
-            dict(title="v1.0 Launch",    project=proj_backend, status=MilestoneStatus.in_progress,
+            dict(title="v1.0 Launch",   project=proj_backend, status=MilestoneStatus.in_progress,
                  start_date=_days(-30), due_date=_days(14)),
-            dict(title="Auth & RBAC",    project=proj_backend, status=MilestoneStatus.completed,
+            dict(title="Auth & RBAC",   project=proj_backend, status=MilestoneStatus.completed,
                  start_date=_days(-60), due_date=_days(-10)),
-            dict(title="MVP Release",    project=proj_mobile,  status=MilestoneStatus.planned,
+            dict(title="MVP Release",   project=proj_mobile,  status=MilestoneStatus.planned,
                  start_date=_days(-5),  due_date=_days(30)),
-            dict(title="Design System",  project=proj_mobile,  status=MilestoneStatus.in_progress,
+            dict(title="Design System", project=proj_mobile,  status=MilestoneStatus.in_progress,
                  start_date=_days(-20), due_date=_days(7)),
         ]
         milestones: list[Milestone] = []
@@ -127,94 +199,372 @@ async def main() -> None:
 
         # ------------------------------------------------------------------
         # Tasks
+        #
+        # Each task dict keys:
+        #   title, project, milestone (opt), assignee (opt),
+        #   priority, status (legacy), type (opt),
+        #   custom_slug: key into cs dict
+        #   due_date (opt), created_at_h: hours ago, completed_at_h (opt)
+        #
+        # KPI target scores (default weights 20/25/20/20/15):
+        #   Alice       workload=100 vel=80  ct=100 ot=88  def=100  → ~92 Good
+        #   Bob         workload=100 vel=60  ct=70  ot=67  def=70   → ~73 Fair
+        #   Carol       workload=70  vel=40  ct=70  ot=75  def=100  → ~68 Fair
+        #   La Truong Hai workload=100 vel=50 ct=70 ot=60  def=100  → ~74 Fair
+        #   Doan Duc Kien workload=40 vel=30 ct=40  ot=33  def=40   → ~37 At Risk
         # ------------------------------------------------------------------
-        tasks_data = [
-            # Backend / v1.0 Launch milestone
-            dict(title="Set up CI/CD pipeline",        milestone=ms_launch,  project=proj_backend,
-                 assignee=users["alice"],  status=TaskStatus.in_progress, priority=TaskPriority.high,
-                 due_date=_days(10)),
-            dict(title="Write API documentation",      milestone=ms_launch,  project=proj_backend,
-                 assignee=users["bob"],    status=TaskStatus.todo,        priority=TaskPriority.medium,
-                 due_date=_days(12)),
-            dict(title="Performance load testing",     milestone=ms_launch,  project=proj_backend,
-                 assignee=users["carol"],  status=TaskStatus.todo,        priority=TaskPriority.high,
-                 due_date=_days(3)),
-            dict(title="Fix overdue bug in scheduler", milestone=ms_launch,  project=proj_backend,
-                 assignee=users["alice"],  status=TaskStatus.blocked,     priority=TaskPriority.critical,
-                 due_date=_days(-3)),   # overdue
-            # Backend / Auth & RBAC milestone (completed)
-            dict(title="Implement JWT refresh tokens", milestone=ms_auth,    project=proj_backend,
-                 assignee=users["bob"],    status=TaskStatus.done,        priority=TaskPriority.high,
-                 due_date=_days(-12), completed_at=_days(-13)),
-            dict(title="Role-based route guards",      milestone=ms_auth,    project=proj_backend,
-                 assignee=users["carol"],  status=TaskStatus.done,        priority=TaskPriority.medium,
-                 due_date=_days(-11), completed_at=_days(-11)),
-            # Mobile / MVP Release milestone
-            dict(title="Login screen UI",              milestone=ms_mvp,     project=proj_mobile,
-                 assignee=users["alice"],  status=TaskStatus.in_progress, priority=TaskPriority.high,
-                 due_date=_days(20)),
-            dict(title="Push notification setup",      milestone=ms_mvp,     project=proj_mobile,
-                 assignee=users["bob"],    status=TaskStatus.todo,        priority=TaskPriority.medium,
-                 due_date=_days(25)),
-            dict(title="App store listing copy",       milestone=ms_mvp,     project=proj_mobile,
-                 assignee=users["carol"],  status=TaskStatus.todo,        priority=TaskPriority.low,
-                 due_date=_days(28)),
-            # Mobile / Design System milestone
-            dict(title="Typography tokens",            milestone=ms_design,  project=proj_mobile,
-                 assignee=users["carol"],  status=TaskStatus.done,        priority=TaskPriority.medium,
-                 due_date=_days(-2), completed_at=_days(-3)),
-            dict(title="Color palette finalization",   milestone=ms_design,  project=proj_mobile,
-                 assignee=users["alice"],  status=TaskStatus.review,      priority=TaskPriority.medium,
-                 due_date=_days(5)),
-            dict(title="Icon library integration",     milestone=ms_design,  project=proj_mobile,
-                 assignee=users["bob"],    status=TaskStatus.in_progress, priority=TaskPriority.low,
-                 due_date=_days(6)),
-            # Unassigned / no-milestone tasks (tests unscheduled bar + unassigned_tasks list)
-            dict(title="Backlog: API versioning research", milestone=None, project=proj_backend,
-                 assignee=None, status=TaskStatus.todo, priority=TaskPriority.low,
-                 due_date=None),   # unscheduled — appears as dashed bar
-            dict(title="Spike: offline mode feasibility",  milestone=None, project=proj_mobile,
-                 assignee=users["bob"], status=TaskStatus.todo, priority=TaskPriority.medium,
-                 due_date=None),   # unscheduled
+        tasks_raw = [
+
+            # ── Alice Chen  (target ~92 Good) ─────────────────────────────
+            # 3 active tasks → workload score 100
+            dict(title="Set up CI/CD pipeline",      project=proj_backend, milestone=ms_launch,
+                 assignee=users["alice"], priority=TaskPriority.high,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(10), created_at_h=48),
+            dict(title="Login screen UI",             project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["alice"], priority=TaskPriority.high,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(20), created_at_h=24),
+            dict(title="Color palette finalization",  project=proj_mobile, milestone=ms_design,
+                 assignee=users["alice"], priority=TaskPriority.medium,
+                 status=TaskStatus.review, custom_slug="in_review",
+                 due_date=_days(5), created_at_h=36),
+            # 8 completed in 30d → velocity 80; avg cycle 36h → ct 100; 7/8 on-time → ot 88
+            dict(title="JWT auth middleware",         project=proj_backend, milestone=ms_auth,
+                 assignee=users["alice"], priority=TaskPriority.high,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=244, completed_at_h=208,
+                 due_date=_h(205)),   # due after completion → on time
+            dict(title="User registration flow",      project=proj_backend, milestone=ms_auth,
+                 assignee=users["alice"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=220, completed_at_h=184,
+                 due_date=_h(180)),   # on time
+            dict(title="Password reset endpoint",     project=proj_backend, milestone=ms_auth,
+                 assignee=users["alice"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=196, completed_at_h=160,
+                 due_date=_h(155)),   # on time
+            dict(title="OAuth2 token validation",     project=proj_backend, milestone=ms_launch,
+                 assignee=users["alice"], priority=TaskPriority.high,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=172, completed_at_h=136,
+                 due_date=_h(130)),   # on time
+            dict(title="API rate limiting",           project=proj_backend, milestone=ms_launch,
+                 assignee=users["alice"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=148, completed_at_h=112,
+                 due_date=_h(108)),   # on time
+            dict(title="Request logging middleware",  project=proj_backend, milestone=ms_launch,
+                 assignee=users["alice"], priority=TaskPriority.low,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=124, completed_at_h=88,
+                 due_date=_h(84)),    # on time
+            dict(title="Health check endpoint",       project=proj_backend, milestone=ms_launch,
+                 assignee=users["alice"], priority=TaskPriority.low,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=100, completed_at_h=64,
+                 due_date=_h(60)),    # on time
+            dict(title="Fix overdue scheduler bug",   project=proj_backend, milestone=ms_launch,
+                 assignee=users["alice"], priority=TaskPriority.critical,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=76, completed_at_h=40,
+                 due_date=_h(48)),    # LATE: due 48h ago, completed 40h ago → completed after due
+
+            # ── Bob Kim  (target ~73 Fair) ────────────────────────────────
+            # 7 active tasks → workload 100
+            dict(title="Write API documentation",     project=proj_backend, milestone=ms_launch,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(12), created_at_h=48),
+            dict(title="Push notification setup",     project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(25), created_at_h=36),
+            dict(title="Icon library integration",    project=proj_mobile, milestone=ms_design,
+                 assignee=users["bob"], priority=TaskPriority.low,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(6), created_at_h=24),
+            dict(title="Backend Swagger docs",        project=proj_backend, milestone=ms_launch,
+                 assignee=users["bob"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(15), created_at_h=12),
+            dict(title="Database backup scripts",     project=proj_backend, milestone=ms_launch,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(18), created_at_h=8),
+            dict(title="Error handling middleware",   project=proj_backend, milestone=ms_launch,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(9), created_at_h=16),
+            dict(title="App analytics integration",   project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["bob"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(22), created_at_h=4),
+            # 6 completed in 30d → velocity 60; avg cycle ~63h → ct 70; 4/6 on-time; 1 bug MTTR 80h → def 70
+            dict(title="Implement JWT refresh tokens", project=proj_backend, milestone=ms_auth,
+                 assignee=users["bob"], priority=TaskPriority.high,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=360, completed_at_h=300,  # cycle 60h
+                 due_date=_h(295)),   # on time
+            dict(title="Role-based route guards",     project=proj_backend, milestone=ms_auth,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=336, completed_at_h=276,  # cycle 60h
+                 due_date=_h(270)),   # on time
+            dict(title="Session invalidation logic",  project=proj_backend, milestone=ms_auth,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=312, completed_at_h=252,  # cycle 60h
+                 due_date=_h(248)),   # on time
+            dict(title="Token blacklist cache",       project=proj_backend, milestone=ms_auth,
+                 assignee=users["bob"], priority=TaskPriority.low,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=288, completed_at_h=228,  # cycle 60h
+                 due_date=_h(230)),   # LATE: due 230h ago, completed 228h ago → completed after due
+            dict(title="Push payload schema",         project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=264, completed_at_h=204,  # cycle 60h
+                 due_date=_h(210)),   # LATE
+            dict(title="Fix crash on null token",     project=proj_backend, milestone=ms_launch,
+                 assignee=users["bob"], priority=TaskPriority.critical,
+                 status=TaskStatus.done, custom_slug="done",
+                 type=TaskType.bug,
+                 created_at_h=320, completed_at_h=240,  # cycle 80h = MTTR 80h
+                 due_date=_h(235)),   # on time
+
+            # ── Carol Davis  (target ~68 Fair) ────────────────────────────
+            # 9 active tasks → workload 70
+            dict(title="Performance load testing",    project=proj_backend, milestone=ms_launch,
+                 assignee=users["carol"], priority=TaskPriority.high,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(3), created_at_h=48),
+            dict(title="App store listing copy",      project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["carol"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(28), created_at_h=24),
+            dict(title="Onboarding flow wireframes",  project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(8), created_at_h=36),
+            dict(title="Accessibility audit",         project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(10), created_at_h=12),
+            dict(title="Localization strings",        project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["carol"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(22), created_at_h=8),
+            dict(title="Dark mode theme tokens",      project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(6), created_at_h=20),
+            dict(title="Figma component export",      project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(14), created_at_h=6),
+            dict(title="Sprint retrospective notes",  project=proj_backend, milestone=ms_launch,
+                 assignee=users["carol"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(5), created_at_h=4),
+            dict(title="QA test plan v2",             project=proj_backend, milestone=ms_launch,
+                 assignee=users["carol"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(7), created_at_h=10),
+            # 4 completed in 30d → velocity 40; avg cycle 100h → ct 70; 3/4 on-time → ot 75
+            dict(title="Typography tokens",           project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=400, completed_at_h=300,  # cycle 100h
+                 due_date=_h(295)),   # on time
+            dict(title="Button component library",    project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=380, completed_at_h=280,  # cycle 100h
+                 due_date=_h(275)),   # on time
+            dict(title="Icon set finalization",       project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.low,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=360, completed_at_h=260,  # cycle 100h
+                 due_date=_h(255)),   # on time
+            dict(title="Spacing system doc",          project=proj_mobile, milestone=ms_design,
+                 assignee=users["carol"], priority=TaskPriority.low,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=340, completed_at_h=240,  # cycle 100h
+                 due_date=_h(250)),   # LATE: due 250h ago, completed 240h ago
+
+            # ── La Truong Hai  (target ~74 Fair) ──────────────────────────
+            # 5 active tasks → workload 100
+            dict(title="API gateway config",          project=proj_backend, milestone=ms_launch,
+                 assignee=users["latruonghai"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(8), created_at_h=48),
+            dict(title="Mobile deep-link routing",    project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["latruonghai"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(18), created_at_h=24),
+            dict(title="Notification permission flow", project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["latruonghai"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(20), created_at_h=12),
+            dict(title="Crash analytics setup",       project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["latruonghai"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(12), created_at_h=16),
+            dict(title="Search indexing spike",       project=proj_backend, milestone=ms_launch,
+                 assignee=users["latruonghai"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(15), created_at_h=8),
+            # 5 completed in 30d → velocity 50; avg cycle 80h → ct 70; 3/5 on-time → ot 60
+            dict(title="User profile endpoint",       project=proj_backend, milestone=ms_auth,
+                 assignee=users["latruonghai"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=360, completed_at_h=280,  # cycle 80h
+                 due_date=_h(275)),   # on time
+            dict(title="Avatar upload service",       project=proj_backend, milestone=ms_launch,
+                 assignee=users["latruonghai"], priority=TaskPriority.low,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=340, completed_at_h=260,  # cycle 80h
+                 due_date=_h(255)),   # on time
+            dict(title="Email verification flow",     project=proj_backend, milestone=ms_auth,
+                 assignee=users["latruonghai"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=300, completed_at_h=220,  # cycle 80h
+                 due_date=_h(215)),   # on time
+            dict(title="Feed pagination logic",       project=proj_backend, milestone=ms_launch,
+                 assignee=users["latruonghai"], priority=TaskPriority.low,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=280, completed_at_h=200,  # cycle 80h
+                 due_date=_h(210)),   # LATE: due 210h ago, completed 200h ago
+            dict(title="Websocket reconnect logic",   project=proj_backend, milestone=ms_launch,
+                 assignee=users["latruonghai"], priority=TaskPriority.medium,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=260, completed_at_h=180,  # cycle 80h
+                 due_date=_h(190)),   # LATE: due 190h ago, completed 180h ago
+
+            # ── Doan Duc Kien  (target ~37 At Risk) ───────────────────────
+            # 12 active tasks → workload 40
+            dict(title="Multi-language support",      project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(14), created_at_h=48),
+            dict(title="Offline data sync",           project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.high,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(10), created_at_h=72),
+            dict(title="Payment gateway integration", project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.critical,
+                 status=TaskStatus.blocked, custom_slug="blocked",
+                 due_date=_days(-2), created_at_h=96),
+            dict(title="Biometric auth module",       project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.high,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(20), created_at_h=24),
+            dict(title="App theme switcher",          project=proj_mobile, milestone=ms_design,
+                 assignee=users["doanduckien"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(12), created_at_h=16),
+            dict(title="Gesture navigation support",  project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(8), created_at_h=36),
+            dict(title="Background task scheduler",   project=proj_backend, milestone=ms_launch,
+                 assignee=users["doanduckien"], priority=TaskPriority.high,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(6), created_at_h=20),
+            dict(title="File storage abstraction",    project=proj_backend, milestone=ms_launch,
+                 assignee=users["doanduckien"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(9), created_at_h=12),
+            dict(title="Video playback component",    project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.medium,
+                 status=TaskStatus.blocked, custom_slug="blocked",
+                 due_date=_days(-5), created_at_h=120),
+            dict(title="Cache invalidation strategy", project=proj_backend, milestone=ms_launch,
+                 assignee=users["doanduckien"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(16), created_at_h=6),
+            dict(title="Permissions matrix doc",      project=proj_backend, milestone=ms_launch,
+                 assignee=users["doanduckien"], priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=_days(11), created_at_h=4),
+            dict(title="CDN config for assets",       project=proj_backend, milestone=ms_launch,
+                 assignee=users["doanduckien"], priority=TaskPriority.medium,
+                 status=TaskStatus.in_progress, custom_slug="in_progress",
+                 due_date=_days(7), created_at_h=8),
+            # 3 completed in 30d → velocity 30; avg cycle 160h → ct 40; 1/3 on-time → ot 33; bug MTTR 200h → def 40
+            dict(title="App crash on startup fix",    project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.critical,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=440, completed_at_h=300,  # cycle 140h
+                 due_date=_h(295)),   # on time
+            dict(title="Login timeout bug",           project=proj_backend, milestone=ms_auth,
+                 assignee=users["doanduckien"], priority=TaskPriority.high,
+                 status=TaskStatus.done, custom_slug="done",
+                 created_at_h=420, completed_at_h=280,  # cycle 140h
+                 due_date=_h(290)),   # LATE: due 290h ago, completed 280h ago
+            dict(title="Memory leak in image loader", project=proj_mobile, milestone=ms_mvp,
+                 assignee=users["doanduckien"], priority=TaskPriority.high,
+                 status=TaskStatus.done, custom_slug="done",
+                 type=TaskType.bug,
+                 created_at_h=460, completed_at_h=260,  # cycle 200h = bug MTTR 200h
+                 due_date=_h(275)),   # LATE: due 275h ago, completed 260h ago
+
+            # ── Unassigned / backlog
+            dict(title="Backlog: API versioning research", project=proj_backend, milestone=None,
+                 assignee=None, priority=TaskPriority.low,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=None, created_at_h=72),
+            dict(title="Spike: offline mode feasibility",  project=proj_mobile, milestone=None,
+                 assignee=users["bob"], priority=TaskPriority.medium,
+                 status=TaskStatus.todo, custom_slug="todo",
+                 due_date=None, created_at_h=48),
         ]
 
-        for td in tasks_data:
-            milestone = td.pop("milestone")
-            project   = td.pop("project")
-            assignee  = td.pop("assignee")
-            completed_at = td.pop("completed_at", None)
+        for td in tasks_raw:
+            project      = td.pop("project")
+            milestone    = td.pop("milestone")
+            assignee     = td.pop("assignee")
+            custom_slug  = td.pop("custom_slug")
+            created_at_h = td.pop("created_at_h", None)
+            completed_at_h = td.pop("completed_at_h", None)
+            task_type    = td.pop("type", TaskType.task)
 
-            result = await db.execute(
-                select(Task).where(Task.title == td["title"])
-            )
+            result = await db.execute(select(Task).where(Task.title == td["title"]))
             t = result.scalar_one_or_none()
             if not t:
                 t = Task(
                     **td,
-                    milestone_id=milestone.id if milestone else None,
+                    type=task_type,
                     project_id=project.id,
+                    milestone_id=milestone.id if milestone else None,
                     assignee_id=assignee.id if assignee else None,
                     creator_id=users["supervisor"].id,
-                    completed_at=completed_at,
+                    custom_status_id=cs[custom_slug].id,
+                    created_at=_h(created_at_h) if created_at_h else _now(),
+                    completed_at=_h(completed_at_h) if completed_at_h else None,
                 )
                 db.add(t)
                 print(f"  created task: {td['title']}")
             else:
                 print(f"  skipped task (exists): {td['title']}")
 
+        await db.flush()
+
         # ------------------------------------------------------------------
         # Schedules
         # ------------------------------------------------------------------
         schedules_data = [
-            dict(user=users["supervisor"], title="Sprint Planning",        start_time=_days(1),  end_time=_days(1)  + timedelta(hours=1),   color="#6366f1", description="Plan the upcoming sprint with the team"),
-            dict(user=users["supervisor"], title="1:1 with Alice",         start_time=_days(2),  end_time=_days(2)  + timedelta(hours=1),   color="#f59e0b", description="Weekly check-in"),
-            dict(user=users["supervisor"], title="Release Review",         start_time=_days(14), end_time=_days(14) + timedelta(hours=2),   color="#10b981", description="v1.0 launch review meeting"),
-            dict(user=users["alice"],      title="API Design Session",     start_time=_days(1),  end_time=_days(1)  + timedelta(hours=2),   color="#6366f1", description="Design REST endpoints for mobile"),
-            dict(user=users["alice"],      title="Code Review",            start_time=_days(3),  end_time=_days(3)  + timedelta(hours=1),   color="#f59e0b"),
-            dict(user=users["bob"],        title="Backend Sync",           start_time=_days(1),  end_time=_days(1)  + timedelta(hours=1),   color="#6366f1"),
-            dict(user=users["bob"],        title="Push Notification Spike", start_time=_days(5), end_time=_days(5)  + timedelta(hours=3),   color="#ef4444", description="Research FCM / APNS setup"),
-            dict(user=users["carol"],      title="Design Review",          start_time=_days(2),  end_time=_days(2)  + timedelta(hours=1),   color="#a855f7", description="Review new color palette"),
-            dict(user=users["carol"],      title="All Hands",              start_time=_days(7),  end_time=_days(7)  + timedelta(hours=1),   color="#10b981", all_day=False),
+            dict(user=users["supervisor"], title="Sprint Planning",         start_time=_days(1),  end_time=_days(1)  + timedelta(hours=1), color="#6366f1", description="Plan the upcoming sprint"),
+            dict(user=users["supervisor"], title="1:1 with Alice",          start_time=_days(2),  end_time=_days(2)  + timedelta(hours=1), color="#f59e0b", description="Weekly check-in"),
+            dict(user=users["supervisor"], title="Release Review",          start_time=_days(14), end_time=_days(14) + timedelta(hours=2), color="#10b981", description="v1.0 launch review"),
+            dict(user=users["alice"],      title="API Design Session",      start_time=_days(1),  end_time=_days(1)  + timedelta(hours=2), color="#6366f1", description="Design REST endpoints"),
+            dict(user=users["alice"],      title="Code Review",             start_time=_days(3),  end_time=_days(3)  + timedelta(hours=1), color="#f59e0b"),
+            dict(user=users["bob"],        title="Backend Sync",            start_time=_days(1),  end_time=_days(1)  + timedelta(hours=1), color="#6366f1"),
+            dict(user=users["bob"],        title="Push Notification Spike", start_time=_days(5),  end_time=_days(5)  + timedelta(hours=3), color="#ef4444", description="Research FCM / APNS setup"),
+            dict(user=users["carol"],      title="Design Review",           start_time=_days(2),  end_time=_days(2)  + timedelta(hours=1), color="#a855f7", description="Review new color palette"),
+            dict(user=users["carol"],      title="All Hands",               start_time=_days(7),  end_time=_days(7)  + timedelta(hours=1), color="#10b981"),
         ]
         schedule_objs: list[Schedule] = []
         for sd in schedules_data:
@@ -233,36 +583,34 @@ async def main() -> None:
             schedule_objs.append(s)
 
         # ------------------------------------------------------------------
-        # Event Notifications (reminders)
+        # Event Notifications
         # ------------------------------------------------------------------
         result = await db.execute(
             select(EventNotification).where(EventNotification.user_id == users["supervisor"].id)
         )
         if not result.scalars().first():
             notif_data = [
-                # sent (past remind_at) — show immediately in the bell
                 dict(user=users["supervisor"], title="Fix overdue bug is past due!",
-                     event_type=NotificationEventType.task,    event_ref_id=1,
-                     start_at=_days(-3), remind_at=_days(-3),  status=NotificationStatus.sent),
+                     event_type=NotificationEventType.task, event_ref_id=1,
+                     start_at=_days(-3), remind_at=_days(-3), status=NotificationStatus.sent),
                 dict(user=users["supervisor"], title="Reminder: Release Review in 15 min",
                      event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[0].id,
-                     start_at=_days(1),  remind_at=_now() - timedelta(minutes=5), status=NotificationStatus.sent),
-                dict(user=users["alice"],      title="Reminder: Code Review starts soon",
+                     start_at=_days(1), remind_at=_now() - timedelta(minutes=5), status=NotificationStatus.sent),
+                dict(user=users["alice"], title="Reminder: Code Review starts soon",
                      event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[4].id,
-                     start_at=_days(3),  remind_at=_now() - timedelta(minutes=2), status=NotificationStatus.sent),
-                dict(user=users["bob"],        title="Backend Sync starts in 15 min",
+                     start_at=_days(3), remind_at=_now() - timedelta(minutes=2), status=NotificationStatus.sent),
+                dict(user=users["bob"], title="Backend Sync starts in 15 min",
                      event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[5].id,
-                     start_at=_days(1),  remind_at=_now() - timedelta(minutes=1), status=NotificationStatus.sent),
-                dict(user=users["carol"],      title="Design Review: reminder",
+                     start_at=_days(1), remind_at=_now() - timedelta(minutes=1), status=NotificationStatus.sent),
+                dict(user=users["carol"], title="Design Review: reminder",
                      event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[7].id,
-                     start_at=_days(2),  remind_at=_now() - timedelta(minutes=3), status=NotificationStatus.sent),
-                # pending (future remind_at) — activated by scheduler later
+                     start_at=_days(2), remind_at=_now() - timedelta(minutes=3), status=NotificationStatus.sent),
                 dict(user=users["supervisor"], title="Sprint Planning starts in 15 min",
                      event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[0].id,
-                     start_at=_days(1),  remind_at=_days(1) - timedelta(minutes=15), status=NotificationStatus.pending),
-                dict(user=users["alice"],      title="API Design Session in 15 min",
+                     start_at=_days(1), remind_at=_days(1) - timedelta(minutes=15), status=NotificationStatus.pending),
+                dict(user=users["alice"], title="API Design Session in 15 min",
                      event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[3].id,
-                     start_at=_days(1),  remind_at=_days(1) - timedelta(minutes=15), status=NotificationStatus.pending),
+                     start_at=_days(1), remind_at=_days(1) - timedelta(minutes=15), status=NotificationStatus.pending),
             ]
             for nd in notif_data:
                 user   = nd.pop("user")
@@ -286,10 +634,10 @@ async def main() -> None:
         # Chat channels
         # ------------------------------------------------------------------
         channels_data = [
-            dict(name="general",   description="Team-wide announcements and discussion"),
-            dict(name="backend",   description="Backend engineering channel"),
-            dict(name="design",    description="Design and frontend channel"),
-            dict(name="random",    description="Off-topic and fun"),
+            dict(name="general", description="Team-wide announcements and discussion"),
+            dict(name="backend", description="Backend engineering channel"),
+            dict(name="design",  description="Design and frontend channel"),
+            dict(name="random",  description="Off-topic and fun"),
         ]
         channels: dict[str, ChatChannel] = {}
         for cd in channels_data:
@@ -304,12 +652,11 @@ async def main() -> None:
                 print(f"  skipped channel (exists): #{cd['name']}")
             channels[cd["name"]] = ch
 
-        # Add all users to general; relevant users to other channels
         memberships = [
-            (channels["general"], [users["supervisor"], users["alice"], users["bob"], users["carol"]]),
-            (channels["backend"], [users["supervisor"], users["alice"], users["bob"]]),
+            (channels["general"], [users["supervisor"], users["alice"], users["bob"], users["carol"], users["latruonghai"], users["doanduckien"]]),
+            (channels["backend"], [users["supervisor"], users["alice"], users["bob"], users["latruonghai"], users["doanduckien"]]),
             (channels["design"],  [users["supervisor"], users["alice"], users["carol"]]),
-            (channels["random"],  [users["supervisor"], users["alice"], users["bob"], users["carol"]]),
+            (channels["random"],  [users["supervisor"], users["alice"], users["bob"], users["carol"], users["latruonghai"], users["doanduckien"]]),
         ]
         for ch, members in memberships:
             for u in members:
@@ -323,24 +670,27 @@ async def main() -> None:
                     db.add(ChatChannelMember(channel_id=ch.id, user_id=u.id))
         await db.flush()
 
-        # Channel messages
         result = await db.execute(
             select(ChatMessage).where(ChatMessage.channel_id == channels["general"].id)
         )
         if not result.scalars().first():
             msgs = [
-                (users["supervisor"], channels["general"], "Hey team! Sprint 3 kicks off today. Check the board for your tasks."),
-                (users["alice"],      channels["general"], "On it! I'll start with the CI/CD pipeline setup."),
-                (users["bob"],        channels["general"], "I'll pick up the API documentation."),
-                (users["carol"],      channels["general"], "Starting the performance load tests. Will update by EOD."),
-                (users["supervisor"], channels["backend"],  "Alice, can you take a look at the scheduler bug? It's marked critical."),
-                (users["alice"],      channels["backend"],  "Already on it — looks like a timezone edge case. Will have a fix by tomorrow."),
-                (users["bob"],        channels["backend"],  "I can help review the fix once it's ready."),
-                (users["alice"],      channels["design"],   "Color palette PR is up for review — link in the task."),
-                (users["carol"],      channels["design"],   "Looks great! Left some comments on the contrast ratios."),
-                (users["supervisor"], channels["random"],   "Anyone catch the game last night? 🏀"),
-                (users["bob"],        channels["random"],   "Missed it — was deep in push notification docs 😅"),
-                (users["carol"],      channels["random"],   "Same, deadline mode activated lol"),
+                (users["supervisor"],    channels["general"], "Hey team! Sprint 3 kicks off today. Check the board for your tasks."),
+                (users["alice"],         channels["general"], "On it! I'll start with the CI/CD pipeline setup."),
+                (users["bob"],           channels["general"], "I'll pick up the API documentation."),
+                (users["carol"],         channels["general"], "Starting the performance load tests. Will update by EOD."),
+                (users["latruonghai"],   channels["general"], "Starting on the API gateway config today."),
+                (users["doanduckien"],   channels["general"], "Working through the offline sync — it's complex but making progress."),
+                (users["supervisor"],    channels["backend"],  "Alice, can you take a look at the scheduler bug? It's marked critical."),
+                (users["alice"],         channels["backend"],  "Already on it — looks like a timezone edge case. Fix ready tomorrow."),
+                (users["bob"],           channels["backend"],  "I can help review the fix once it's ready."),
+                (users["latruonghai"],   channels["backend"],  "Finished the user profile endpoint — PR is up."),
+                (users["doanduckien"],   channels["backend"],  "Need help with the payment gateway integration — blocked on vendor docs."),
+                (users["alice"],         channels["design"],   "Color palette PR is up for review."),
+                (users["carol"],         channels["design"],   "Looks great! Left some comments on contrast ratios."),
+                (users["supervisor"],    channels["random"],   "Anyone catch the game last night? 🏀"),
+                (users["bob"],           channels["random"],   "Missed it — was deep in push notification docs 😅"),
+                (users["doanduckien"],   channels["random"],   "Same, too many tasks on my plate rn 😬"),
             ]
             offset = 120
             for sender, ch, content in msgs:
@@ -350,7 +700,7 @@ async def main() -> None:
                     content=content,
                     created_at=_now() - timedelta(minutes=offset),
                 ))
-                offset -= 8
+                offset -= 7
             await db.flush()
             print("  created channel messages")
         else:
@@ -367,15 +717,12 @@ async def main() -> None:
         )
         dm = result.scalar_one_or_none()
         if not dm:
-            dm = ChatConversation(
-                user_a_id=users["supervisor"].id,
-                user_b_id=users["alice"].id,
-            )
+            dm = ChatConversation(user_a_id=users["supervisor"].id, user_b_id=users["alice"].id)
             db.add(dm)
             await db.flush()
             dm_msgs = [
                 (users["supervisor"], "Hey Alice, how's the scheduler bug coming along?"),
-                (users["alice"],      "Almost done — it's a UTC vs local time mismatch. Fix ready for review shortly."),
+                (users["alice"],      "Almost done — UTC vs local time mismatch. Fix ready for review shortly."),
                 (users["supervisor"], "Great, that's the blocker for the release. Thanks!"),
                 (users["alice"],      "No worries, I'll tag you in the PR."),
             ]
@@ -389,16 +736,14 @@ async def main() -> None:
                 ))
                 offset -= 10
             await db.flush()
-            print("  created DM conversation (supervisor <-> alice)")
+            print("  created DM: supervisor <-> alice")
         else:
             print("  skipped DM (exists)")
 
         # ------------------------------------------------------------------
         # Pending team invite
         # ------------------------------------------------------------------
-        result = await db.execute(
-            select(TeamInvite).where(TeamInvite.email == "newmember@demo.com")
-        )
+        result = await db.execute(select(TeamInvite).where(TeamInvite.email == "newmember@demo.com"))
         if not result.scalar_one_or_none():
             db.add(TeamInvite(
                 email="newmember@demo.com",
@@ -407,6 +752,7 @@ async def main() -> None:
                 validation_code="482910",
                 status=InviteStatus.pending,
                 invited_by_id=users["supervisor"].id,
+                sub_team_id=sub_team.id,
                 expires_at=_days(3),
             ))
             await db.flush()
@@ -416,12 +762,12 @@ async def main() -> None:
 
         await db.commit()
         print("\nDone. Login with:")
-        print("  supervisor / password123  (role: supervisor)")
-        print("  alice      / password123  (role: member)")
-        print("  bob        / password123  (role: member)")
-        print("  carol      / password123  (role: member)")
-        print("  latruonghai  / password123  (role: member)")
-        print("  doanduckien  / password123  (role: member)")
+        print("  supervisor   / password123  (role: supervisor)")
+        print("  alice        / password123  (role: member,  KPI ~92 Good)")
+        print("  bob          / password123  (role: member,  KPI ~73 Fair)")
+        print("  carol        / password123  (role: member,  KPI ~68 Fair)")
+        print("  latruonghai  / password123  (role: member,  KPI ~74 Fair)")
+        print("  doanduckien  / password123  (role: member,  KPI ~37 At Risk)")
 
 
 if __name__ == "__main__":
