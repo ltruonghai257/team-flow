@@ -27,8 +27,8 @@ _Updated: 2026-04-26_
 
 ### Milestone 2.0: Team Hierarchy, Sprints & Advanced Analytics
 
-**Status:** In progress — Phases 15–17 remaining before v2.1 structural refactor begins
-**Phases:** 12-17
+**Status:** In progress — Phases 16–18 remaining before v2.1 structural refactor begins
+**Phases:** 12-18
 
 | Phase | Name | Status |
 |-------|------|--------|
@@ -38,6 +38,7 @@ _Updated: 2026-04-26_
 | 15 | Custom Kanban Statuses | ✅ Done |
 | 16 | Advanced KPI Dashboard | 🗂 Planned |
 | 17 | Sprint & Release Reminders | 🗂 Not started |
+| 18 | Status Transition Graph (Workflow Rules) | 🗂 Not started |
 
 **Phase 17: Sprint & Release Reminders**
 - **Goal:** Team members and supervisors receive in-app notifications N days before sprint end and milestone due dates; configurable lead time; no duplicate reminders via `EventNotification` rows
@@ -49,13 +50,26 @@ _Updated: 2026-04-26_
   3. Duplicate reminders are prevented via `EventNotification` unique constraint on `(event_type, event_ref_id, user_id)`
   4. Reminders are delivered through the existing 60s notification poll
 
-**Sequencing:** Complete Phases 16 and 17 first, then begin Milestone v2.1 structural refactor.
+**Phase 18: Status Transition Graph (Workflow Rules)**
+- **Goal:** Add directed graph of allowed status transitions per status set (YouTrack-style). Any task move not permitted by the graph is rejected. Empty graph = free movement (fully backward-compatible).
+- **Depends on:** Phase 15 (custom status model)
+- **Requirements:** TRANS-01, TRANS-02, TRANS-03
+- **Success Criteria:**
+  1. `StatusTransition` model with `(status_set_id, from_status_id, to_status_id)` unique constraint exists and is migrated
+  2. `GET/POST/DELETE /status-sets/{id}/transitions` endpoints work; supervisor/admin only for write
+  3. Task update rejects moves not in allowed transition list with HTTP 422 when rules are defined
+  4. Kanban drag-drop enforces transitions client-side with a toast on blocked moves
+  5. Task edit form status dropdown filters to permitted next statuses only
+  6. Transition matrix UI in `StatusSetManager` (supervisor/admin only)
+  7. Zero regressions when no transitions are defined (free movement preserved)
+
+**Sequencing:** Complete Phases 16, 17, and 18 first, then begin Milestone v2.1 structural refactor.
 
 ---
 
 ## Milestone v2.1: Open WebUI-Style Project Structure Refactor
 
-> **Starts after Milestone 2.0 (Phases 16–17) is complete.**
+> **Starts after Milestone 2.0 (Phases 16–18) is complete.**
 
 **Goal:** Refactor TeamFlow's FastAPI backend and SvelteKit frontend into a clearer Open WebUI-inspired structure while preserving behavior.
 
@@ -67,16 +81,16 @@ _Updated: 2026-04-26_
 
 ## Phases
 
-- [ ] **Phase 18: Refactor Map & Safety Baseline** — Document target structure, map current files to new locations, identify protected behavior, and establish pre-move verification commands
-- [ ] **Phase 19: Backend Package Restructure** — Move FastAPI code toward an Open WebUI-style package layout and update imports, router registration, Alembic config, tests, and runtime targets
-- [ ] **Phase 20: Frontend SvelteKit Structure** — Move frontend API clients/types/utilities into Open WebUI-style `src/lib` groups while preserving routes and UI behavior
-- [ ] **Phase 21: Runtime Integration & Regression Verification** — Update Docker/dev/Azure entrypoints, run full checks, perform smoke tests, and document old-to-new paths
+- [ ] **Phase 19: Refactor Map & Safety Baseline** — Document target structure, map current files to new locations, identify protected behavior, and establish pre-move verification commands
+- [ ] **Phase 20: Backend Package Restructure** — Move FastAPI code toward an Open WebUI-style package layout and update imports, router registration, Alembic config, tests, and runtime targets
+- [ ] **Phase 21: Frontend SvelteKit Structure** — Move frontend API clients/types/utilities into Open WebUI-style `src/lib` groups while preserving routes and UI behavior
+- [ ] **Phase 22: Runtime Integration & Regression Verification** — Update Docker/dev/Azure entrypoints, run full checks, perform smoke tests, and document old-to-new paths
 
 ---
 
 ## Phase Details
 
-### Phase 18: Refactor Map & Safety Baseline
+### Phase 19: Refactor Map & Safety Baseline
 
 **Goal:** Create a concrete migration map before moving code so the refactor stays surgical and verifiable.
 **Depends on:** Nothing
@@ -93,10 +107,10 @@ _Updated: 2026-04-26_
 **Plans:** TBD
 **UI hint:** no
 
-### Phase 19: Backend Package Restructure
+### Phase 20: Backend Package Restructure
 
 **Goal:** Reorganize backend code into a maintainable Open WebUI-inspired FastAPI package layout without changing API behavior.
-**Depends on:** Phase 18
+**Depends on:** Phase 19
 **Requirements:** BACK-01, BACK-02, BACK-03, BACK-04, BACK-05
 
 **Success Criteria:**
@@ -110,10 +124,10 @@ _Updated: 2026-04-26_
 **Plans:** TBD
 **UI hint:** no
 
-### Phase 20: Frontend SvelteKit Structure
+### Phase 21: Frontend SvelteKit Structure
 
 **Goal:** Reorganize frontend shared code into Open WebUI-style SvelteKit folders while preserving existing routes and UI behavior.
-**Depends on:** Phase 18
+**Depends on:** Phase 19
 **Requirements:** FRONT-01, FRONT-02, FRONT-03, FRONT-04, FRONT-05
 
 **Success Criteria:**
@@ -127,10 +141,10 @@ _Updated: 2026-04-26_
 **Plans:** TBD
 **UI hint:** no
 
-### Phase 21: Runtime Integration & Regression Verification
+### Phase 22: Runtime Integration & Regression Verification
 
 **Goal:** Make the refactored structure production-safe by updating runtime entrypoints and verifying critical flows.
-**Depends on:** Phase 19, Phase 20
+**Depends on:** Phase 20, Phase 21
 **Requirements:** RUN-01, RUN-02, RUN-03, VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
 
 **Success Criteria:**
@@ -150,23 +164,32 @@ _Updated: 2026-04-26_
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 18. Refactor Map & Safety Baseline | 0/? | Not started | - |
-| 19. Backend Package Restructure | 0/? | Not started | - |
-| 20. Frontend SvelteKit Structure | 0/? | Not started | - |
-| 21. Runtime Integration & Regression Verification | 0/? | Not started | - |
+| 16. Advanced KPI Dashboard | 0/5 | Planned | - |
+| 17. Sprint & Release Reminders | 0/? | Not started | - |
+| 18. Status Transition Graph | 0/? | Not started | - |
+| 19. Refactor Map & Safety Baseline | 0/? | Not started | - |
+| 20. Backend Package Restructure | 0/? | Not started | - |
+| 21. Frontend SvelteKit Structure | 0/? | Not started | - |
+| 22. Runtime Integration & Regression Verification | 0/? | Not started | - |
 
 ---
 
 ## Phase Sequencing
 
 ```text
-Phase 18 - Refactor Map & Safety Baseline
-  ├─ Phase 19 - Backend Package Restructure
-  └─ Phase 20 - Frontend SvelteKit Structure
-       └─ Phase 21 - Runtime Integration & Regression Verification
+Milestone 2.0 (remaining):
+Phase 16 - Advanced KPI Dashboard
+Phase 17 - Sprint & Release Reminders
+Phase 18 - Status Transition Graph
+
+Milestone v2.1 (starts after Phase 18):
+Phase 19 - Refactor Map & Safety Baseline
+  ├─ Phase 20 - Backend Package Restructure
+  └─ Phase 21 - Frontend SvelteKit Structure
+       └─ Phase 22 - Runtime Integration & Regression Verification
 ```
 
-Phase 19 and Phase 20 can be planned independently after Phase 18, but Phase 21 must wait for both because it verifies integrated runtime behavior.
+Phase 20 and Phase 21 can be planned independently after Phase 19, but Phase 22 must wait for both because it verifies integrated runtime behavior.
 
 ---
 
@@ -174,25 +197,30 @@ Phase 19 and Phase 20 can be planned independently after Phase 18, but Phase 21 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STRUCT-01 | Phase 18 | Pending |
-| STRUCT-02 | Phase 18 | Pending |
-| STRUCT-03 | Phase 18 | Pending |
-| BACK-01 | Phase 19 | Pending |
-| BACK-02 | Phase 19 | Pending |
-| BACK-03 | Phase 19 | Pending |
-| BACK-04 | Phase 19 | Pending |
-| BACK-05 | Phase 19 | Pending |
-| FRONT-01 | Phase 20 | Pending |
-| FRONT-02 | Phase 20 | Pending |
-| FRONT-03 | Phase 20 | Pending |
-| FRONT-04 | Phase 20 | Pending |
-| FRONT-05 | Phase 20 | Pending |
-| RUN-01 | Phase 21 | Pending |
-| RUN-02 | Phase 21 | Pending |
-| RUN-03 | Phase 21 | Pending |
-| VERIFY-01 | Phase 21 | Pending |
-| VERIFY-02 | Phase 21 | Pending |
-| VERIFY-03 | Phase 21 | Pending |
-| VERIFY-04 | Phase 21 | Pending |
+| REMIND-01 | Phase 17 | Pending |
+| REMIND-02 | Phase 17 | Pending |
+| TRANS-01 | Phase 18 | Pending |
+| TRANS-02 | Phase 18 | Pending |
+| TRANS-03 | Phase 18 | Pending |
+| STRUCT-01 | Phase 19 | Pending |
+| STRUCT-02 | Phase 19 | Pending |
+| STRUCT-03 | Phase 19 | Pending |
+| BACK-01 | Phase 20 | Pending |
+| BACK-02 | Phase 20 | Pending |
+| BACK-03 | Phase 20 | Pending |
+| BACK-04 | Phase 20 | Pending |
+| BACK-05 | Phase 20 | Pending |
+| FRONT-01 | Phase 21 | Pending |
+| FRONT-02 | Phase 21 | Pending |
+| FRONT-03 | Phase 21 | Pending |
+| FRONT-04 | Phase 21 | Pending |
+| FRONT-05 | Phase 21 | Pending |
+| RUN-01 | Phase 22 | Pending |
+| RUN-02 | Phase 22 | Pending |
+| RUN-03 | Phase 22 | Pending |
+| VERIFY-01 | Phase 22 | Pending |
+| VERIFY-02 | Phase 22 | Pending |
+| VERIFY-03 | Phase 22 | Pending |
+| VERIFY-04 | Phase 22 | Pending |
 
-**Coverage: 20/20 requirements mapped**
+**Coverage: 25/25 requirements mapped**

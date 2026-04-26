@@ -33,7 +33,7 @@ Last activity: 2026-04-26
 - Milestone 2.0 roadmap: Phases 12-17. Phases 15 ✅ done. Phase 16 planned. Phase 17 (Sprint & Release Reminders) restored and planned. v2.1 starts AFTER Phase 17 completes.
 - Milestone v2.1 started 2026-04-26: refactor backend/frontend structure to follow Open WebUI-inspired organization before continuing feature expansion.
 - Reference repo: https://github.com/open-webui/open-webui
-- v2.1 phase sequence: Phase 18 refactor map, Phase 19 backend restructure, Phase 20 frontend restructure, Phase 21 runtime/regression verification.
+- v2.1 phase sequence: Phase 19 refactor map, Phase 20 backend restructure, Phase 21 frontend restructure, Phase 22 runtime/regression verification.
 - User preference: Project uses Bun for frontend operations.
 - SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
 - Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
@@ -96,4 +96,5 @@ None
 **Completed Phase:** 15 (custom-kanban-statuses) — 2026-04-26
 **Planned Phase:** 16 (advanced-kpi-dashboard) — 5 plans — 2026-04-26
 **Planned Phase:** 17 (sprint-release-reminders) — 0 plans — 2026-04-26
-**Planned Phase:** 18 (refactor-map-safety-baseline) — 0 plans — 2026-04-26 [v2.1 — starts after Phase 17]
+**Planned Phase:** 18 (status-transition-graph) — 0 plans — 2026-04-26
+**Planned Phase:** 19 (refactor-map-safety-baseline) — 0 plans — 2026-04-26 [v2.1 — starts after Phase 18]
