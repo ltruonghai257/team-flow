@@ -24,6 +24,7 @@ from app.routers import (
     projects,
     schedules,
     sprints,
+    statuses,
     sub_teams,
     tasks,
     timeline,
@@ -79,6 +80,7 @@ app.include_router(users.router)
 app.include_router(invites.router)
 app.include_router(sub_teams.router)
 app.include_router(projects.router)
+app.include_router(statuses.router)
 app.include_router(milestones.router)
 app.include_router(sprints.router)
 app.include_router(tasks.router)
