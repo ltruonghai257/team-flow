@@ -30,6 +30,11 @@ class TaskStatus(str, enum.Enum):
     blocked = "blocked"
 
 
+class StatusSetScope(str, enum.Enum):
+    sub_team_default = "sub_team_default"
+    project = "project"
+
+
 class TaskPriority(str, enum.Enum):
     low = "low"
     medium = "medium"
@@ -158,6 +163,59 @@ class Sprint(Base):
     tasks = relationship("Task", back_populates="sprint")
 
 
+class StatusSet(Base):
+    __tablename__ = "status_sets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scope = Column(Enum(StatusSetScope), nullable=False, index=True)
+    sub_team_id = Column(Integer, ForeignKey("sub_teams.id"), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+
+    statuses = relationship(
+        "CustomStatus",
+        back_populates="status_set",
+        order_by="CustomStatus.position",
+        cascade="all, delete-orphan",
+    )
+    sub_team = relationship("SubTeam")
+    project = relationship("Project")
+
+
+class CustomStatus(Base):
+    __tablename__ = "custom_statuses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    status_set_id = Column(
+        Integer, ForeignKey("status_sets.id"), nullable=False, index=True
+    )
+    name = Column(String, nullable=False)
+    slug = Column(String, nullable=False, index=True)
+    color = Column(String, nullable=False, default="#64748b")
+    position = Column(Integer, nullable=False, default=0)
+    is_done = Column(Boolean, nullable=False, default=False, index=True)
+    is_archived = Column(Boolean, nullable=False, default=False, index=True)
+    legacy_status = Column(Enum(TaskStatus), nullable=True, index=True)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+
+    status_set = relationship("StatusSet", back_populates="statuses")
+    tasks = relationship("Task", back_populates="custom_status")
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -175,6 +233,9 @@ class Task(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     milestone_id = Column(Integer, ForeignKey("milestones.id"), nullable=True)
     sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=True)
+    custom_status_id = Column(
+        Integer, ForeignKey("custom_statuses.id"), nullable=True, index=True
+    )
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(
@@ -189,6 +250,7 @@ class Task(Base):
     project = relationship("Project", back_populates="tasks")
     milestone = relationship("Milestone", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
+    custom_status = relationship("CustomStatus", back_populates="tasks")
     assignee = relationship(
         "User", back_populates="assigned_tasks", foreign_keys=[assignee_id]
     )
