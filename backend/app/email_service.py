@@ -66,3 +66,72 @@ async def send_invite_email(
     fm = FastMail(_conf)
     await fm.send_message(message)
     logger.info("Invite email sent to %s", to_email)
+
+
+def _build_kpi_warning_html(
+    recipient_name: str,
+    supervisor_name: str,
+    level: str,
+    kpi_score: int,
+    message: str,
+) -> str:
+    tone = "friendly reminder" if level == "fair" else "serious performance warning"
+    color = "#f59e0b" if level == "fair" else "#ef4444"
+    return f"""
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>TeamFlow KPI Warning</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 40px 20px;">
+  <div style="max-width: 560px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 32px; border: 1px solid #334155;">
+    <div style="margin-bottom: 24px;">
+      <div style="width: 40px; height: 40px; background: #6366f1; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px;">T</div>
+      <span style="font-size: 20px; font-weight: 600; color: white; margin-left: 10px; vertical-align: middle;">TeamFlow</span>
+    </div>
+    <h1 style="font-size: 22px; font-weight: 600; color: white; margin: 0 0 8px;">KPI {tone.title()}</h1>
+    <p style="color: #94a3b8; margin: 0 0 20px;">Hi {recipient_name},</p>
+    <div style="background: #0f172a; border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #334155;">
+      <p style="color: #94a3b8; font-size: 13px; margin: 0 0 8px;">Current KPI Score</p>
+      <p style="color: {color}; font-size: 36px; font-weight: 700; margin: 0;">{kpi_score}/100</p>
+    </div>
+    <p style="color: #cbd5e1; line-height: 1.6; white-space: pre-line;">{message}</p>
+    <p style="color: #94a3b8; margin-top: 24px;">Please review your dashboard and coordinate with {supervisor_name} on next steps.</p>
+    <p style="color: #64748b; font-size: 12px; margin: 24px 0 0;">This message was sent by your supervisor through TeamFlow.</p>
+  </div>
+</body>
+</html>
+"""
+
+
+async def send_kpi_warning_email(
+    to_email: str,
+    recipient_name: str,
+    supervisor_name: str,
+    level: str,
+    kpi_score: int,
+    message: str,
+) -> None:
+    if not settings.MAIL_USERNAME:
+        logger.warning("MAIL_USERNAME not configured — skipping KPI warning email to %s", to_email)
+        return
+
+    subject = (
+        "Friendly KPI performance reminder"
+        if level == "fair"
+        else "Serious KPI performance warning"
+    )
+    html_body = _build_kpi_warning_html(
+        recipient_name=recipient_name,
+        supervisor_name=supervisor_name,
+        level=level,
+        kpi_score=kpi_score,
+        message=message,
+    )
+    message_schema = MessageSchema(
+        subject=subject,
+        recipients=[to_email],
+        body=html_body,
+        subtype=MessageType.html,
+    )
+    fm = FastMail(_conf)
+    await fm.send_message(message_schema)
+    logger.info("KPI warning email sent to %s", to_email)

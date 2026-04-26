@@ -271,6 +271,8 @@ export const performance = {
     kpiDrilldown: (params?: Record<string, string | number | boolean | null | undefined>) => request(`/performance/kpi/drilldown${qs(params)}`),
     kpiWeights: () => request('/performance/kpi/weights'),
     updateKpiWeights: (data: object) => request('/performance/kpi/weights', { method: 'PATCH', body: JSON.stringify(data) }),
+    sendKpiWarningEmail: (data: { user_id: number; kpi_score: number; level: string; message?: string }) =>
+        request('/performance/kpi/warning-email', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Timeline

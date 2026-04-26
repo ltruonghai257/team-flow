@@ -712,6 +712,19 @@ class KPIWeightSettingsUpdate(BaseModel):
                 raise ValueError("Total weight must equal 100")
 
 
+class KPIWarningEmailRequest(BaseModel):
+    user_id: int
+    kpi_score: int
+    level: str
+    message: Optional[str] = None
+
+
+class KPIWarningEmailResponse(BaseModel):
+    sent: bool
+    level: str
+    recipient_email: str
+
+
 class KPIFilterOptions(BaseModel):
     sprints: List[Dict] = []
     projects: List[Dict] = []

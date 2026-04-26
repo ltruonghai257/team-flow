@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth import require_supervisor, get_sub_team
 from app.database import get_db
+from app.email_service import send_kpi_warning_email
 from app.models import Project, SubTeam, User, Task, TaskStatus, TaskType, ChatMessage, KPIWeightSettings, CustomStatus, Sprint, SprintStatus
 from app.schemas import (
     PerformanceDashboard,
@@ -30,6 +31,8 @@ from app.schemas import (
     KPIChartSeries,
     KPIChartPoint,
     KPIFilterOptions,
+    KPIWarningEmailRequest,
+    KPIWarningEmailResponse,
 )
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
@@ -78,6 +81,49 @@ async def update_kpi_weights(
     await db.commit()
     await db.refresh(weights)
     return weights
+
+
+@router.post("/kpi/warning-email", response_model=KPIWarningEmailResponse)
+async def send_kpi_warning(
+    payload: KPIWarningEmailRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_supervisor),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
+):
+    if payload.level not in ("fair", "at_risk"):
+        raise HTTPException(status_code=400, detail="level must be 'fair' or 'at_risk'")
+    if payload.level == "fair" and not (60 <= payload.kpi_score < 80):
+        raise HTTPException(status_code=400, detail="Fair warning requires score 60–79")
+    if payload.level == "at_risk" and payload.kpi_score >= 60:
+        raise HTTPException(status_code=400, detail="Serious warning requires score below 60")
+
+    result = await db.execute(select(User).where(User.id == payload.user_id))
+    recipient = result.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="User not found")
+    if sub_team and recipient.sub_team_id != sub_team.id:
+        raise HTTPException(status_code=403, detail="You can only warn users in your sub-team")
+
+    default_message = (
+        "This is a friendly reminder that your KPI score is currently in the Fair range. "
+        "Please review your workload, delivery timing, and open tasks so we can improve together."
+        if payload.level == "fair"
+        else "This is a serious warning that your KPI score is currently At Risk. "
+        "Please review your performance dashboard and align with your supervisor on immediate next steps."
+    )
+    await send_kpi_warning_email(
+        to_email=recipient.email,
+        recipient_name=recipient.full_name,
+        supervisor_name=current_user.full_name,
+        level=payload.level,
+        kpi_score=payload.kpi_score,
+        message=payload.message or default_message,
+    )
+    return KPIWarningEmailResponse(
+        sent=True,
+        level=payload.level,
+        recipient_email=recipient.email,
+    )
 
 
 @router.get("/team", response_model=PerformanceDashboard)

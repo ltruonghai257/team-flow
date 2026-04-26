@@ -1,4 +1,6 @@
 <script lang="ts">
+    import KpiWarnButton from './KpiWarnButton.svelte';
+
     type KpiMember = {
         user_id: number;
         full_name: string;
@@ -148,11 +150,16 @@
         {:else}
             <a href="/performance/{member.user_id}" class="text-xs text-primary-400 hover:underline">View detail →</a>
         {/if}
-        {#if onDrilldown}
-            <button type="button" on:click={() => onDrilldown && onDrilldown(member)} class="text-xs text-gray-400 hover:text-gray-200 transition-colors">
-                Drill down
-            </button>
-        {/if}
+        <div class="flex items-center gap-2">
+            {#if !hideDetailLink}
+                <KpiWarnButton userId={member.user_id} userName={member.full_name} kpiScore={member.kpi_score} />
+            {/if}
+            {#if onDrilldown}
+                <button type="button" on:click={() => onDrilldown && onDrilldown(member)} class="text-xs text-gray-400 hover:text-gray-200 transition-colors">
+                    Drill down
+                </button>
+            {/if}
+        </div>
     </div>
 
     <!-- Tooltip (portal-style fixed positioning) -->
