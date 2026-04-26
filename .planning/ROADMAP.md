@@ -27,7 +27,7 @@ _Updated: 2026-04-26_
 
 ### Milestone 2.0: Team Hierarchy, Sprints & Advanced Analytics
 
-**Status:** In progress — Phases 16–18 remaining before v2.1 structural refactor begins
+**Status:** In progress — Phases 17–18 remaining before v2.1 structural refactor begins
 **Phases:** 12-18
 
 | Phase | Name | Status |
@@ -36,7 +36,7 @@ _Updated: 2026-04-26_
 | 13 | Multi-team Hierarchy & Timeline Visibility | ✅ Done |
 | 14 | Sprint Model | ✅ Done |
 | 15 | Custom Kanban Statuses | ✅ Done |
-| 16 | Advanced KPI Dashboard | 🗂 Planned |
+| 16 | Advanced KPI Dashboard | ✅ Done |
 | 17 | Sprint & Release Reminders | 🗂 Not started |
 | 18 | Status Transition Graph (Workflow Rules) | 🗂 Not started |
 
