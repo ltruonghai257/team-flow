@@ -41,7 +41,7 @@
 		<span class="badge {priorityColors[task.priority]} text-[10px] px-1.5 py-0.5">{task.priority}</span>
 		{#if task.due_date}
 			<span
-				class="text-[11px] {isOverdue(task.due_date) && task.status !== 'done'
+				class="text-[11px] {isOverdue(task.due_date) && !(task.custom_status?.is_done ?? task.status === 'done')
 					? 'text-red-400'
 					: 'text-gray-500'}"
 			>
