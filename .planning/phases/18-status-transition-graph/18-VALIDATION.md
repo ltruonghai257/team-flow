@@ -1,9 +1,9 @@
 ---
 phase: 18
 slug: status-transition-graph
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-26
 ---
 
@@ -49,10 +49,10 @@ created: 2026-04-26
 
 ## Wave 0 Requirements
 
-- [ ] Add or extend fixtures in `backend/tests/conftest.py` only if current fixtures cannot create status sets, custom statuses, and tasks.
-- [ ] Add transition API tests to `backend/tests/test_status_sets.py`.
-- [ ] Add transition enforcement tests to `backend/tests/test_tasks.py`.
-- [ ] Use existing frontend check infrastructure; do not add a new frontend test dependency just for this phase.
+- [x] Add or extend fixtures in `backend/tests/conftest.py` only if current fixtures cannot create status sets, custom statuses, and tasks.
+- [x] Add transition API tests to `backend/tests/test_status_sets.py`.
+- [x] Add transition enforcement tests to `backend/tests/test_tasks.py`.
+- [x] Use existing frontend check infrastructure; do not add a new frontend test dependency just for this phase.
 
 ---
 
@@ -68,11 +68,11 @@ created: 2026-04-26
 
 ## Validation Sign-Off
 
-- [ ] All tasks have automated verify commands or a documented manual-only reason.
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify.
-- [ ] Wave 0 covers transition model/API/enforcement test setup.
-- [ ] No watch-mode flags.
-- [ ] Feedback latency under 120 seconds.
-- [ ] `nyquist_compliant: true` set in frontmatter after plans bind tasks to this strategy.
+- [x] All tasks have automated verify commands or a documented manual-only reason.
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify.
+- [x] Wave 0 covers transition model/API/enforcement test setup.
+- [x] No watch-mode flags.
+- [x] Feedback latency under 120 seconds.
+- [x] `nyquist_compliant: true` set in frontmatter after plans bind tasks to this strategy.
 
-**Approval:** pending
+**Approval:** approved 2026-04-26

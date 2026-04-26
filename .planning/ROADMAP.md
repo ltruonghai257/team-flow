@@ -38,7 +38,7 @@ _Updated: 2026-04-26_
 | 15 | Custom Kanban Statuses | ✅ Done |
 | 16 | Advanced KPI Dashboard | ✅ Done |
 | 17 | Sprint & Release Reminders | 🗂 Not started |
-| 18 | Status Transition Graph (Workflow Rules) | 🗂 Not started |
+| 18 | Status Transition Graph (Workflow Rules) | 📋 Planned |
 
 **Phase 17: Sprint & Release Reminders**
 - **Goal:** Team members and supervisors receive in-app notifications N days before sprint end and milestone due dates; configurable lead time; no duplicate reminders via `EventNotification` rows
@@ -65,6 +65,17 @@ _Updated: 2026-04-26_
 - **Goal:** Add directed graph of allowed status transitions per status set (YouTrack-style). Any task move not permitted by the graph is rejected. Empty graph = free movement (fully backward-compatible).
 - **Depends on:** Phase 15 (custom status model)
 - **Requirements:** TRANS-01, TRANS-02, TRANS-03
+- **Plans:**
+  - **Wave 1:** `18-01` - StatusTransition persistence, migration, schemas, and transition API foundation
+  - **Wave 2** *(blocked on Wave 1 completion)*: `18-02` - Backend task-update enforcement plus project override and status lifecycle behavior
+  - **Wave 3** *(blocked on Waves 1-2 completion)*: `18-03` - StatusSetManager transition matrix, quick-start action, warnings, and read-only preview
+  - **Wave 4** *(blocked on Waves 1-3 completion)*: `18-04` - Kanban/dropdown transition enforcement UX, structured blocked-move feedback, and final regression verification
+- **Cross-cutting constraints:**
+  - Empty transition list preserves free movement until rules are saved.
+  - Transition rules are strict allowlists when any edge exists; backend enforcement remains authoritative.
+  - Transition editing uses active statuses only; archived transitions are hidden by default and available through `include_archived=true`.
+  - Project overrides copy matching transition rules once and then behave as independent snapshots.
+  - Matrix/table editing is primary; graph preview is read-only and non-interactive.
 - **Success Criteria:**
   1. `StatusTransition` model with `(status_set_id, from_status_id, to_status_id)` unique constraint exists and is migrated
   2. `GET/POST/DELETE /status-sets/{id}/transitions` endpoints work; supervisor/admin only for write
@@ -177,7 +188,7 @@ _Updated: 2026-04-26_
 |-------|----------------|--------|-----------|
 | 16. Advanced KPI Dashboard | 0/5 | Planned | - |
 | 17. Sprint & Release Reminders | 0/5 | Planned | - |
-| 18. Status Transition Graph | 0/? | Not started | - |
+| 18. Status Transition Graph | 0/4 | Planned | - |
 | 19. Refactor Map & Safety Baseline | 0/? | Not started | - |
 | 20. Backend Package Restructure | 0/? | Not started | - |
 | 21. Frontend SvelteKit Structure | 0/? | Not started | - |
