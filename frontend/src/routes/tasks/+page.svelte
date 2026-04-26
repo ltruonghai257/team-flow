@@ -4,7 +4,8 @@
 		tasks as tasksApi,
 		users as usersApi,
 		projects as projectsApi,
-		milestones as milestonesApi
+		milestones as milestonesApi,
+		sprints as sprintsApi
 	} from '$lib/api';
 	import {
 		formatDate,
@@ -29,24 +30,30 @@
 		Sparkles,
 		Bug,
 		CheckSquare,
-		Wrench
+		Wrench,
+		Zap
 	} from 'lucide-svelte';
 	import KanbanBoard from '$lib/components/tasks/KanbanBoard.svelte';
 	import AgileView from '$lib/components/tasks/AgileView.svelte';
 	import AiTaskInput from '$lib/components/tasks/AiTaskInput.svelte';
+	import SprintCloseModal from '$lib/components/sprints/SprintCloseModal.svelte';
 
 	type ViewMode = 'list' | 'kanban' | 'agile';
 
 	let taskList: any[] = [];
+	let backlogTaskList: any[] = [];
 	let userList: any[] = [];
 	let projectList: any[] = [];
 	let milestoneList: any[] = [];
+	let sprintList: any[] = [];
 	let loading = true;
 	let showModal = false;
+	let showCloseSprintModal = false;
 	let editingTask: any = null;
 	let filterStatus = '';
 	let selectedTypes: string[] = [];
 	let filterMine = false;
+	let selectedSprintId: number | null = null;
 	let viewMode: ViewMode = 'list';
 	let aiMode: 'form' | 'nlp' | 'json' | 'breakdown' = 'form';
 
@@ -68,7 +75,8 @@
 		estimated_hours: '',
 		tags: '',
 		project_id: '',
-		assignee_id: ''
+		assignee_id: '',
+		sprint_id: null as number | null
 	};
 
 	onMount(async () => {
@@ -85,12 +93,24 @@
 	async function loadAll() {
 		loading = true;
 		try {
-			[taskList, userList, projectList, milestoneList] = await Promise.all([
+			const [t, u, p, m, s] = await Promise.all([
 				tasksApi.list(),
 				usersApi.list(),
 				projectsApi.list(),
-				milestonesApi.list()
+				milestonesApi.list(),
+				sprintsApi.list()
 			]);
+			taskList = t;
+			userList = u;
+			projectList = p;
+			milestoneList = m;
+			sprintList = s;
+
+			// Set initial selectedSprintId to the first active sprint if none selected
+			if (!selectedSprintId && sprintList.length > 0) {
+				const active = sprintList.find((s) => s.status === 'active');
+				if (active) selectedSprintId = active.id;
+			}
 		} finally {
 			loading = false;
 		}
@@ -101,8 +121,17 @@
 		if (filterStatus) params.status = filterStatus;
 		if (selectedTypes.length > 0) params.types = selectedTypes.join(',');
 		if (filterMine) params.my_tasks = 'true';
+		if (selectedSprintId) params.sprint_id = selectedSprintId;
+
 		taskList = (await tasksApi.list(params)) as any[];
+
+		if (viewMode === 'kanban') {
+			backlogTaskList = (await tasksApi.list({ unassigned: true })) as any[];
+		}
 	}
+
+	$: activeSprint = sprintList.find((s) => s.id === selectedSprintId);
+	$: incompleteTasks = taskList.filter((t) => t.status !== 'done');
 
 	function resetForm() {
 		form = {
@@ -115,7 +144,8 @@
 			estimated_hours: '',
 			tags: '',
 			project_id: '',
-			assignee_id: ''
+			assignee_id: '',
+			sprint_id: null
 		};
 	}
 
@@ -139,7 +169,8 @@
 			estimated_hours: t.estimated_hours || '',
 			tags: t.tags || '',
 			project_id: t.project_id || '',
-			assignee_id: t.assignee_id || ''
+			assignee_id: t.assignee_id || '',
+			sprint_id: t.sprint_id || null
 		};
 		showModal = true;
 	}
@@ -177,7 +208,8 @@
 			due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
 			estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
 			project_id: form.project_id ? Number(form.project_id) : null,
-			assignee_id: form.assignee_id ? Number(form.assignee_id) : null
+			assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
+			sprint_id: editingTask ? form.sprint_id : selectedSprintId
 		};
 		try {
 			if (editingTask) {
@@ -236,7 +268,18 @@
 		}
 	}
 
-	$: filterStatus, selectedTypes, filterMine, loadTasks();
+	async function handleTaskMove(e: CustomEvent) {
+		const { id, sprint_id, status } = e.detail;
+		try {
+			await tasksApi.update(id, { sprint_id, status });
+			toast.success('Task moved');
+			await loadTasks();
+		} catch (e: any) {
+			toast.error(e.message || 'Failed to move task');
+		}
+	}
+
+	$: filterStatus, selectedTypes, filterMine, selectedSprintId, viewMode, loadTasks();
 </script>
 
 <svelte:head><title>Tasks · TeamFlow</title></svelte:head>
@@ -287,6 +330,27 @@
 	<!-- Filters -->
 	<div class="flex items-center gap-3 mb-5 flex-wrap">
 		<div class="flex items-center gap-2">
+			<Zap size={14} class="text-gray-400" />
+			<select
+				bind:value={selectedSprintId}
+				class="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+			>
+				<option value={null}>No Sprint (Backlog)</option>
+				{#each sprintList as s}
+					<option value={s.id}>{s.name} ({s.status})</option>
+				{/each}
+			</select>
+			{#if activeSprint && activeSprint.status === 'active'}
+				<button
+					on:click={() => (showCloseSprintModal = true)}
+					class="text-xs text-gray-400 hover:text-white transition-colors ml-1"
+				>
+					Close Sprint
+				</button>
+			{/if}
+		</div>
+
+		<div class="flex items-center gap-2">
 			<Filter size={14} class="text-gray-400" />
 			<select
 				bind:value={filterStatus}
@@ -330,7 +394,13 @@
 			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
 	{:else if viewMode === 'kanban'}
-		<KanbanBoard tasks={taskList} onStatusChange={changeStatus} onEdit={openEdit} />
+		<KanbanBoard
+			tasks={taskList}
+			backlogTasks={backlogTaskList}
+			activeSprintId={selectedSprintId}
+			on:taskMove={handleTaskMove}
+			onEdit={openEdit}
+		/>
 	{:else if viewMode === 'agile'}
 		<AgileView
 			tasks={taskList}
@@ -426,7 +496,14 @@
 
 			<div class="p-5">
 				{#if !editingTask}
-					<AiTaskInput bind:mode={aiMode} onParsed={applyParsed} {projectList} {milestoneList} {userList}>
+					<AiTaskInput
+						bind:mode={aiMode}
+						onParsed={applyParsed}
+						{projectList}
+						{milestoneList}
+						{userList}
+						{selectedSprintId}
+					>
 						<form on:submit|preventDefault={handleSubmit} class="space-y-4">
 							<!-- Form fields (shared with edit mode) -->
 							<div>
@@ -489,6 +566,15 @@
 									<option value="">Unassigned</option>
 									{#each userList as u}
 										<option value={u.id}>{u.full_name}</option>
+									{/each}
+								</select>
+							</div>
+							<div>
+								<label class="label" for="t-sprint">Sprint</label>
+								<select id="t-sprint" bind:value={form.sprint_id} class="input">
+									<option value={null}>No Sprint (Backlog)</option>
+									{#each sprintList as s}
+										<option value={s.id}>{s.name} ({s.status})</option>
 									{/each}
 								</select>
 							</div>
@@ -580,6 +666,15 @@
 							</select>
 						</div>
 						<div>
+							<label class="label" for="t-sprint-e">Sprint</label>
+							<select id="t-sprint-e" bind:value={form.sprint_id} class="input">
+								<option value={null}>No Sprint (Backlog)</option>
+								{#each sprintList as s}
+									<option value={s.id}>{s.name} ({s.status})</option>
+								{/each}
+							</select>
+						</div>
+						<div>
 							<label class="label" for="t-project-e">Project</label>
 							<select id="t-project-e" bind:value={form.project_id} class="input">
 								<option value="">No Project</option>
@@ -604,3 +699,11 @@
 		</div>
 	</div>
 {/if}
+
+<SprintCloseModal
+	bind:show={showCloseSprintModal}
+	sprint={activeSprint}
+	{incompleteTasks}
+	availableSprints={sprintList}
+	on:success={loadAll}
+/>

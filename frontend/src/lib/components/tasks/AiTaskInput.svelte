@@ -9,6 +9,7 @@
 	export let projectList: any[] = [];
 	export let milestoneList: any[] = [];
 	export let userList: any[] = [];
+	export let selectedSprintId: number | null = null;
 
 	type Mode = 'form' | 'nlp' | 'json' | 'breakdown';
 	export let mode: Mode = 'form';
@@ -69,7 +70,8 @@
 					estimated_hours: subtasks[i].estimated_hours || null,
 					project_id: Number(breakdownProject),
 					milestone_id: subtasks[i].milestone_id ? Number(subtasks[i].milestone_id) : null,
-					assignee_id: breakdownAssignee ? Number(breakdownAssignee) : null
+					assignee_id: breakdownAssignee ? Number(breakdownAssignee) : null,
+					sprint_id: selectedSprintId
 				});
 				successCount++;
 			} catch {
