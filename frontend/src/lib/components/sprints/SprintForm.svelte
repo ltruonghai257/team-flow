@@ -5,10 +5,10 @@
 
 	const dispatch = createEventDispatcher();
 
-	export let sprint = null;
-	export let milestoneId = null;
-	export let milestones = [];
-	export let existingSprints = [];
+	export let sprint: any = null;
+	export let milestoneId: number | null = null;
+	export let milestones: any[] = [];
+	export let existingSprints: any[] = [];
 
 	let form = {
 		name: '',
@@ -17,6 +17,8 @@
 		status: 'planning',
 		milestone_id: milestoneId
 	};
+
+	let warnings: string[] = [];
 
 	if (sprint) {
 		form = {
@@ -30,9 +32,8 @@
 
 	$: milestone = milestones.find((m) => m.id === milestoneId);
 
-	$: warnings = [];
 	$: {
-		const newWarnings = [];
+		const newWarnings: string[] = [];
 		if (form.start_date && form.end_date) {
 			const start = new Date(form.start_date);
 			const end = new Date(form.end_date);
