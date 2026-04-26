@@ -25,10 +25,10 @@
 | VIS-01 | Members see only assigned projects on timeline | Medium | 13 | Pending |
 | VIS-02 | Supervisors see sub-team projects on timeline | Medium | 13 | Pending |
 | VIS-03 | Admin sees all projects on timeline | Medium | 13 | Pending |
-| SPRINT-01 | Sprints as time-boxed iterations within milestone | High | 14 | Pending |
-| SPRINT-02 | Milestones belong to one project | High | 14 | Pending |
-| SPRINT-03 | Task create/edit includes sprint selector | High | 14 | Pending |
-| SPRINT-04 | Sprint board filters tasks by sprint | High | 14 | Pending |
+| SPRINT-01 | Sprints as time-boxed iterations within milestone | High | 14 | ✓ Done |
+| SPRINT-02 | Milestones belong to one project | High | 14 | ✓ Done |
+| SPRINT-03 | Task create/edit includes sprint selector | High | 14 | ✓ Done |
+| SPRINT-04 | Sprint board filters tasks by sprint | High | 14 | ✓ Done |
 | STATUS-01 | Supervisor/admin manages team-wide statuses | High | 15 | Pending |
 | STATUS-02 | Per-project status override | Medium | 15 | Pending |
 | STATUS-03 | Existing statuses migrated to DB records | Critical | 15 | Pending |
@@ -151,10 +151,10 @@ Transform TeamFlow from a single-team tool into a multi-team platform with sprin
 **Priority:** High
 
 ### Acceptance Criteria
-- [ ] Sprint model: `name`, `start_date`, `end_date`, `milestone_id` (FK), `status` (planning/active/closed)
-- [ ] Supervisor/admin can create, edit, and close sprints within a milestone
-- [ ] Sprint list view shows all sprints for a project with status and date range
-- [ ] Closing a sprint moves incomplete tasks to backlog or next sprint (user chooses)
+- [x] Sprint model: `name`, `start_date`, `end_date`, `milestone_id` (FK), `status` (planning/active/closed)
+- [x] Supervisor/admin can create, edit, and close sprints within a milestone
+- [x] Sprint list view shows all sprints for a project with status and date range
+- [x] Closing a sprint moves incomplete tasks to backlog or next sprint (user chooses)
 
 ---
 
@@ -163,9 +163,9 @@ Transform TeamFlow from a single-team tool into a multi-team platform with sprin
 **Priority:** High
 
 ### Acceptance Criteria
-- [ ] Milestone model has a required `project_id` FK
-- [ ] Existing milestones without a project association assigned to a default project on migration
-- [ ] Milestone creation UI requires selecting a project
+- [x] Milestone model has a required `project_id` FK
+- [x] Existing milestones without a project association assigned to a default project on migration
+- [x] Milestone creation UI requires selecting a project
 
 ---
 
@@ -174,9 +174,9 @@ Transform TeamFlow from a single-team tool into a multi-team platform with sprin
 **Priority:** High
 
 ### Acceptance Criteria
-- [ ] Task creation form includes a sprint dropdown (filtered to active/planning sprints for the task's project)
-- [ ] Task edit form allows reassigning to a different sprint or removing sprint association
-- [ ] Sprint assignment stored as nullable `sprint_id` FK on Task
+- [x] Task creation form includes a sprint dropdown (filtered to active/planning sprints for the task's project)
+- [x] Task edit form allows reassigning to a different sprint or removing sprint association
+- [x] Sprint assignment stored as nullable `sprint_id` FK on Task
 
 ---
 
@@ -185,9 +185,9 @@ Transform TeamFlow from a single-team tool into a multi-team platform with sprin
 **Priority:** High
 
 ### Acceptance Criteria
-- [ ] Sprint board view shows only tasks assigned to the selected sprint
-- [ ] Sprint selector at top of board; defaults to the active sprint
-- [ ] Unassigned tasks visible in a "Backlog" column alongside sprint board
+- [x] Sprint board view shows only tasks assigned to the selected sprint
+- [x] Sprint selector at top of board; defaults to the active sprint
+- [x] Unassigned tasks visible in a "Backlog" column alongside sprint board
 
 ---
 

@@ -33,9 +33,24 @@
 
 ## v2.0 — Team Hierarchy, Sprints & Advanced Analytics
 
-**Status:** Planning
+**Status:** Paused / superseded for current planning focus
 **Started:** 2026-04-24
 
 ### Goals
 
 Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
+
+### Current Note
+
+v2.0 work remains available in prior roadmap and phase artifacts. The active planning focus moved to v2.1 on 2026-04-26 for an independent structural refactor before continuing feature expansion.
+
+---
+
+## v2.1 — Open WebUI-Style Project Structure Refactor
+
+**Status:** Planning
+**Started:** 2026-04-26
+
+### Goals
+
+Refactor TeamFlow's FastAPI backend and SvelteKit frontend into a cleaner Open WebUI-inspired repository structure while preserving existing behavior, deployment, and testability.

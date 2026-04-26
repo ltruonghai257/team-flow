@@ -37,7 +37,7 @@ _Updated: 2026-04-26_
 
 -   [ ] **Phase 12: Task Types** — Add task type field (feature/bug/task/improvement) to every task; visible on cards, filterable on board; backfill existing tasks to `task` type
 -   [ ] **Phase 13: Multi-Team Hierarchy + Timeline Visibility** — Introduce SubTeam model, scope all data access by sub-team, enforce role-aware timeline visibility for members, supervisors, and admins
--   [ ] **Phase 14: Sprint Model** — Sprints as time-boxed iterations within milestones; tasks assigned to sprints; sprint board filters by sprint; sprint close flow
+-   [x] **Phase 14: Sprint Model** — Sprints as time-boxed iterations within milestones; tasks assigned to sprints; sprint board filters by sprint; sprint close flow (completed 2026-04-26)
 -   [ ] **Phase 15: Custom Kanban Statuses** — Migrate hardcoded enum to DB-driven statuses; supervisor-managed team-wide and per-project status sets; `is_done` flag replaces hardcoded done slug
 -   [ ] **Phase 16: Advanced KPI Dashboard** — Velocity per sprint, burndown chart, cycle time by type, throughput by member, defect metrics and MTTR; all queries use `is_done` and task types
 -   [ ] **Phase 17: Sprint & Release Reminders** — In-app notifications N days before sprint end and milestone due dates; configurable offset; deduplication via EventNotification rows
@@ -94,9 +94,9 @@ _Updated: 2026-04-26_
 4. Closing a sprint prompts the user to move incomplete tasks to backlog or next sprint before closing
    **Plans**: 4 plans
 - [x] 14-01-PLAN.md — Backend Models, DB Migration, Schema Push
-- [ ] 14-02-PLAN.md — Backend API Sprints Router and Schemas
-- [ ] 14-03-PLAN.md — Frontend API Client and Sprint Components
-- [ ] 14-04-PLAN.md — Frontend Kanban Integration
+- [x] 14-02-PLAN.md — Backend API Sprints Router and Schemas
+- [x] 14-03-PLAN.md — Frontend API Client and Sprint Components
+- [x] 14-04-PLAN.md — Frontend Kanban Integration
    **UI hint**: yes
 
 ### Phase 15: Custom Kanban Statuses
@@ -155,7 +155,7 @@ _Updated: 2026-04-26_
 | ---------------------------------------------- | -------------- | ----------- | --------- |
 | 12. Task Types                                 | 0/?            | Not started | -         |
 | 13. Multi-Team Hierarchy + Timeline Visibility | 5/5            | Planned     | -         |
-| 14. Sprint Model                               | 1/4 | In Progress|  |
+| 14. Sprint Model                               | 4/4 | Complete    | 2026-04-26 |
 | 15. Custom Kanban Statuses                     | 0/?            | Not started | -         |
 | 16. Advanced KPI Dashboard                     | 0/?            | Not started | -         |
 | 17. Sprint & Release Reminders                 | 0/?            | Not started | -         |

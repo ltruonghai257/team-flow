@@ -23,17 +23,15 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - **Team members (5–15 people)**: Update task status, create tasks via AI input, chat, see their own and teammates' tasks
 - **Visibility model**: Tasks visible to all team. Performance/evaluation metrics visible to supervisor only.
 
-## Current Milestone: v2.0 Team Hierarchy, Sprints & Advanced Analytics
+## Current Milestone: v2.1 Open WebUI-Style Project Structure Refactor
 
-**Goal:** Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
+**Goal:** Refactor TeamFlow's FastAPI and SvelteKit code organization to follow the proven Open WebUI repository structure while preserving existing behavior.
 
 **Target features:**
-- Multi-team hierarchy (Organization → N sub-teams → members, 1 supervisor per sub-team)
-- Sprint model (sprints as time-boxed iterations within a milestone; tasks assigned to sprint)
-- Custom Kanban statuses (team-wide default, per-project override; supervisor/admin managed)
-- Task types (feature / bug / task / improvement) driving KPI breakdowns
-- Advanced KPI dashboard (velocity, burndown, cycle time by type, throughput, defect/MTTR)
-- Sprint/release reminders (in-app notifications for upcoming sprint ends and milestone releases)
+- Backend package structure aligned with Open WebUI: app package, routers, models/domain modules, schemas, migrations, utils, socket/websocket, config, and entrypoint
+- Frontend SvelteKit structure aligned with Open WebUI: `src/lib/apis`, `components`, `stores`, `types`, `utils`, and route organization
+- Import paths, build scripts, Docker/runtime entrypoints, Alembic config, and tests updated to match the new layout
+- Zero behavior regressions: API contracts, auth, task workflows, AI task input, WebSocket chat, scheduler, and current UI routes keep working
 
 ## Requirements
 
@@ -58,16 +56,12 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - ✓ Azure deployment + GitHub Actions CI/CD — Phase 7
 - ✓ User invite & team management (email token + code flow) — Phase 8
 
-### Active (Milestone 2)
+### Active (Milestone 2.1)
 
-- [ ] Multi-team hierarchy — Organization → N sub-teams → members, 1 supervisor per sub-team
-- [ ] Role-scoped timeline visibility — members see assigned projects only; supervisors see team-wide
-- [ ] Sprint model — sprints as time-boxed iterations within a milestone; milestones belong to one project
-- [ ] Task-sprint assignment — task creation/edit includes milestone and sprint selector
-- [ ] Custom Kanban statuses — team-wide default + per-project override; supervisor/admin managed
-- [ ] Task types — feature / bug / task / improvement field on every task
-- [ ] Advanced KPI metrics — velocity, sprint burndown, cycle time by type, throughput, defect rate, MTTR
-- [ ] Sprint/release reminders — in-app notifications for upcoming sprint end dates and milestone release dates
+- [ ] Backend code is organized into an Open WebUI-style FastAPI package without changing API behavior
+- [ ] Frontend code is organized into Open WebUI-style SvelteKit folders without changing UI behavior
+- [ ] Runtime, Docker, Alembic, test, and development commands work after import/path migration
+- [ ] Refactor is verified by backend tests, frontend checks/builds, and targeted smoke checks for critical flows
 
 ### Out of Scope
 
@@ -90,12 +84,13 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 
 **Tech stack:** FastAPI (Python 3.13) + SvelteKit 5 + PostgreSQL 16 + TailwindCSS
 
+**Reference structure:** Open WebUI repository (`https://github.com/open-webui/open-webui`) — root SvelteKit app in `src/`, backend package under `backend/open_webui/`, backend subpackages for routers/models/migrations/utils/socket, and frontend `src/lib` groups for APIs, components, stores, types, and utils.
+
 **Key concerns to address:**
-- No Alembic migrations yet (`create_all` only — not production safe)
-- Hardcoded `SECRET_KEY` default must be blocked in production
-- CORS origins are hardcoded (need env var for Azure deployment)
-- Zero test coverage (auth and AI endpoints are highest risk)
-- In-memory WebSocket state (acceptable for single-instance Azure deployment)
+- Avoid broad rewrites: this milestone is structural, not a feature redesign
+- Keep public API paths, Svelte routes, auth behavior, task workflows, AI features, WebSocket chat, scheduler, and deployment commands stable
+- Move code in small slices with compatibility shims only where needed during transition
+- Preserve existing Alembic history and database state; no schema changes unless required for import-path/runtime correctness
 
 **Deployment target:** Azure Web App Service (internal, browser-based, no custom domain required initially). DB via connection string to Azure Database for PostgreSQL.
 
@@ -117,4 +112,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-22 after initialization*
+*Last updated: 2026-04-26 after starting milestone v2.1*
