@@ -21,9 +21,10 @@ key-files:
   created:
     - backend/alembic/versions/8a1b2c3d4e5f_add_custom_statuses.py
     - backend/tests/test_status_sets.py
+    - backend/tests/test_tasks.py
   modified:
     - backend/app/models.py
-    - backend/tests/test_tasks.py
+    - backend/tests/conftest.py
 
 key-decisions:
   - "Retained Task.status while adding Task.custom_status_id for the dual-write transition."
@@ -36,7 +37,7 @@ patterns-established:
 
 requirements-completed: [STATUS-03, STATUS-04]
 
-duration: 2 min
+duration: 6 min
 completed: 2026-04-26
 ---
 
@@ -46,11 +47,11 @@ completed: 2026-04-26
 
 ## Performance
 
-- **Duration:** 2 min
-- **Started:** 2026-04-26T07:27:47Z
-- **Completed:** 2026-04-26T07:29:51Z
+- **Duration:** 6 min
+- **Started:** 2026-04-26T07:22:27Z
+- **Completed:** 2026-04-26T07:28:40Z
 - **Tasks:** 4
-- **Files modified:** 4
+- **Files modified:** 5
 
 ## Accomplishments
 
@@ -72,6 +73,7 @@ Each task was committed atomically:
 
 - `backend/app/models.py` - Adds status set and custom status models plus `Task.custom_status_id`.
 - `backend/alembic/versions/8a1b2c3d4e5f_add_custom_statuses.py` - Creates status schema, seeds defaults, and backfills tasks.
+- `backend/tests/conftest.py` - Adds missing `pytest` import required by existing fixtures.
 - `backend/tests/test_status_sets.py` - Covers default legacy status records and `done.is_done`.
 - `backend/tests/test_tasks.py` - Covers legacy status retention, `custom_status_id`, and xfail completion transition placeholders.
 
@@ -83,7 +85,17 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] Added missing pytest import to backend test fixtures**
+- **Found during:** Task 15-01-03
+- **Issue:** `backend/tests/conftest.py` used `@pytest.fixture` without importing `pytest`, which would prevent fixture loading once pytest is installed.
+- **Fix:** Added `import pytest`.
+- **Files modified:** `backend/tests/conftest.py`
+- **Verification:** `python -m py_compile backend/tests/conftest.py backend/tests/test_status_sets.py backend/tests/test_tasks.py`
+- **Committed in:** `24b0c96`
+
+**Total deviations:** 1 auto-fixed (blocking). **Impact on plan:** Required for test infrastructure; no product scope expansion.
 
 ## Issues Encountered
 
@@ -118,7 +130,7 @@ Ready for 15-02. The database foundation is present for API work to resolve effe
 
 ## Self-Check: PASSED
 
-- Verified key files exist: `backend/app/models.py`, `backend/alembic/versions/8a1b2c3d4e5f_add_custom_statuses.py`, `backend/tests/test_status_sets.py`, `backend/tests/test_tasks.py`, and this summary.
+- Verified key files exist: `backend/app/models.py`, `backend/alembic/versions/8a1b2c3d4e5f_add_custom_statuses.py`, `backend/tests/conftest.py`, `backend/tests/test_status_sets.py`, `backend/tests/test_tasks.py`, and this summary.
 - Verified task commits exist in git history: `a2662ba`, `556a5e9`, `24b0c96`, and `0e8541a`.
 
 ---
