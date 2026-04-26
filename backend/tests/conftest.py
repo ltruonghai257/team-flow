@@ -1,3 +1,5 @@
+import pytest
+
 from app.models import SubTeam, User, UserRole
 from app.auth import hash_password
 
