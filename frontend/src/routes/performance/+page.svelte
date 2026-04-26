@@ -14,14 +14,14 @@
 		summary: { average_score: 74, active_tasks: 31, completed_tasks: 58, average_cycle_time_hours: 36.5, defect_count: 4 },
 		scorecards: [
 			{
-				user_id: 1, full_name: 'Alice Chen', avatar_url: null, kpi_score: 88, trend: 'up',
-				reasons: [],
-				breakdown: { workload: 100, velocity: 90, cycle_time: 100, on_time: 85, defects: 100 }
+				user_id: 1, full_name: 'La Truong Hai', avatar_url: null, kpi_score: 68, trend: 'stable',
+				reasons: [{ label: 'Low velocity', severity: 'warning' }, { label: 'Low on-time rate', severity: 'warning' }],
+				breakdown: { workload: 100, velocity: 50, cycle_time: 70, on_time: 62, defects: 100 }
 			},
 			{
-				user_id: 2, full_name: 'Ben Torres', avatar_url: null, kpi_score: 72, trend: 'stable',
-				reasons: [{ label: 'Low velocity', severity: 'warning' }],
-				breakdown: { workload: 100, velocity: 50, cycle_time: 70, on_time: 80, defects: 100 }
+				user_id: 2, full_name: 'Doan Duc Kien', avatar_url: null, kpi_score: 64, trend: 'stable',
+				reasons: [{ label: 'Slow cycle time', severity: 'warning' }, { label: 'Low on-time rate', severity: 'warning' }],
+				breakdown: { workload: 70, velocity: 60, cycle_time: 70, on_time: 55, defects: 100 }
 			},
 			{
 				user_id: 3, full_name: 'Carla Müller', avatar_url: null, kpi_score: 55, trend: 'down',

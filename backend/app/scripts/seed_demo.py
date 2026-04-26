@@ -48,10 +48,12 @@ async def main() -> None:
         # Users
         # ------------------------------------------------------------------
         users_data = [
-            dict(email="supervisor@demo.com", username="supervisor", full_name="Sam Supervisor", role=UserRole.supervisor),
-            dict(email="alice@demo.com",      username="alice",      full_name="Alice Chen",     role=UserRole.member),
-            dict(email="bob@demo.com",        username="bob",        full_name="Bob Kim",        role=UserRole.member),
-            dict(email="carol@demo.com",      username="carol",      full_name="Carol Davis",    role=UserRole.member),
+            dict(email="supervisor@demo.com",          username="supervisor", full_name="Sam Supervisor",  role=UserRole.supervisor),
+            dict(email="alice@demo.com",               username="alice",      full_name="Alice Chen",      role=UserRole.member),
+            dict(email="bob@demo.com",                 username="bob",        full_name="Bob Kim",         role=UserRole.member),
+            dict(email="carol@demo.com",               username="carol",      full_name="Carol Davis",     role=UserRole.member),
+            dict(email="latruonghai@gmail.com",        username="latruonghai",  full_name="La Truong Hai",   role=UserRole.member),
+            dict(email="doanduckien.2001@gmail.com",   username="doanduckien",  full_name="Doan Duc Kien",   role=UserRole.member),
         ]
         users: dict[str, User] = {}
         for ud in users_data:
@@ -418,6 +420,8 @@ async def main() -> None:
         print("  alice      / password123  (role: member)")
         print("  bob        / password123  (role: member)")
         print("  carol      / password123  (role: member)")
+        print("  latruonghai  / password123  (role: member)")
+        print("  doanduckien  / password123  (role: member)")
 
 
 if __name__ == "__main__":
