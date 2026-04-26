@@ -86,3 +86,4 @@ openspec/
 .windsurf/
 .gemini/
 .codex/
+.claude/**/*
