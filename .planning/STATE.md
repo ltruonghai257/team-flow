@@ -95,6 +95,6 @@ None
 
 **Completed Phase:** 15 (custom-kanban-statuses) — 2026-04-26
 **Planned Phase:** 16 (advanced-kpi-dashboard) — 5 plans — 2026-04-26
-**Planned Phase:** 17 (sprint-release-reminders) — 0 plans — 2026-04-26
+**Planned Phase:** 17 (sprint-release-reminders) — 5 plans — 2026-04-26
 **Planned Phase:** 18 (status-transition-graph) — 0 plans — 2026-04-26
 **Planned Phase:** 19 (refactor-map-safety-baseline) — 0 plans — 2026-04-26 [v2.1 — starts after Phase 18]

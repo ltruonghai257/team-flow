@@ -44,6 +44,17 @@ _Updated: 2026-04-26_
 - **Goal:** Team members and supervisors receive in-app notifications N days before sprint end and milestone due dates; configurable lead time; no duplicate reminders via `EventNotification` rows
 - **Depends on:** Phase 13 (team membership for fanout), Phase 14 (sprint model for trigger events)
 - **Requirements:** REMIND-01, REMIND-02
+- **Plans:**
+  - **Wave 1:** `17-01` - Backend reminder settings, proposal approval, migration, and notification event contracts
+  - **Wave 2** *(blocked on Wave 1 completion)*: `17-02` - Reminder recipient generation and scheduler reconciliation
+  - **Wave 3** *(blocked on Waves 1-2 completion)*: `17-03` - Sprint/milestone date-change rebuild hooks
+  - **Wave 4** *(blocked on Wave 1 completion)*: `17-04` - `/team` reminder settings and proposal review UI
+  - **Wave 5** *(blocked on Waves 1-4 completion)*: `17-05` - Notification copy, bell routing, target handling, and final verification
+- **Cross-cutting constraints:**
+  - Reminder settings are scoped by sub-team with a default 2-day shared lead time.
+  - Supervisors propose setting changes; admins approve/apply them on `/team`.
+  - Generated sprint/milestone reminders use existing `EventNotification` delivery and prevent duplicate generated rows without breaking existing schedule/task reminder offsets.
+  - Recipient fanout includes participants plus responsible supervisors, deduped per user per event.
 - **Success Criteria:**
   1. All sprint participants receive an in-app notification N days before sprint end date (default 2 days); N is configurable per sub-team by supervisor/admin
   2. Milestone due-date reminders are sent to all project members
@@ -165,7 +176,7 @@ _Updated: 2026-04-26_
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 16. Advanced KPI Dashboard | 0/5 | Planned | - |
-| 17. Sprint & Release Reminders | 0/? | Not started | - |
+| 17. Sprint & Release Reminders | 0/5 | Planned | - |
 | 18. Status Transition Graph | 0/? | Not started | - |
 | 19. Refactor Map & Safety Baseline | 0/? | Not started | - |
 | 20. Backend Package Restructure | 0/? | Not started | - |
