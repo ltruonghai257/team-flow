@@ -1,6 +1,6 @@
 # Roadmap: TeamFlow
 
-_Updated: 2026-04-24_
+_Updated: 2026-04-26_
 
 ---
 
@@ -92,7 +92,11 @@ _Updated: 2026-04-24_
 2. Task creation and edit forms include a sprint selector; selecting a sprint associates the task with that sprint
 3. Sprint board view filters to tasks in the selected sprint; unassigned tasks are visible in a Backlog column
 4. Closing a sprint prompts the user to move incomplete tasks to backlog or next sprint before closing
-   **Plans**: TBD
+   **Plans**: 4 plans
+- [x] 14-01-PLAN.md — Backend Models, DB Migration, Schema Push
+- [ ] 14-02-PLAN.md — Backend API Sprints Router and Schemas
+- [ ] 14-03-PLAN.md — Frontend API Client and Sprint Components
+- [ ] 14-04-PLAN.md — Frontend Kanban Integration
    **UI hint**: yes
 
 ### Phase 15: Custom Kanban Statuses
@@ -146,7 +150,7 @@ _Updated: 2026-04-24_
 | ---------------------------------------------- | -------------- | ----------- | --------- |
 | 12. Task Types                                 | 0/?            | Not started | -         |
 | 13. Multi-Team Hierarchy + Timeline Visibility | 5/5            | Planned     | -         |
-| 14. Sprint Model                               | 0/?            | Not started | -         |
+| 14. Sprint Model                               | 1/4 | In Progress|  |
 | 15. Custom Kanban Statuses                     | 0/?            | Not started | -         |
 | 16. Advanced KPI Dashboard                     | 0/?            | Not started | -         |
 | 17. Sprint & Release Reminders                 | 0/?            | Not started | -         |
