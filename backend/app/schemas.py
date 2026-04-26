@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
@@ -8,6 +8,7 @@ from app.models import (
     MilestoneStatus,
     NotificationEventType,
     NotificationStatus,
+    SprintStatus,
     TaskPriority,
     TaskStatus,
     TaskType,
@@ -142,6 +143,42 @@ class MilestoneOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Sprint ────────────────────────────────────────────────────────────────────
+
+
+class SprintBase(BaseModel):
+    name: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    status: SprintStatus
+    milestone_id: int
+
+
+class SprintCreate(SprintBase):
+    _normalize_dates = field_validator("start_date", "end_date", mode="after")(_to_naive_utc)
+
+
+class SprintUpdate(BaseModel):
+    name: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    status: Optional[SprintStatus] = None
+    milestone_id: Optional[int] = None
+
+    _normalize_dates = field_validator("start_date", "end_date", mode="after")(_to_naive_utc)
+
+
+class SprintOut(SprintBase):
+    id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SprintClosePayload(BaseModel):
+    task_mapping: Dict[int, Optional[int]]
+
+
 # ── Task ──────────────────────────────────────────────────────────────────────
 
 
@@ -156,6 +193,7 @@ class TaskCreate(BaseModel):
     tags: Optional[str] = None
     project_id: Optional[int] = None
     milestone_id: Optional[int] = None
+    sprint_id: Optional[int] = None
     assignee_id: Optional[int] = None
 
     _normalize_due = field_validator("due_date", mode="after")(_to_naive_utc)
@@ -172,6 +210,7 @@ class TaskUpdate(BaseModel):
     tags: Optional[str] = None
     project_id: Optional[int] = None
     milestone_id: Optional[int] = None
+    sprint_id: Optional[int] = None
     assignee_id: Optional[int] = None
     completed_at: Optional[datetime] = None
 
@@ -193,6 +232,7 @@ class TaskOut(BaseModel):
     tags: Optional[str]
     project_id: Optional[int]
     milestone_id: Optional[int]
+    sprint_id: Optional[int]
     assignee_id: Optional[int]
     creator_id: Optional[int]
     created_at: datetime
