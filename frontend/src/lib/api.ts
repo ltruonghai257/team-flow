@@ -387,3 +387,54 @@ export const sub_teams = {
         }),
     delete: (id: number) => request(`/sub-teams/${id}`, { method: 'DELETE' }),
 };
+
+export interface ReminderSettings {
+    id: number;
+    sub_team_id: number;
+    lead_time_days: number;
+    sprint_reminders_enabled: boolean;
+    milestone_reminders_enabled: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ReminderSettingsProposal {
+    id: number;
+    sub_team_id: number;
+    proposed_by_id: number;
+    reviewed_by_id: number | null;
+    lead_time_days: number | null;
+    sprint_reminders_enabled: boolean | null;
+    milestone_reminders_enabled: boolean | null;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at: string;
+    reviewed_at: string | null;
+}
+
+export const reminderSettings = {
+    current: () => request('/sub-teams/reminder-settings/current'),
+    updateCurrent: (data: {
+        lead_time_days?: number;
+        sprint_reminders_enabled?: boolean;
+        milestone_reminders_enabled?: boolean;
+    }) =>
+        request('/sub-teams/reminder-settings/current', {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }),
+    createProposal: (data: {
+        lead_time_days?: number;
+        sprint_reminders_enabled?: boolean;
+        milestone_reminders_enabled?: boolean;
+    }) =>
+        request('/sub-teams/reminder-settings/proposals', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    listProposals: () => request('/sub-teams/reminder-settings/proposals'),
+    reviewProposal: (id: number, data: { decision: 'approve' | 'reject' }) =>
+        request(`/sub-teams/reminder-settings/proposals/${id}/review`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+};

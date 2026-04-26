@@ -33,10 +33,24 @@
 
 	function handleItemClick(n: NotificationItem) {
 		close();
-		if (n.event_type === 'schedule') {
-			goto('/schedule');
-		} else {
-			goto('/tasks');
+		switch (n.event_type) {
+			case 'schedule':
+				goto('/schedule');
+				break;
+			case 'task':
+				goto('/tasks');
+				break;
+			case 'sprint_end':
+				goto(`/tasks?sprint_id=${n.event_ref_id}`);
+				break;
+			case 'milestone_due':
+				goto(`/milestones?milestone_id=${n.event_ref_id}`);
+				break;
+			case 'reminder_settings_proposal':
+				goto('/team');
+				break;
+		default:
+				goto('/tasks');
 		}
 	}
 </script>

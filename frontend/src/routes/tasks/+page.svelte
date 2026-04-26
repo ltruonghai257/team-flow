@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import {
 		tasks as tasksApi,
 		users as usersApi,
@@ -99,6 +100,13 @@
 	onMount(async () => {
 		const saved = localStorage.getItem(VIEW_KEY) as ViewMode | null;
 		if (saved && ['list', 'kanban', 'agile'].includes(saved)) viewMode = saved;
+		const sprintQuery = $page.url.searchParams.get('sprint_id');
+		if (sprintQuery) {
+			const parsed = Number(sprintQuery);
+			if (!Number.isNaN(parsed)) {
+				selectedSprintId = parsed;
+			}
+		}
 		await loadAll();
 	});
 
@@ -131,6 +139,9 @@
 			milestoneList = m;
 			sprintList = s;
 
+			if (selectedSprintId && !sprintList.some((s) => s.id === selectedSprintId)) {
+				selectedSprintId = null;
+			}
 			// Set initial selectedSprintId to the first active sprint if none selected
 			if (!selectedSprintId && sprintList.length > 0) {
 				const active = sprintList.find((s) => s.status === 'active');

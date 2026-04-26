@@ -39,12 +39,13 @@ async def _resolve_event(
         if not obj:
             raise HTTPException(status_code=404, detail="Schedule event not found")
         return obj.title, obj.start_time
-    else:
+    if event_type == NotificationEventType.task:
         result = await db.execute(select(Task).where(Task.id == event_ref_id))
         obj = result.scalar_one_or_none()
         if not obj or not obj.due_date:
             raise HTTPException(status_code=404, detail="Task with due_date not found")
         return obj.title, obj.due_date
+    raise HTTPException(status_code=400, detail="Unsupported event type")
 
 
 @router.post("", response_model=NotificationOut, status_code=201)

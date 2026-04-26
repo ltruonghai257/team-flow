@@ -4,7 +4,7 @@ import { notifications as notifApi } from '$lib/api';
 export interface NotificationItem {
 	id: number;
 	user_id: number;
-	event_type: 'schedule' | 'task';
+	event_type: 'schedule' | 'task' | 'sprint_end' | 'milestone_due' | 'reminder_settings_proposal';
 	event_ref_id: number;
 	title_cache: string;
 	start_at_cache: string;

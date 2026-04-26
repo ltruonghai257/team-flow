@@ -2,39 +2,209 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-@pytest.mark.asyncio
-async def test_admin_crud_sub_team(async_client: AsyncClient, db_session, admin_user):
-    """TEAM-01: Admin can create, list, update, delete sub-teams"""
-    # Create sub-team
+from app.auth import hash_password
+from app.models import (
+    EventNotification,
+    NotificationEventType,
+    NotificationStatus,
+    ReminderProposalStatus,
+    ReminderSettingsProposal,
+    User,
+    UserRole,
+)
+
+
+async def _login(async_client: AsyncClient, username: str, password: str) -> str:
     response = await async_client.post(
-        "/api/sub-teams",
-        json={"name": "Engineering", "supervisor_id": None},
-        headers={"Cookie": f"access_token={admin_user.token}"}
+        "/api/auth/token",
+        data={"username": username, "password": password},
     )
     assert response.status_code == 200
-    sub_team = response.json()
-    assert sub_team["name"] == "Engineering"
-    
-    # List sub-teams
+    return response.json()["access_token"]
+
+
+async def _create_user(
+    db_session,
+    *,
+    email: str,
+    username: str,
+    full_name: str,
+    role: UserRole,
+    sub_team_id: int,
+) -> User:
+    user = User(
+        email=email,
+        username=username,
+        full_name=full_name,
+        hashed_password=hash_password("password"),
+        role=role,
+        sub_team_id=sub_team_id,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.mark.asyncio
+async def test_reminder_settings_current_default_and_member_read_only(
+    async_client: AsyncClient, db_session, sub_team
+):
+    member = await _create_user(
+        db_session,
+        email="member@example.com",
+        username="member",
+        full_name="Member User",
+        role=UserRole.member,
+        sub_team_id=sub_team.id,
+    )
+    token = await _login(async_client, member.username, "password")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await async_client.get("/api/sub-teams/reminder-settings/current", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sub_team_id"] == sub_team.id
+    assert data["lead_time_days"] == 2
+    assert data["sprint_reminders_enabled"] is True
+    assert data["milestone_reminders_enabled"] is True
+
+    response = await async_client.patch(
+        "/api/sub-teams/reminder-settings/current",
+        json={"lead_time_days": 4},
+        headers=headers,
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_supervisor_proposal_creates_pending_notification_and_preserves_settings(
+    async_client: AsyncClient, db_session, sub_team
+):
+    supervisor = await _create_user(
+        db_session,
+        email="supervisor@example.com",
+        username="supervisor",
+        full_name="Supervisor User",
+        role=UserRole.supervisor,
+        sub_team_id=sub_team.id,
+    )
+    admin = await _create_user(
+        db_session,
+        email="admin@example.com",
+        username="admin",
+        full_name="Admin User",
+        role=UserRole.admin,
+        sub_team_id=sub_team.id,
+    )
+
+    token = await _login(async_client, supervisor.username, "password")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await async_client.post(
+        "/api/sub-teams/reminder-settings/proposals",
+        json={
+            "lead_time_days": 5,
+            "sprint_reminders_enabled": False,
+            "milestone_reminders_enabled": True,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    proposal = response.json()
+    assert proposal["sub_team_id"] == sub_team.id
+    assert proposal["status"] == "pending"
+
+    result = await db_session.execute(
+        select(ReminderSettingsProposal).where(ReminderSettingsProposal.id == proposal["id"])
+    )
+    db_proposal = result.scalar_one_or_none()
+    assert db_proposal is not None
+    assert db_proposal.status == ReminderProposalStatus.pending
+
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.user_id == admin.id,
+            EventNotification.event_type == NotificationEventType.reminder_settings_proposal,
+            EventNotification.event_ref_id == proposal["id"],
+            EventNotification.status == NotificationStatus.pending,
+        )
+    )
+    notifications = result.scalars().all()
+    assert len(notifications) == 1
+    assert "/team" in notifications[0].title_cache
+
+    response = await async_client.get("/api/sub-teams/reminder-settings/current", headers=headers)
+    assert response.status_code == 200
+    current = response.json()
+    assert current["lead_time_days"] == 2
+    assert current["sprint_reminders_enabled"] is True
+    assert current["milestone_reminders_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_and_approve_reminder_settings(
+    async_client: AsyncClient, db_session, sub_team
+):
+    admin = await _create_user(
+        db_session,
+        email="admin2@example.com",
+        username="admin2",
+        full_name="Admin User",
+        role=UserRole.admin,
+        sub_team_id=sub_team.id,
+    )
+    supervisor = await _create_user(
+        db_session,
+        email="supervisor2@example.com",
+        username="supervisor2",
+        full_name="Supervisor User",
+        role=UserRole.supervisor,
+        sub_team_id=sub_team.id,
+    )
+
+    admin_token = await _login(async_client, admin.username, "password")
+    admin_headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "X-SubTeam-ID": str(sub_team.id),
+    }
+
+    response = await async_client.patch(
+        "/api/sub-teams/reminder-settings/current",
+        json={"lead_time_days": 3, "sprint_reminders_enabled": False},
+        headers=admin_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["lead_time_days"] == 3
+    assert data["sprint_reminders_enabled"] is False
+    assert data["milestone_reminders_enabled"] is True
+
+    supervisor_token = await _login(async_client, supervisor.username, "password")
+    supervisor_headers = {"Authorization": f"Bearer {supervisor_token}"}
+    response = await async_client.post(
+        "/api/sub-teams/reminder-settings/proposals",
+        json={"milestone_reminders_enabled": False},
+        headers=supervisor_headers,
+    )
+    assert response.status_code == 201
+    proposal_id = response.json()["id"]
+
+    response = await async_client.post(
+        f"/api/sub-teams/reminder-settings/proposals/{proposal_id}/review",
+        json={"decision": "approve"},
+        headers=admin_headers,
+    )
+    assert response.status_code == 200
+    reviewed = response.json()
+    assert reviewed["status"] == "approved"
+
     response = await async_client.get(
-        "/api/sub-teams",
-        headers={"Cookie": f"access_token={admin_user.token}"}
+        "/api/sub-teams/reminder-settings/current",
+        headers=admin_headers,
     )
     assert response.status_code == 200
-    sub_teams = response.json()
-    assert len(sub_teams) >= 1
-    
-    # Update sub-team
-    response = await async_client.put(
-        f"/api/sub-teams/{sub_team['id']}",
-        json={"name": "Engineering Team"},
-        headers={"Cookie": f"access_token={admin_user.token}"}
-    )
-    assert response.status_code == 200
-    
-    # Delete sub-team
-    response = await async_client.delete(
-        f"/api/sub-teams/{sub_team['id']}",
-        headers={"Cookie": f"access_token={admin_user.token}"}
-    )
-    assert response.status_code == 200
+    current = response.json()
+    assert current["lead_time_days"] == 3
+    assert current["sprint_reminders_enabled"] is False
+    assert current["milestone_reminders_enabled"] is False

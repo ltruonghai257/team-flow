@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { tick } from 'svelte';
+	import { page } from '$app/stores';
 	import { milestones as milestonesApi, projects as projectsApi } from '$lib/api';
 	import { formatDate, milestoneStatusColors } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
@@ -10,6 +12,7 @@
 	let loading = true;
 	let showModal = false;
 	let editingMilestone: any = null;
+	let highlightedMilestoneId: number | null = null;
 
 	let form = {
 		title: '',
@@ -21,9 +24,28 @@
 	};
 
 	onMount(async () => {
+		const milestoneQuery = $page.url.searchParams.get('milestone_id');
+		if (milestoneQuery) {
+			const parsed = Number(milestoneQuery);
+			if (!Number.isNaN(parsed)) {
+				highlightedMilestoneId = parsed;
+			}
+		}
 		loading = true;
 		try {
 			[milestoneList, projectList] = await Promise.all([milestonesApi.list(), projectsApi.list()]);
+			if (
+				highlightedMilestoneId &&
+				!milestoneList.some((m) => m.id === highlightedMilestoneId)
+			) {
+				highlightedMilestoneId = null;
+			}
+			await tick();
+			if (highlightedMilestoneId) {
+				document
+					.getElementById(`milestone-${highlightedMilestoneId}`)
+					?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			}
 		} finally {
 			loading = false;
 		}
@@ -122,7 +144,12 @@
 		<div class="space-y-4">
 			{#each milestoneList as m}
 				{@const pct = progressPercent(m)}
-				<div class="card hover:border-gray-700 transition-colors">
+				<div
+					id={`milestone-${m.id}`}
+					class="card hover:border-gray-700 transition-colors {highlightedMilestoneId === m.id
+						? 'ring-1 ring-primary-500/40 border-primary-500/40'
+						: ''}"
+				>
 					<div class="flex items-start justify-between gap-4">
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-3 mb-1">

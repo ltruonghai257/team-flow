@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { users as usersApi, tasks as tasksApi, invites as invitesApi, sub_teams as subTeamsApi } from '$lib/api';
+	import {
+		users as usersApi,
+		tasks as tasksApi,
+		invites as invitesApi,
+		sub_teams as subTeamsApi,
+		reminderSettings as reminderSettingsApi,
+		type ReminderSettings,
+		type ReminderSettingsProposal
+	} from '$lib/api';
 	import { initials, statusColors, statusLabels, priorityColors, formatDate } from '$lib/utils';
 	import { authStore, isSupervisor } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';
@@ -28,6 +36,17 @@
 	let pendingInvites: any[] = [];
 	let loadingInvites = false;
 
+	// Reminder settings
+	let reminderSettings: ReminderSettings | null = null;
+	let reminderLeadTimeDays = 2;
+	let reminderSprintEnabled = true;
+	let reminderMilestoneEnabled = true;
+	let reminderLoading = false;
+	let reminderSaving = false;
+	let reminderError: string | null = null;
+	let pendingProposals: ReminderSettingsProposal[] = [];
+	let reviewingProposalId: number | null = null;
+
 	// Sub-Teams
 	let subTeams: any[] = [];
 	let activeTab = 'members';
@@ -48,6 +67,7 @@
 				await loadPendingInvites();
 				await loadSubTeams();
 			}
+			await loadReminderSettings();
 		} finally {
 			loading = false;
 		}
@@ -69,6 +89,66 @@
 			subTeams = await subTeamsApi.list();
 		} catch {
 			subTeams = [];
+		}
+	}
+
+	async function loadReminderSettings() {
+		reminderLoading = true;
+		reminderError = null;
+		try {
+			const currentSettings = await reminderSettingsApi.current();
+			reminderSettings = currentSettings;
+			reminderLeadTimeDays = currentSettings.lead_time_days;
+			reminderSprintEnabled = currentSettings.sprint_reminders_enabled;
+			reminderMilestoneEnabled = currentSettings.milestone_reminders_enabled;
+			if ($authStore.user?.role === 'admin') {
+				pendingProposals = await reminderSettingsApi.listProposals();
+			} else {
+				pendingProposals = [];
+			}
+		} catch (e: any) {
+			reminderError = e?.message || 'Failed to load reminder settings';
+			reminderSettings = null;
+			pendingProposals = [];
+		} finally {
+			reminderLoading = false;
+		}
+	}
+
+	async function saveReminderSettings() {
+		if (!$authStore.user || $authStore.user.role === 'member') return;
+		reminderSaving = true;
+		try {
+			const payload = {
+				lead_time_days: reminderLeadTimeDays,
+				sprint_reminders_enabled: reminderSprintEnabled,
+				milestone_reminders_enabled: reminderMilestoneEnabled
+			};
+			if ($authStore.user.role === 'admin') {
+				await reminderSettingsApi.updateCurrent(payload);
+				toast.success('Reminder settings updated');
+			} else {
+				await reminderSettingsApi.createProposal(payload);
+				toast.success('Reminder settings proposal submitted');
+			}
+			await loadReminderSettings();
+		} catch (e: any) {
+			toast.error(e.message || 'Failed to save reminder settings');
+		} finally {
+			reminderSaving = false;
+		}
+	}
+
+	async function reviewProposal(id: number, decision: 'approve' | 'reject') {
+		reviewingProposalId = id;
+		try {
+			await reminderSettingsApi.reviewProposal(id, { decision });
+			toast.success(decision === 'approve' ? 'Proposal approved' : 'Proposal rejected');
+			await loadReminderSettings();
+		} catch (e: any) {
+			toast.error(e.message || 'Failed to review proposal');
+		} finally {
+			reviewingProposalId = null;
 		}
 	}
 
@@ -104,6 +184,18 @@
 		} catch (e: any) {
 			toast.error(e.message || 'Failed to delete sub-team');
 		}
+	}
+
+	function proposalLabel(proposal: ReminderSettingsProposal) {
+		const changes: string[] = [];
+		if (proposal.lead_time_days !== null) changes.push(`${proposal.lead_time_days} days`);
+		if (proposal.sprint_reminders_enabled !== null) {
+			changes.push(`sprint ${proposal.sprint_reminders_enabled ? 'on' : 'off'}`);
+		}
+		if (proposal.milestone_reminders_enabled !== null) {
+			changes.push(`milestone ${proposal.milestone_reminders_enabled ? 'on' : 'off'}`);
+		}
+		return changes.join(' · ');
 	}
 
 	function editSubTeam(subTeam: any) {
@@ -226,6 +318,122 @@
 			Sub-Teams
 		</button>
 	</div>
+	{/if}
+
+	<div class="mb-6 rounded-xl border border-gray-800 bg-gray-900/70 p-4">
+		<div class="flex items-start justify-between gap-4">
+			<div>
+				<h2 class="text-sm font-semibold text-white">Reminder settings</h2>
+				<p class="text-xs text-gray-500 mt-1">
+					Shared lead time for sprint-end and milestone due-date reminders.
+				</p>
+			</div>
+			{#if reminderSettings && $authStore.user?.role !== 'member'}
+				<button
+					on:click={saveReminderSettings}
+					disabled={reminderSaving}
+					class="btn-primary flex items-center gap-2 text-sm"
+				>
+					{#if reminderSaving}
+						<Loader2 class="animate-spin" size={14} />
+					{/if}
+					{$authStore.user?.role === 'admin' ? 'Save settings' : 'Submit proposal'}
+				</button>
+			{/if}
+		</div>
+
+		{#if reminderLoading}
+			<div class="flex items-center justify-center py-6">
+				<Loader2 class="animate-spin text-gray-500" size={18} />
+			</div>
+		{:else if reminderSettings}
+			<div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div>
+					<label class="label" for="reminderLeadTime">Lead time (days)</label>
+					<input
+						id="reminderLeadTime"
+						type="number"
+						min="0"
+						max="30"
+						bind:value={reminderLeadTimeDays}
+						disabled={$authStore.user?.role === 'member'}
+						class="input"
+					/>
+				</div>
+				<label class="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5 text-sm text-gray-300">
+					<input
+						type="checkbox"
+						bind:checked={reminderSprintEnabled}
+						disabled={$authStore.user?.role === 'member'}
+						class="rounded border-gray-700 bg-gray-800 text-primary-600 focus:ring-primary-500"
+					/>
+					Sprint reminders
+				</label>
+				<label class="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5 text-sm text-gray-300">
+					<input
+						type="checkbox"
+						bind:checked={reminderMilestoneEnabled}
+						disabled={$authStore.user?.role === 'member'}
+						class="rounded border-gray-700 bg-gray-800 text-primary-600 focus:ring-primary-500"
+					/>
+					Milestone reminders
+				</label>
+			</div>
+			<p class="mt-3 text-xs text-gray-500">
+				{#if $authStore.user?.role === 'member'}
+					Read-only view for your team.
+				{:else if $authStore.user?.role === 'admin'}
+					Edits apply immediately to the active sub-team.
+				{:else}
+					Submissions become proposals until an admin approves them.
+				{/if}
+			</p>
+		{:else}
+			<p class="mt-4 text-sm text-red-400">
+				{reminderError || 'Reminder settings are unavailable for the current sub-team.'}
+			</p>
+		{/if}
+	</div>
+
+	{#if $authStore.user?.role === 'admin' && pendingProposals.length > 0}
+		<div class="mb-6 rounded-xl border border-gray-800 bg-gray-900/70 p-4">
+			<div class="flex items-center justify-between gap-4 mb-4">
+				<div>
+					<h2 class="text-sm font-semibold text-white">Pending reminder proposals</h2>
+					<p class="text-xs text-gray-500 mt-1">Review supervisor-submitted changes for the active sub-team.</p>
+				</div>
+				<span class="text-xs text-gray-500">{pendingProposals.length} pending</span>
+			</div>
+			<div class="space-y-2">
+				{#each pendingProposals as proposal}
+					<div class="flex items-start justify-between gap-4 rounded-lg border border-gray-800 bg-gray-950/60 p-3">
+						<div class="min-w-0">
+							<p class="text-sm font-medium text-gray-200">Proposal #{proposal.id}</p>
+							<p class="text-xs text-gray-500 mt-0.5 truncate">{proposalLabel(proposal)}</p>
+						</div>
+						<div class="flex items-center gap-2 flex-shrink-0">
+							<button
+								on:click={() => reviewProposal(proposal.id, 'reject')}
+								disabled={reviewingProposalId === proposal.id}
+								class="btn-secondary text-xs"
+							>
+								Reject
+							</button>
+							<button
+								on:click={() => reviewProposal(proposal.id, 'approve')}
+								disabled={reviewingProposalId === proposal.id}
+								class="btn-primary text-xs"
+							>
+								{#if reviewingProposalId === proposal.id}
+									<Loader2 class="animate-spin" size={14} />
+								{/if}
+								Approve
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
 	{/if}
 
 	{#if activeTab === 'members'}

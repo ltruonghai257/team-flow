@@ -71,6 +71,15 @@ class NotificationStatus(str, enum.Enum):
 class NotificationEventType(str, enum.Enum):
     schedule = "schedule"
     task = "task"
+    sprint_end = "sprint_end"
+    milestone_due = "milestone_due"
+    reminder_settings_proposal = "reminder_settings_proposal"
+
+
+class ReminderProposalStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
 
 
 class InviteStatus(str, enum.Enum):
@@ -297,6 +306,54 @@ class EventNotification(Base):
     created_at = Column(
         DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
+
+
+class SubTeamReminderSettings(Base):
+    __tablename__ = "sub_team_reminder_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sub_team_id = Column(
+        Integer, ForeignKey("sub_teams.id"), nullable=False, unique=True, index=True
+    )
+    lead_time_days = Column(Integer, nullable=False, default=2)
+    sprint_reminders_enabled = Column(Boolean, nullable=False, default=True)
+    milestone_reminders_enabled = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+
+    sub_team = relationship("SubTeam", foreign_keys=[sub_team_id])
+
+
+class ReminderSettingsProposal(Base):
+    __tablename__ = "reminder_settings_proposals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sub_team_id = Column(Integer, ForeignKey("sub_teams.id"), nullable=False, index=True)
+    proposed_by_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    reviewed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    lead_time_days = Column(Integer, nullable=True)
+    sprint_reminders_enabled = Column(Boolean, nullable=True)
+    milestone_reminders_enabled = Column(Boolean, nullable=True)
+    status = Column(
+        Enum(ReminderProposalStatus),
+        nullable=False,
+        default=ReminderProposalStatus.pending,
+        index=True,
+    )
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+    reviewed_at = Column(DateTime, nullable=True)
+
+    sub_team = relationship("SubTeam", foreign_keys=[sub_team_id])
+    proposed_by = relationship("User", foreign_keys=[proposed_by_id])
+    reviewed_by = relationship("User", foreign_keys=[reviewed_by_id])
 
 
 class ChatChannel(Base):
