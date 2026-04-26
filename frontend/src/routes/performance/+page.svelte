@@ -19,9 +19,9 @@
 				breakdown: { workload: 100, velocity: 50, cycle_time: 70, on_time: 62, defects: 100 }
 			},
 			{
-				user_id: 2, full_name: 'Doan Duc Kien', avatar_url: null, kpi_score: 64, trend: 'stable',
-				reasons: [{ label: 'Slow cycle time', severity: 'warning' }, { label: 'Low on-time rate', severity: 'warning' }],
-				breakdown: { workload: 70, velocity: 60, cycle_time: 70, on_time: 55, defects: 100 }
+				user_id: 2, full_name: 'Doan Duc Kien', avatar_url: null, kpi_score: 48, trend: 'down',
+				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }, { label: 'Low on-time rate', severity: 'warning' }],
+				breakdown: { workload: 40, velocity: 50, cycle_time: 40, on_time: 55, defects: 70 }
 			},
 			{
 				user_id: 3, full_name: 'Carla Müller', avatar_url: null, kpi_score: 55, trend: 'down',
@@ -40,6 +40,11 @@
 			},
 		],
 		needs_attention: [
+			{
+				user_id: 2, full_name: 'Doan Duc Kien', avatar_url: null, kpi_score: 48, trend: 'down',
+				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }, { label: 'Low on-time rate', severity: 'warning' }],
+				breakdown: { workload: 40, velocity: 50, cycle_time: 40, on_time: 55, defects: 70 }
+			},
 			{
 				user_id: 3, full_name: 'Carla Müller', avatar_url: null, kpi_score: 55, trend: 'down',
 				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }],
