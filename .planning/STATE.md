@@ -68,6 +68,10 @@ Next run `/gsd-discuss-phase 18` or `/gsd-plan-phase 18`.
 - Preserve API routes, Svelte routes, auth behavior, task workflows, AI task input, WebSocket chat, scheduler behavior, Docker/Azure runtime, and Alembic history.
 - No new dependencies unless an existing import cannot be moved safely without one.
 
+### Pending Todos
+
+- `2026-04-26-status-transition-graph-workflow.md` — Status transition graph / workflow rules (YouTrack-style) [area: ui]
+
 ### Watch-Out List
 
 1. Open WebUI uses `backend/open_webui/` and root `src/`; TeamFlow currently uses `backend/app/` and `frontend/src/`, so phase plans must decide what to mirror exactly versus adapt safely.
