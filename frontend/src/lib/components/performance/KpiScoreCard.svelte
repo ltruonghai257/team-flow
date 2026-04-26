@@ -58,11 +58,17 @@
     }
 
     let tooltip: string | null = null;
-    let tooltipAnchor: { x: number; y: number } | null = null;
+    let tooltipStyle = '';
 
     function showTooltip(e: MouseEvent, text: string) {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         tooltip = text;
-        tooltipAnchor = { x: (e.currentTarget as HTMLElement).getBoundingClientRect().left, y: (e.currentTarget as HTMLElement).getBoundingClientRect().top };
+        // Position above the row, left-aligned, clamped so it never goes off-screen
+        const tipW = 288; // w-72
+        let left = rect.left;
+        if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+        if (left < 8) left = 8;
+        tooltipStyle = `position:fixed;left:${left}px;top:${rect.top - 8}px;transform:translateY(-100%);`;
     }
     function hideTooltip() { tooltip = null; }
 </script>
@@ -144,10 +150,11 @@
         {/if}
     </div>
 
-    <!-- Tooltip -->
+    <!-- Tooltip (portal-style fixed positioning) -->
     {#if tooltip}
         <div
-            class="absolute z-50 left-0 bottom-full mb-2 w-72 bg-gray-900 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 shadow-xl whitespace-pre-line pointer-events-none"
+            style={tooltipStyle}
+            class="z-[9999] w-72 bg-gray-900 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 shadow-xl whitespace-pre-line pointer-events-none"
             role="tooltip"
         >
             {tooltip}

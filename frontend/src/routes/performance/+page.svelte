@@ -10,6 +10,47 @@
 	import KpiWeightSettings from '$lib/components/performance/KpiWeightSettings.svelte';
 	import { toast } from 'svelte-sonner';
 
+	const DEMO_OVERVIEW = {
+		summary: { average_score: 74, active_tasks: 31, completed_tasks: 58, average_cycle_time_hours: 36.5, defect_count: 4 },
+		scorecards: [
+			{
+				user_id: 1, full_name: 'Alice Chen', avatar_url: null, kpi_score: 88, trend: 'up',
+				reasons: [],
+				breakdown: { workload: 100, velocity: 90, cycle_time: 100, on_time: 85, defects: 100 }
+			},
+			{
+				user_id: 2, full_name: 'Ben Torres', avatar_url: null, kpi_score: 72, trend: 'stable',
+				reasons: [{ label: 'Low velocity', severity: 'warning' }],
+				breakdown: { workload: 100, velocity: 50, cycle_time: 70, on_time: 80, defects: 100 }
+			},
+			{
+				user_id: 3, full_name: 'Carla Müller', avatar_url: null, kpi_score: 55, trend: 'down',
+				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }],
+				breakdown: { workload: 40, velocity: 70, cycle_time: 40, on_time: 60, defects: 70 }
+			},
+			{
+				user_id: 4, full_name: 'David Park', avatar_url: null, kpi_score: 93, trend: 'up',
+				reasons: [],
+				breakdown: { workload: 100, velocity: 100, cycle_time: 100, on_time: 92, defects: 100 }
+			},
+			{
+				user_id: 5, full_name: 'Eva Rossi', avatar_url: null, kpi_score: 63, trend: 'stable',
+				reasons: [{ label: 'Low on-time rate', severity: 'warning' }, { label: 'High bug MTTR', severity: 'warning' }],
+				breakdown: { workload: 70, velocity: 60, cycle_time: 70, on_time: 52, defects: 70 }
+			},
+		],
+		needs_attention: [
+			{
+				user_id: 3, full_name: 'Carla Müller', avatar_url: null, kpi_score: 55, trend: 'down',
+				reasons: [{ label: 'High workload', severity: 'critical' }, { label: 'Slow cycle time', severity: 'critical' }],
+				breakdown: { workload: 40, velocity: 70, cycle_time: 40, on_time: 60, defects: 70 }
+			},
+		],
+		weights: { id: 0, sub_team_id: null, workload_weight: 20, velocity_weight: 25, cycle_time_weight: 20, on_time_weight: 20, defect_weight: 15, updated_at: null },
+	};
+
+	let isDemo = $state(false);
+
 	const TABS = [
 		{ id: 'overview', label: 'Overview' },
 		{ id: 'sprint', label: 'Sprint' },
@@ -52,7 +93,20 @@
 
 	async function loadOverview() {
 		overviewLoading = true;
-		try { overviewData = await performance.kpiOverview(); } catch (e) { console.error(e); } finally { overviewLoading = false; }
+		try {
+			const res = await performance.kpiOverview();
+			if (res?.scorecards?.length) {
+				overviewData = res;
+				isDemo = false;
+			} else {
+				overviewData = DEMO_OVERVIEW;
+				isDemo = true;
+			}
+		} catch (e) {
+			console.error(e);
+			overviewData = DEMO_OVERVIEW;
+			isDemo = true;
+		} finally { overviewLoading = false; }
 	}
 
 	async function loadSprint() {
@@ -208,6 +262,12 @@
 		{:else}
 			<p class="text-gray-500 text-sm py-8 text-center">No overview data available.</p>
 		{/if}
+		{#if isDemo && overviewData}
+			<div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-900/30 border border-indigo-700/50 text-indigo-300 text-xs">
+				<span class="text-lg">🎭</span>
+				<span><strong>Demo mode</strong> — no real team data yet. Scorecards above show example values so you can explore every feature.</span>
+			</div>
+		{/if}
 	{/if}
 
 	<!-- Sprint Tab -->
@@ -300,16 +360,50 @@
 
 	<!-- Settings Tab -->
 	{#if activeTab === 'settings'}
-		{#if weightsData}
-			<KpiWeightSettings
-				weights={weightsData}
-				saving={weightsSaving}
-				onSave={saveWeights}
-				onReset={resetWeights}
-			/>
-		{:else}
-			<p class="text-gray-500 text-sm py-8 text-center">Loading settings…</p>
-		{/if}
+		<div class="max-w-2xl space-y-6">
+			<!-- How-to guide -->
+			<div class="rounded-xl border border-gray-700 bg-gray-800/60 p-5 space-y-4">
+				<h2 class="font-semibold text-gray-100 text-base">How KPI weights work</h2>
+				<p class="text-sm text-gray-400">Each member's KPI score (0–100) is a <strong class="text-gray-200">weighted average</strong> of five dimension scores. Adjust the weights below to reflect what matters most to your team.</p>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+					{#each [
+						{ label: 'Workload', icon: '📋', default: '20%', desc: 'Active task count. ≤7 → 100 | 8-10 → 70 | >10 → 40' },
+						{ label: 'Velocity', icon: '⚡', default: '25%', desc: 'Tasks completed in last 30 days. Each task = +10 pts, max 100.' },
+						{ label: 'Cycle Time', icon: '⏱', default: '20%', desc: 'Avg hours creation→done. ≤48 h → 100 | ≤120 h → 70 | >120 h → 40' },
+						{ label: 'On-Time Rate', icon: '✅', default: '20%', desc: 'Tasks finished by due date. Score = on-time % directly.' },
+						{ label: 'Defects', icon: '🐛', default: '15%', desc: 'Bug MTTR. ≤72 h → 100 | ≤168 h → 70 | >168 h → 40. No bugs = 100.' },
+					] as dim}
+						<div class="flex gap-2 items-start bg-gray-700/40 rounded-lg p-3">
+							<span class="text-lg shrink-0">{dim.icon}</span>
+							<div>
+								<p class="font-semibold text-gray-200">{dim.label} <span class="font-normal text-gray-500">(default {dim.default})</span></p>
+								<p class="text-gray-400 mt-0.5">{dim.desc}</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<div class="border-t border-gray-700 pt-3 space-y-1 text-xs text-gray-400">
+					<p>📐 <strong class="text-gray-300">All five weights must sum to exactly 100.</strong> The form will block saving if the total differs.</p>
+					<p>🔒 Weights are stored <strong class="text-gray-300">per sub-team</strong> — different teams can have different priorities.</p>
+					<p>♻️ Click <strong class="text-gray-300">Reset defaults</strong> to restore 20 / 25 / 20 / 20 / 15.</p>
+					<p>🟢 Score ≥80 = Good · 🟡 60–79 = Fair · 🔴 &lt;60 = At Risk</p>
+				</div>
+			</div>
+
+			<!-- Weight editor -->
+			{#if weightsData}
+				<KpiWeightSettings
+					weights={weightsData}
+					saving={weightsSaving}
+					onSave={saveWeights}
+					onReset={resetWeights}
+				/>
+			{:else}
+				<p class="text-gray-500 text-sm py-4">Loading settings…</p>
+			{/if}
+		</div>
 	{/if}
 </div>
 
