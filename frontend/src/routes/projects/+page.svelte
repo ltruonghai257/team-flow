@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { projects as projectsApi, ai as aiApi } from '$lib/api';
+	import { projects as projectsApi, ai as aiApi, statusSets } from '$lib/api';
+	import type { StatusSet } from '$lib/api';
 	import { formatDate } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { Plus, Pencil, Trash2, X, FolderOpen, Sparkles } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
+	import ProjectStatusPanel from '$lib/components/statuses/ProjectStatusPanel.svelte';
 
 	let projectList: any[] = [];
 	let loading = true;
@@ -16,6 +18,26 @@
 	let summaryMap: Record<number, { summary: string; sections: any } | null> = {};
 	let loadingMap: Record<number, boolean> = {};
 	let expandedMap: Record<number, boolean> = {};
+	let statusExpandedMap: Record<number, boolean> = {};
+	let statusSetMap: Record<number, StatusSet | null> = {};
+
+	async function loadProjectStatusSet(projectId: number) {
+		try {
+			statusSetMap[projectId] = await statusSets.getEffective(projectId);
+			statusSetMap = statusSetMap;
+		} catch {
+			statusSetMap[projectId] = null;
+			statusSetMap = statusSetMap;
+		}
+	}
+
+	function toggleStatusPanel(projectId: number) {
+		statusExpandedMap[projectId] = !statusExpandedMap[projectId];
+		statusExpandedMap = statusExpandedMap;
+		if (statusExpandedMap[projectId] && statusSetMap[projectId] === undefined) {
+			loadProjectStatusSet(projectId);
+		}
+	}
 
 	async function summarizeProject(projectId: number) {
 		loadingMap[projectId] = true;
@@ -143,6 +165,15 @@
 						<span class="text-gray-700">·</span>
 						<a href="/milestones?project_id={p.id}" class="text-xs text-gray-500 hover:text-primary-400 transition-colors">Milestones →</a>
 						<span class="text-gray-700">·</span>
+						<button
+							type="button"
+							on:click={() => toggleStatusPanel(p.id)}
+							aria-label="{statusExpandedMap[p.id] ? 'Hide' : 'Manage'} Statuses for {p.name}"
+							class="text-xs text-gray-500 hover:text-primary-400 transition-colors"
+						>
+							Statuses
+						</button>
+						<span class="text-gray-700">·</span>
 						{#if summaryMap[p.id]}
 							<button
 								type="button"
@@ -172,6 +203,16 @@
 							</button>
 						{/if}
 					</div>
+
+					{#if statusExpandedMap[p.id]}
+						<div transition:slide={{ duration: 200 }} class="mt-3 pt-3 border-t border-gray-700/50">
+							<ProjectStatusPanel
+								project={p}
+								statusSet={statusSetMap[p.id] ?? null}
+								onRefresh={() => loadProjectStatusSet(p.id)}
+							/>
+						</div>
+					{/if}
 
 					{#if summaryMap[p.id] && expandedMap[p.id]}
 						<div

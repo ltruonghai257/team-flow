@@ -5,8 +5,11 @@
 		users as usersApi,
 		projects as projectsApi,
 		milestones as milestonesApi,
-		sprints as sprintsApi
+		sprints as sprintsApi,
+		statusSets
 	} from '$lib/api';
+	import type { CustomStatus, StatusSet } from '$lib/api';
+	import StatusSetManager from '$lib/components/statuses/StatusSetManager.svelte';
 	import {
 		formatDate,
 		statusColors,
@@ -15,7 +18,9 @@
 		taskTypeColors,
 		taskTypeLabels,
 		taskTypeOptions,
-		isOverdue
+		isOverdue,
+		statusDisplayName,
+		statusDisplayColor
 	} from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import {
@@ -46,14 +51,18 @@
 	let projectList: any[] = [];
 	let milestoneList: any[] = [];
 	let sprintList: any[] = [];
+	let statusSetData: StatusSet | null = null;
 	let loading = true;
 	let showModal = false;
 	let showCloseSprintModal = false;
+	let showStatusManager = false;
 	let editingTask: any = null;
 	let filterStatus = '';
+	let filterStatusId: number | null = null;
 	let selectedTypes: string[] = [];
 	let filterMine = false;
 	let selectedSprintId: number | null = null;
+	let filterProjectId: number | null = null;
 	let viewMode: ViewMode = 'list';
 	let aiMode: 'form' | 'nlp' | 'json' | 'breakdown' = 'form';
 
@@ -69,6 +78,7 @@
 		title: '',
 		description: '',
 		status: 'todo',
+		custom_status_id: null as number | null,
 		priority: 'medium',
 		type: 'task',
 		due_date: '',
@@ -79,11 +89,24 @@
 		sprint_id: null as number | null
 	};
 
+	$: activeStatuses = statusSetData?.statuses.filter((s: CustomStatus) => !s.is_archived) ?? [];
+	$: isMixedProjectView = !filterProjectId && projectList.length > 1;
+	$: isTaskDone = (t: any) =>
+		t.custom_status?.is_done ?? (t.status === 'done');
+
 	onMount(async () => {
 		const saved = localStorage.getItem(VIEW_KEY) as ViewMode | null;
 		if (saved && ['list', 'kanban', 'agile'].includes(saved)) viewMode = saved;
 		await loadAll();
 	});
+
+	async function loadStatusSet() {
+		try {
+			statusSetData = await statusSets.getEffective(filterProjectId ?? undefined);
+		} catch {
+			statusSetData = null;
+		}
+	}
 
 	function setView(v: ViewMode) {
 		viewMode = v;
@@ -111,6 +134,7 @@
 				const active = sprintList.find((s) => s.status === 'active');
 				if (active) selectedSprintId = active.id;
 			}
+			await loadStatusSet();
 		} finally {
 			loading = false;
 		}
@@ -131,13 +155,15 @@
 	}
 
 	$: activeSprint = sprintList.find((s) => s.id === selectedSprintId);
-	$: incompleteTasks = taskList.filter((t) => t.status !== 'done');
+	$: incompleteTasks = taskList.filter((t) => !isTaskDone(t));
 
 	function resetForm() {
+		const defaultStatus = activeStatuses[0] ?? null;
 		form = {
 			title: '',
 			description: '',
 			status: 'todo',
+			custom_status_id: defaultStatus?.id ?? null,
 			priority: 'medium',
 			type: 'task',
 			due_date: '',
@@ -163,6 +189,7 @@
 			title: t.title,
 			description: t.description || '',
 			status: t.status,
+			custom_status_id: t.custom_status_id ?? null,
 			priority: t.priority,
 			type: t.type || 'task',
 			due_date: t.due_date ? t.due_date.slice(0, 10) : '',
@@ -209,7 +236,8 @@
 			estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
 			project_id: form.project_id ? Number(form.project_id) : null,
 			assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
-			sprint_id: editingTask ? form.sprint_id : selectedSprintId
+			sprint_id: editingTask ? form.sprint_id : selectedSprintId,
+			custom_status_id: form.custom_status_id ?? undefined
 		};
 		try {
 			if (editingTask) {
@@ -252,15 +280,32 @@
 	}
 
 	async function toggleStatus(t: any) {
-		const next = t.status === 'done' ? 'todo' : 'done';
-		await changeStatus(t.id, next);
+		if (isTaskDone(t)) {
+			// Move back to first non-done status
+			const firstNonDone = activeStatuses.find((s: CustomStatus) => !s.is_done);
+			if (firstNonDone) {
+				await changeStatus(t.id, null, firstNonDone.id);
+			} else {
+				await changeStatus(t.id, 'todo', null);
+			}
+		} else {
+			const firstDone = activeStatuses.find((s: CustomStatus) => s.is_done);
+			if (firstDone) {
+				await changeStatus(t.id, null, firstDone.id);
+			} else {
+				await changeStatus(t.id, 'done', null);
+			}
+		}
 	}
 
-	async function changeStatus(taskId: number, newStatus: string) {
+	async function changeStatus(taskId: number, legacyStatus: string | null, customStatusId: number | null) {
 		const prev = taskList;
-		taskList = taskList.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+		const patch: any = {};
+		if (customStatusId != null) patch.custom_status_id = customStatusId;
+		else if (legacyStatus) patch.status = legacyStatus;
+		taskList = taskList.map((t) => (t.id === taskId ? { ...t, ...patch } : t));
 		try {
-			await tasksApi.update(taskId, { status: newStatus });
+			await tasksApi.update(taskId, patch);
 		} catch (e: any) {
 			taskList = prev;
 			toast.error(e.message || 'Failed to update status');
@@ -269,9 +314,12 @@
 	}
 
 	async function handleTaskMove(e: CustomEvent) {
-		const { id, sprint_id, status } = e.detail;
+		const { id, sprint_id, status, custom_status_id } = e.detail;
 		try {
-			await tasksApi.update(id, { sprint_id, status });
+			const patch: any = { sprint_id };
+			if (custom_status_id != null) patch.custom_status_id = custom_status_id;
+			else if (status) patch.status = status;
+			await tasksApi.update(id, patch);
 			toast.success('Task moved');
 			await loadTasks();
 		} catch (e: any) {
@@ -357,13 +405,26 @@
 				class="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
 			>
 				<option value="">All Status</option>
-				<option value="todo">To Do</option>
-				<option value="in_progress">In Progress</option>
-				<option value="review">Review</option>
-				<option value="done">Done</option>
-				<option value="blocked">Blocked</option>
+				{#if activeStatuses.length > 0}
+					{#each activeStatuses as s}
+						<option value={s.slug}>{s.name}</option>
+					{/each}
+				{:else}
+					<option value="todo">To Do</option>
+					<option value="in_progress">In Progress</option>
+					<option value="review">Review</option>
+					<option value="done">Done</option>
+					<option value="blocked">Blocked</option>
+				{/if}
 			</select>
 		</div>
+
+		<button
+			on:click={() => (showStatusManager = !showStatusManager)}
+			class="text-xs text-gray-400 hover:text-white border border-gray-700 rounded px-2 py-1.5 transition-colors"
+		>
+			Manage Statuses
+		</button>
 		<label class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
 			<input
 				type="checkbox"
@@ -389,6 +450,23 @@
 		</div>
 	</div>
 
+	{#if showStatusManager}
+		<div class="mb-4 rounded-xl border border-gray-700 bg-gray-900/80 p-4">
+			<StatusSetManager
+				statusSet={statusSetData}
+				scopeLabel={filterProjectId && !isMixedProjectView ? 'Project' : 'Sub-team default'}
+				canManage={true}
+				{isMixedProjectView}
+				onRefresh={loadStatusSet}
+			/>
+			{#if isMixedProjectView}
+				<p class="text-xs text-gray-500 mt-2 italic">
+					Project-specific statuses are available after filtering to one project.
+				</p>
+			{/if}
+		</div>
+	{/if}
+
 	{#if loading}
 		<div class="flex items-center justify-center py-20">
 			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
@@ -398,6 +476,7 @@
 			tasks={taskList}
 			backlogTasks={backlogTaskList}
 			activeSprintId={selectedSprintId}
+			statuses={activeStatuses}
 			on:taskMove={handleTaskMove}
 			onEdit={openEdit}
 		/>
@@ -405,7 +484,7 @@
 		<AgileView
 			tasks={taskList}
 			milestones={milestoneList}
-			onStatusChange={changeStatus}
+			onStatusChange={(taskId: number, legacyStatus: string) => changeStatus(taskId, legacyStatus, null)}
 			onEdit={openEdit}
 			onDelete={deleteTask}
 		/>
@@ -419,24 +498,26 @@
 				<div class="card flex items-start gap-4 hover:border-gray-700 transition-colors py-3.5">
 					<button on:click={() => toggleStatus(t)} class="mt-0.5 flex-shrink-0">
 						<div
-							class="w-5 h-5 rounded-full border-2 {t.status === 'done'
+							class="w-5 h-5 rounded-full border-2 {isTaskDone(t)
 								? 'bg-green-500 border-green-500'
 								: 'border-gray-600 hover:border-primary-500'} flex items-center justify-center transition-colors"
 						>
-							{#if t.status === 'done'}<span class="text-white text-xs">✓</span>{/if}
+							{#if isTaskDone(t)}<span class="text-white text-xs">✓</span>{/if}
 						</div>
 					</button>
 					<div class="flex-1 min-w-0">
 						<div class="flex items-start justify-between gap-3">
 							<div class="flex-1 min-w-0">
-								<p class="text-sm font-medium {t.status === 'done' ? 'line-through text-gray-500' : 'text-gray-200'}">
+								<p class="text-sm font-medium {isTaskDone(t) ? 'line-through text-gray-500' : 'text-gray-200'}">
 									{t.title}
 								</p>
 								{#if t.description}
 									<p class="text-xs text-gray-500 mt-0.5 truncate">{t.description}</p>
 								{/if}
 								<div class="flex items-center gap-2 mt-2 flex-wrap">
-									<span class="badge {statusColors[t.status]}">{statusLabels[t.status]}</span>
+									<span class="badge" style="background-color: {t.custom_status ? t.custom_status.color + '33' : ''}; color: {t.custom_status ? t.custom_status.color : ''}">
+									{statusDisplayName(t.custom_status) || statusLabels[t.status] || t.status}
+								</span>
 									<span class="badge {taskTypeColors[taskTypeValue(t)]} flex items-center gap-1">
 										<svelte:component this={taskTypeIcon(taskTypeValue(t))} size={11} />
 										{taskTypeLabels[taskTypeValue(t)]}
@@ -444,7 +525,7 @@
 									<span class="badge {priorityColors[t.priority]}">{t.priority}</span>
 									{#if t.due_date}
 										<span
-											class="text-xs {isOverdue(t.due_date) && t.status !== 'done'
+											class="text-xs {isOverdue(t.due_date) && !isTaskDone(t)
 												? 'text-red-400'
 												: 'text-gray-500'}"
 										>
@@ -614,12 +695,18 @@
 						<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 							<div>
 								<label class="label" for="t-status-e">Status</label>
-								<select id="t-status-e" bind:value={form.status} class="input">
-									<option value="todo">To Do</option>
-									<option value="in_progress">In Progress</option>
-									<option value="review">Review</option>
-									<option value="done">Done</option>
-									<option value="blocked">Blocked</option>
+								<select id="t-status-e" bind:value={form.custom_status_id} class="input">
+									{#if activeStatuses.length > 0}
+										{#each activeStatuses as s}
+											<option value={s.id}>{s.name}</option>
+										{/each}
+									{:else}
+										<option value={null}>To Do</option>
+										<option value={null}>In Progress</option>
+										<option value={null}>Review</option>
+										<option value={null}>Done</option>
+										<option value={null}>Blocked</option>
+									{/if}
 								</select>
 							</div>
 							<div>
