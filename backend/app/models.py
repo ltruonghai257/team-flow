@@ -459,3 +459,22 @@ class TeamInvite(Base):
 
     invited_by = relationship("User", foreign_keys=[invited_by_id])
     sub_team = relationship("SubTeam", foreign_keys="TeamInvite.sub_team_id")
+
+
+class KPIWeightSettings(Base):
+    __tablename__ = "kpi_weight_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sub_team_id = Column(Integer, ForeignKey("sub_teams.id"), nullable=True, unique=True, index=True)
+    workload_weight = Column(Integer, nullable=False, default=20)
+    velocity_weight = Column(Integer, nullable=False, default=25)
+    cycle_time_weight = Column(Integer, nullable=False, default=20)
+    on_time_weight = Column(Integer, nullable=False, default=20)
+    defect_weight = Column(Integer, nullable=False, default=15)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+
+    sub_team = relationship("SubTeam", foreign_keys=[sub_team_id])

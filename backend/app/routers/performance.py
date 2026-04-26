@@ -8,16 +8,63 @@ from sqlalchemy.orm import selectinload
 
 from app.auth import require_supervisor, get_sub_team
 from app.database import get_db
-from app.models import Project, SubTeam, User, Task, TaskStatus, ChatMessage
+from app.models import Project, SubTeam, User, Task, TaskStatus, ChatMessage, KPIWeightSettings
 from app.schemas import (
     PerformanceDashboard,
     TeamMemberPerformance,
     UserPerformanceDetail,
     TrendDataPoint,
     TaskOut,
+    KPIWeightSettingsOut,
+    KPIWeightSettingsUpdate,
 )
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
+
+
+async def _get_or_create_kpi_weights(
+    db: AsyncSession, sub_team: Optional[SubTeam]
+) -> KPIWeightSettings:
+    target_sub_team_id = sub_team.id if sub_team else None
+    result = await db.execute(
+        select(KPIWeightSettings).where(
+            KPIWeightSettings.sub_team_id == target_sub_team_id
+        )
+    )
+    weights = result.scalar_one_or_none()
+    if weights is None:
+        weights = KPIWeightSettings(sub_team_id=target_sub_team_id)
+        db.add(weights)
+        await db.flush()
+    return weights
+
+
+@router.get("/kpi/weights", response_model=KPIWeightSettingsOut)
+async def get_kpi_weights(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_supervisor),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
+):
+    weights = await _get_or_create_kpi_weights(db, sub_team)
+    await db.commit()
+    await db.refresh(weights)
+    return weights
+
+
+@router.patch("/kpi/weights", response_model=KPIWeightSettingsOut)
+async def update_kpi_weights(
+    payload: KPIWeightSettingsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_supervisor),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
+):
+    payload.validate_sum()
+    weights = await _get_or_create_kpi_weights(db, sub_team)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(weights, field, value)
+    await db.commit()
+    await db.refresh(weights)
+    return weights
 
 
 @router.get("/team", response_model=PerformanceDashboard)
