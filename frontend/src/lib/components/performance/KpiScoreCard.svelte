@@ -10,6 +10,7 @@
     };
     export let member: KpiMember;
     export let onDrilldown: ((member: KpiMember) => void) | undefined = undefined;
+    export let hideDetailLink: boolean = false;
 
     $: initials = member.full_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
     $: scoreColor = member.kpi_score >= 80 ? 'text-green-400' : member.kpi_score >= 60 ? 'text-yellow-400' : 'text-red-400';
@@ -142,7 +143,11 @@
 
     <!-- Footer actions -->
     <div class="flex justify-between items-center pt-1 border-t border-gray-700">
-        <a href="/performance/{member.user_id}" class="text-xs text-primary-400 hover:underline">View detail →</a>
+        {#if hideDetailLink}
+            <span class="text-xs text-gray-600 italic">Demo member</span>
+        {:else}
+            <a href="/performance/{member.user_id}" class="text-xs text-primary-400 hover:underline">View detail →</a>
+        {/if}
         {#if onDrilldown}
             <button type="button" on:click={() => onDrilldown && onDrilldown(member)} class="text-xs text-gray-400 hover:text-gray-200 transition-colors">
                 Drill down

@@ -240,7 +240,7 @@
 					<h2 class="text-lg font-semibold text-gray-100 mb-3">Member Scorecards</h2>
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 						{#each overviewData.scorecards as member}
-							<KpiScoreCard {member} onDrilldown={(m) => openDrilldown('overview', { member_id: m.user_id }, m.full_name)} />
+							<KpiScoreCard {member} hideDetailLink={isDemo} onDrilldown={(m) => openDrilldown('overview', { member_id: m.user_id }, m.full_name)} />
 						{/each}
 					</div>
 				</div>
@@ -254,7 +254,7 @@
 				{:else}
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 						{#each overviewData.needs_attention as member}
-							<KpiScoreCard {member} />
+							<KpiScoreCard {member} hideDetailLink={isDemo} />
 						{/each}
 					</div>
 				{/if}

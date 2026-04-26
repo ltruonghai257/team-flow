@@ -19,14 +19,16 @@
 
 	let loading = $state(true);
 	let data = $state<any>(null);
+	let fetchError = $state<string | null>(null);
 	let kpiScorecard = $state<any>(null);
 	const userId = parseInt($page.params.id ?? '0');
 
 	onMount(async () => {
 		try {
 			data = await performance.memberStats(userId);
-		} catch (e) {
+		} catch (e: any) {
 			console.error('Failed to fetch member stats:', e);
+			fetchError = e?.message ?? 'Could not load member data.';
 		} finally {
 			loading = false;
 		}
@@ -104,6 +106,18 @@
 	{#if loading}
 		<div class="flex items-center justify-center py-20">
 			<div class="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+		</div>
+	{:else if !data}
+		<div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-12 text-center space-y-4">
+			<p class="text-4xl">🔍</p>
+			<h2 class="text-xl font-bold text-white">Member not found</h2>
+			{#if fetchError}
+				<p class="text-gray-400 text-sm">{fetchError}</p>
+			{:else}
+				<p class="text-gray-400 text-sm">No data exists for user ID <code class="bg-gray-800 px-1 rounded">#{userId}</code>.</p>
+			{/if}
+			<p class="text-gray-500 text-xs">This may be a demo scorecard — real member detail pages only work for users in your team.</p>
+			<a href="/performance" class="inline-block mt-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm rounded transition-colors">← Back to Dashboard</a>
 		</div>
 	{:else if data}
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
