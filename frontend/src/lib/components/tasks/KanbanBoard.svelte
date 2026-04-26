@@ -1,45 +1,59 @@
 <script lang="ts">
 	import { dndzone, SOURCES, TRIGGERS } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
+	import { createEventDispatcher } from 'svelte';
 	import { statusLabels } from '$lib/utils';
 	import KanbanCard from './KanbanCard.svelte';
 
 	export let tasks: any[] = [];
-	export let onStatusChange: (taskId: number, newStatus: string) => Promise<void> | void = () => {};
+	export let backlogTasks: any[] = [];
+	export let activeSprintId: number | null = null;
 	export let onEdit: (task: any) => void = () => {};
+
+	const dispatch = createEventDispatcher();
 
 	const columns = ['todo', 'in_progress', 'review', 'done', 'blocked'];
 	const flipDurationMs = 200;
 
-	type Column = { status: string; items: any[] };
+	type Column = { type: 'backlog' | 'status'; status?: string; items: any[] };
 
 	// Group tasks into columns reactively
-	$: grouped = columns.map((status) => ({
-		status,
-		items: tasks.filter((t) => t.status === status)
-	})) as Column[];
+	$: grouped = [
+		{ type: 'backlog', items: backlogTasks },
+		...columns.map((status) => ({
+			type: 'status',
+			status,
+			items: tasks.filter((t) => t.status === status)
+		}))
+	] as Column[];
 
 	// Track which task is being dragged to avoid updating before drop finalizes
 	async function handleConsider(e: CustomEvent, colIndex: number) {
 		grouped[colIndex].items = e.detail.items;
-		grouped = grouped;
+		grouped = [...grouped];
 	}
 
 	async function handleFinalize(e: CustomEvent, colIndex: number) {
 		const newItems = e.detail.items;
-		const targetStatus = columns[colIndex];
+		const column = grouped[colIndex];
 		grouped[colIndex].items = newItems;
-		grouped = grouped;
+		grouped = [...grouped];
 
 		const info = e.detail.info;
 		if (info.trigger === TRIGGERS.DROPPED_INTO_ZONE && info.source === SOURCES.POINTER) {
 			const draggedId = info.id;
 			const moved = newItems.find((t: any) => String(t.id) === String(draggedId));
-			if (moved && moved.status !== targetStatus) {
-				try {
-					await onStatusChange(moved.id, targetStatus);
-				} catch {
-					// parent handler should revert by reassigning `tasks`
+			if (moved) {
+				const targetSprintId = column.type === 'backlog' ? null : activeSprintId;
+				const targetStatus = column.type === 'status' ? column.status : moved.status;
+				
+				// Only dispatch if something actually changed
+				if (moved.sprint_id !== targetSprintId || moved.status !== (targetStatus || moved.status)) {
+					dispatch('taskMove', {
+						id: moved.id,
+						sprint_id: targetSprintId,
+						status: targetStatus || moved.status
+					});
 				}
 			}
 		}
@@ -47,10 +61,12 @@
 </script>
 
 <div class="flex gap-3 overflow-x-auto pb-4" style="touch-action: pan-x pan-y;">
-	{#each grouped as col, i (col.status)}
+	{#each grouped as col, i (col.type === 'backlog' ? 'backlog' : col.status)}
 		<div class="flex-shrink-0 w-72 bg-gray-900/60 border border-gray-800 rounded-xl flex flex-col max-h-[calc(100vh-270px)] md:max-h-[calc(100vh-220px)]">
 			<div class="px-3 py-2.5 border-b border-gray-800 flex items-center justify-between">
-				<h3 class="text-sm font-semibold text-gray-200">{statusLabels[col.status]}</h3>
+				<h3 class="text-sm font-semibold text-gray-200">
+					{col.type === 'backlog' ? 'Backlog' : statusLabels[col.status!]}
+				</h3>
 				<span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
 					{col.items.length}
 				</span>
