@@ -13,7 +13,7 @@ from app.auth import get_current_user, get_sub_team
 from app.config import settings
 from app.database import get_db
 from app.limiter import limiter
-from app.models import Project, SubTeam, Task, TaskPriority, TaskStatus, TaskType, User
+from app.models import CustomStatus, Project, StatusSet, StatusSetScope, SubTeam, Task, TaskPriority, TaskStatus, TaskType, User
 from app.schemas import (
     AiBreakdownRequest,
     AiBreakdownResponse,
@@ -26,6 +26,71 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+
+async def _resolve_custom_status(
+    db: AsyncSession,
+    custom_status_id: Optional[int],
+    legacy_status: Optional[TaskStatus],
+    project_id: Optional[int],
+    sub_team_id: Optional[int],
+) -> Optional[int]:
+    """Resolve custom_status_id from explicit ID or legacy status mapping."""
+    if custom_status_id is not None:
+        result = await db.execute(
+            select(CustomStatus).where(CustomStatus.id == custom_status_id)
+        )
+        cs = result.scalar_one_or_none()
+        if not cs:
+            raise HTTPException(status_code=400, detail="Invalid custom_status_id")
+        return custom_status_id
+
+    if legacy_status is not None:
+        eff_project_id = project_id
+        eff_sub_team_id = sub_team_id
+        if eff_project_id:
+            proj_set = await db.execute(
+                select(StatusSet).options(selectinload(StatusSet.statuses)).where(
+                    StatusSet.scope == StatusSetScope.project,
+                    StatusSet.project_id == eff_project_id,
+                )
+            )
+            project_set = proj_set.scalar_one_or_none()
+            if project_set:
+                for s in project_set.statuses:
+                    if not s.is_archived and (
+                        s.legacy_status == legacy_status or s.slug == legacy_status.value
+                    ):
+                        return s.id
+        if eff_sub_team_id:
+            default_result = await db.execute(
+                select(StatusSet).options(selectinload(StatusSet.statuses)).where(
+                    StatusSet.scope == StatusSetScope.sub_team_default,
+                    StatusSet.sub_team_id == eff_sub_team_id,
+                )
+            )
+            default_set = default_result.scalar_one_or_none()
+            if default_set:
+                for s in default_set.statuses:
+                    if not s.is_archived and (
+                        s.legacy_status == legacy_status or s.slug == legacy_status.value
+                    ):
+                        return s.id
+        fallback_result = await db.execute(
+            select(StatusSet).options(selectinload(StatusSet.statuses)).where(
+                StatusSet.scope == StatusSetScope.sub_team_default,
+                StatusSet.sub_team_id.is_(None),
+            )
+        )
+        fallback_set = fallback_result.scalar_one_or_none()
+        if fallback_set:
+            for s in fallback_set.statuses:
+                if not s.is_archived and (
+                    s.legacy_status == legacy_status or s.slug == legacy_status.value
+                ):
+                    return s.id
+
+    return None
 
 _AI_BREAKDOWN_SYSTEM_PROMPT = """You are a task breakdown assistant. The user describes a feature or work item.
 Decompose it into 3–8 concrete subtasks. Respond with ONLY a valid JSON array (no markdown, no prose):
@@ -103,7 +168,7 @@ async def list_tasks(
     current_user: User = Depends(get_current_user),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    query = select(Task).options(selectinload(Task.assignee))
+    query = select(Task).options(selectinload(Task.assignee), selectinload(Task.custom_status))
 
     # Apply sub-team filter (admin may have None = all teams)
     if sub_team:
@@ -143,11 +208,26 @@ async def create_task(
     payload: TaskCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    task = Task(**payload.model_dump(), creator_id=current_user.id)
+    task_data = payload.model_dump()
+    sub_team_id = sub_team.id if sub_team else None
+    resolved_cs_id = await _resolve_custom_status(
+        db,
+        task_data.get("custom_status_id"),
+        task_data.get("status"),
+        task_data.get("project_id"),
+        sub_team_id,
+    )
+    if resolved_cs_id is None and task_data.get("status") is None:
+        resolved_cs_id = await _resolve_custom_status(
+            db, None, TaskStatus.todo, task_data.get("project_id"), sub_team_id
+        )
+    task_data["custom_status_id"] = resolved_cs_id
+    task = Task(**task_data, creator_id=current_user.id)
     db.add(task)
     await db.flush()
-    await db.refresh(task, ["assignee"])
+    await db.refresh(task, ["assignee", "custom_status"])
     return task
 
 
@@ -158,7 +238,9 @@ async def get_task(
     _: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id)
+        select(Task)
+        .options(selectinload(Task.assignee), selectinload(Task.custom_status))
+        .where(Task.id == task_id)
     )
     task = result.scalar_one_or_none()
     if not task:
@@ -172,29 +254,60 @@ async def update_task(
     payload: TaskUpdate,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
     result = await db.execute(
-        select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id)
+        select(Task)
+        .options(selectinload(Task.assignee), selectinload(Task.custom_status))
+        .where(Task.id == task_id)
     )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = payload.model_dump(exclude_unset=True)
-    if "status" in update_data:
-        new_status = update_data["status"]
-        if new_status == TaskStatus.done and task.status != TaskStatus.done:
-            update_data["completed_at"] = datetime.now(timezone.utc).replace(
-                tzinfo=None
+
+    new_cs_id = update_data.pop("custom_status_id", None)
+    sub_team_id = sub_team.id if sub_team else None
+
+    if new_cs_id is not None or "status" in update_data:
+        resolved_cs_id = await _resolve_custom_status(
+            db,
+            new_cs_id,
+            update_data.get("status"),
+            task.project_id,
+            sub_team_id,
+        )
+        if resolved_cs_id is not None:
+            old_is_done = task.custom_status.is_done if task.custom_status else False
+            new_cs_result = await db.execute(
+                select(CustomStatus).where(CustomStatus.id == resolved_cs_id)
             )
-        elif new_status != TaskStatus.done and task.status == TaskStatus.done:
-            update_data["completed_at"] = None
+            new_cs = new_cs_result.scalar_one_or_none()
+            new_is_done = new_cs.is_done if new_cs else False
+
+            if not old_is_done and new_is_done:
+                if not update_data.get("completed_at"):
+                    update_data["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+            elif old_is_done and not new_is_done:
+                update_data["completed_at"] = None
+
+            update_data["custom_status_id"] = resolved_cs_id
+        elif "status" in update_data:
+            new_status = update_data["status"]
+            old_is_done = task.custom_status.is_done if task.custom_status else (task.status == TaskStatus.done)
+            new_is_done = new_status == TaskStatus.done
+            if not old_is_done and new_is_done:
+                if not update_data.get("completed_at"):
+                    update_data["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+            elif old_is_done and not new_is_done:
+                update_data["completed_at"] = None
 
     for field, value in update_data.items():
         setattr(task, field, value)
     task.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.flush()
-    await db.refresh(task, ["assignee"])
+    await db.refresh(task, ["assignee", "custom_status"])
     return task
 
 
