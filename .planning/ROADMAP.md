@@ -4,206 +4,174 @@ _Updated: 2026-04-26_
 
 ---
 
-## Milestone 1 History: Production-Ready Team Management Platform
+## Milestone History
 
-**Status:** Complete ✓ (Phases 1–11)
+### Milestone 1: Production-Ready Team Management Platform
+
+**Status:** Complete (Phases 1-11)
 **Completed:** 2026-04-24
 
-| Phase | Name                             | Requirements | Status |
-| ----- | -------------------------------- | ------------ | ------ |
-| 1     | Production Hardening             | REQ-01       | ✓ Done |
-| 2     | RBAC & Role Model                | REQ-07       | ✓ Done |
-| 3     | Supervisor Performance Dashboard | REQ-02       | ✓ Done |
-| 4     | Team Timeline View               | REQ-03       | ✓ Done |
-| 5     | Enhanced AI Features             | REQ-04       | ✓ Done |
-| 6     | Mobile-Responsive UI             | REQ-06       | ✓ Done |
-| 7     | Azure Deployment & CI/CD         | REQ-05       | ✓ Done |
-| 8     | User Invite & Team Management    | —            | ✓ Done |
-| 9     | Verification Docs (Phases 1–3)   | —            | ✓ Done |
-| 10    | Verification Docs (Phases 4–5)   | —            | ✓ Done |
-| 11    | Verification Docs (Phases 6–8)   | —            | ✓ Done |
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 1 | Production Hardening | REQ-01 | Done |
+| 2 | RBAC & Role Model | REQ-07 | Done |
+| 3 | Supervisor Performance Dashboard | REQ-02 | Done |
+| 4 | Team Timeline View | REQ-03 | Done |
+| 5 | Enhanced AI Features | REQ-04 | Done |
+| 6 | Mobile-Responsive UI | REQ-06 | Done |
+| 7 | Azure Deployment & CI/CD | REQ-05 | Done |
+| 8 | User Invite & Team Management | - | Done |
+| 9 | Verification Docs (Phases 1-3) | - | Done |
+| 10 | Verification Docs (Phases 4-5) | - | Done |
+| 11 | Verification Docs (Phases 6-8) | - | Done |
+
+### Milestone 2.0: Team Hierarchy, Sprints & Advanced Analytics
+
+**Status:** Paused for v2.1 structural refactor
+**Phases:** 12-17
+
+The v2.0 roadmap and phase artifacts remain available in git history and `.planning/phases/`. Current active planning has moved to v2.1 so the codebase structure can be cleaned up before further feature expansion.
 
 ---
 
-## Milestone 2: Team Hierarchy, Sprints & Advanced Analytics
+## Milestone v2.1: Open WebUI-Style Project Structure Refactor
 
-**Goal:** Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
+**Goal:** Refactor TeamFlow's FastAPI backend and SvelteKit frontend into a clearer Open WebUI-inspired structure while preserving behavior.
 
-**Definition of Done:** Admin can create sub-teams and assign supervisors; supervisors see only their sub-team's data (API-enforced); sprints exist within milestones; Kanban board columns driven from DB statuses; performance dashboard shows velocity, burndown, cycle time, throughput, and defect metrics; in-app reminders fire before sprint end and milestone due dates; all existing data migrated without loss.
+**Reference repo:** `https://github.com/open-webui/open-webui`
+
+**Definition of Done:** Backend and frontend folders follow the agreed Open WebUI-inspired target structure; imports, runtime entrypoints, Docker/Azure paths, Alembic, tests, and SvelteKit build/check all work; critical user flows behave the same as before the refactor.
 
 ---
 
 ## Phases
 
--   [ ] **Phase 12: Task Types** — Add task type field (feature/bug/task/improvement) to every task; visible on cards, filterable on board; backfill existing tasks to `task` type
--   [ ] **Phase 13: Multi-Team Hierarchy + Timeline Visibility** — Introduce SubTeam model, scope all data access by sub-team, enforce role-aware timeline visibility for members, supervisors, and admins
--   [x] **Phase 14: Sprint Model** — Sprints as time-boxed iterations within milestones; tasks assigned to sprints; sprint board filters by sprint; sprint close flow (completed 2026-04-26)
--   [ ] **Phase 15: Custom Kanban Statuses** — Migrate hardcoded enum to DB-driven statuses; supervisor-managed team-wide and per-project status sets; `is_done` flag replaces hardcoded done slug
--   [ ] **Phase 16: Advanced KPI Dashboard** — Velocity per sprint, burndown chart, cycle time by type, throughput by member, defect metrics and MTTR; all queries use `is_done` and task types
--   [ ] **Phase 17: Sprint & Release Reminders** — In-app notifications N days before sprint end and milestone due dates; configurable offset; deduplication via EventNotification rows
+- [ ] **Phase 18: Refactor Map & Safety Baseline** — Document target structure, map current files to new locations, identify protected behavior, and establish pre-move verification commands
+- [ ] **Phase 19: Backend Package Restructure** — Move FastAPI code toward an Open WebUI-style package layout and update imports, router registration, Alembic config, tests, and runtime targets
+- [ ] **Phase 20: Frontend SvelteKit Structure** — Move frontend API clients/types/utilities into Open WebUI-style `src/lib` groups while preserving routes and UI behavior
+- [ ] **Phase 21: Runtime Integration & Regression Verification** — Update Docker/dev/Azure entrypoints, run full checks, perform smoke tests, and document old-to-new paths
 
 ---
 
 ## Phase Details
 
-### Phase 12: Task Types
+### Phase 18: Refactor Map & Safety Baseline
 
-**Goal**: Every task has a type (feature/bug/task/improvement) that is visible on the board and usable as a filter
-**Depends on**: Nothing (fully isolated column addition)
-**Requirements**: TYPE-01, TYPE-02, TYPE-03
-**Success Criteria** (what must be TRUE):
+**Goal:** Create a concrete migration map before moving code so the refactor stays surgical and verifiable.
+**Depends on:** Nothing
+**Requirements:** STRUCT-01, STRUCT-02, STRUCT-03
 
-1. User can set task type when creating or editing a task; type defaults to `task` if not selected
-2. Task type is visible as an icon or badge on every Kanban card
-3. User can filter the Kanban board to show only tasks of a specific type
-4. All existing tasks show type `task` after migration with no null values
-   **Plans**: TBD
-   **UI hint**: yes
+**Success Criteria:**
 
-### Phase 13: Multi-Team Hierarchy + Timeline Visibility
+1. Target backend structure is documented, including package root, routers, models/domain modules, schemas, migrations, utils, socket/websocket, config, and app entrypoint.
+2. Target frontend structure is documented, including `src/lib/apis`, `components`, `stores`, `types`, `utils`, and route boundaries.
+3. Current file-to-target mapping exists for backend and frontend files that will move.
+4. Protected behavior list exists for API routes, auth/session behavior, Svelte routes, WebSocket chat, scheduler jobs, AI task input, Docker runtime, and Alembic migrations.
+5. Pre-refactor verification commands are run or explicitly documented if blocked by environment.
 
-**Goal**: The app is organized into sub-teams; every user, project, and task is scoped to a sub-team; the timeline shows only what each role is permitted to see
-**Depends on**: Phase 12 (parallel is acceptable; 13 requires nothing from 12)
-**Requirements**: TEAM-01, TEAM-02, TEAM-03, TEAM-04, TEAM-05, VIS-01, VIS-02, VIS-03
-**Success Criteria** (what must be TRUE):
+**Plans:** TBD
+**UI hint:** no
 
-1. Admin can create a sub-team, assign a supervisor, rename it, and reassign its supervisor from the settings page
-2. A supervisor's dashboard, performance page, and timeline show only their sub-team's members and projects — cross-team data is inaccessible even via direct API calls
-3. A member sees only projects where they have at least one assigned task on the timeline
-4. Admin can view all sub-teams, switch between them, and see org-wide aggregates on the dashboard
-5. All existing users and projects are migrated to a default sub-team with zero data loss
-   **Plans**: 5 plans
+### Phase 19: Backend Package Restructure
 
--   [ ] 13-01-PLAN.md — Database migration (SubTeam model, FK columns, default sub-team)
--   [ ] 13-02-PLAN.md — Backend sub-team scoping (get_sub_team dependency, SubTeam CRUD router)
--   [ ] 13-03-PLAN.md — Frontend sub-team switcher and team page extension
--   [ ] 13-04-PLAN.md — Timeline visibility and invite flow updates
--   [ ] 13-05-PLAN.md — Wave 0 test stubs and schema push
-        **UI hint**: yes
+**Goal:** Reorganize backend code into a maintainable Open WebUI-inspired FastAPI package layout without changing API behavior.
+**Depends on:** Phase 18
+**Requirements:** BACK-01, BACK-02, BACK-03, BACK-04, BACK-05
 
-### Phase 14: Sprint Model
+**Success Criteria:**
 
-**Goal**: Supervisors can create time-boxed sprints within milestones; team members can assign tasks to sprints; the board can be filtered to show a single sprint's work
-**Depends on**: Phase 13 (sprint scoping requires sub-team context)
-**Requirements**: SPRINT-01, SPRINT-02, SPRINT-03, SPRINT-04
-**Success Criteria** (what must be TRUE):
+1. Backend package structure matches the approved target map and has clear module boundaries for routers, schemas, models/domain modules, config, utils, migrations, and socket/websocket code.
+2. FastAPI app startup, router registration, CORS, rate limiting, scheduler startup/shutdown, WebSocket routing, and `/health` response remain behaviorally unchanged.
+3. Alembic can locate metadata and run migrations against the new package paths without rewriting existing migration history.
+4. Backend tests import the new package paths and pass.
+5. Temporary compatibility shims, if needed, are documented and limited to migration support.
 
-1. Supervisor can create, edit, and close a sprint with a name, start date, and end date within a milestone
-2. Task creation and edit forms include a sprint selector; selecting a sprint associates the task with that sprint
-3. Sprint board view filters to tasks in the selected sprint; unassigned tasks are visible in a Backlog column
-4. Closing a sprint prompts the user to move incomplete tasks to backlog or next sprint before closing
-   **Plans**: 4 plans
-- [x] 14-01-PLAN.md — Backend Models, DB Migration, Schema Push
-- [x] 14-02-PLAN.md — Backend API Sprints Router and Schemas
-- [x] 14-03-PLAN.md — Frontend API Client and Sprint Components
-- [x] 14-04-PLAN.md — Frontend Kanban Integration
-   **UI hint**: yes
+**Plans:** TBD
+**UI hint:** no
 
-### Phase 15: Custom Kanban Statuses
+### Phase 20: Frontend SvelteKit Structure
 
-**Goal**: Kanban columns are driven from database-stored statuses instead of hardcoded enum values; supervisors can create, reorder, and manage statuses; task completion is determined by the `is_done` flag
-**Depends on**: Phase 14 (sprint burndown and `is_done` logic must be written correctly from the start, not retrofitted)
-**Requirements**: STATUS-01, STATUS-02, STATUS-03, STATUS-04
-**Success Criteria** (what must be TRUE):
+**Goal:** Reorganize frontend shared code into Open WebUI-style SvelteKit folders while preserving existing routes and UI behavior.
+**Depends on:** Phase 18
+**Requirements:** FRONT-01, FRONT-02, FRONT-03, FRONT-04, FRONT-05
 
-1. Supervisor can create a custom status with a name and color, reorder statuses via drag-and-drop, and set one as the completion status (`is_done`)
-2. Kanban board columns reflect the current DB-stored status list, not hardcoded values; changes take effect immediately without a deploy
-3. A project can define its own status set; projects with no custom statuses inherit the team-wide defaults
-4. All existing tasks are migrated from the enum to the new DB-backed statuses with zero data loss; task completion timestamps (`completed_at`) are preserved correctly
-5. Moving a task to any status marked `is_done` sets its completion timestamp; moving it back clears the timestamp
-   **Plans**:
-- [ ] 15-01-PLAN.md — Backend Status Schema, Migration, and Seed Backfill
-- [ ] 15-02-PLAN.md — Backend Status APIs and Task Dual-Write
-- [ ] 15-03-PLAN.md — Frontend API and Reusable Status Components
-- [ ] 15-04-PLAN.md — Integrate DB Statuses into Tasks, Kanban, and Projects UI
-- [ ] 15-05-PLAN.md — End-to-End Verification and Phase 16 Readiness
-   **UI hint**: yes
+**Success Criteria:**
 
-### Phase 16: Advanced KPI Dashboard
+1. Frontend shared code uses `src/lib/apis`, `src/lib/components`, `src/lib/stores`, `src/lib/types`, and `src/lib/utils` consistently.
+2. API client behavior remains stable after splitting feature-focused API modules.
+3. Shared types are centralized where useful and imported by routes/components without introducing circular dependencies.
+4. Current route URLs keep working: `/`, `/tasks`, `/projects`, `/milestones`, `/team`, `/timeline`, `/performance`, `/schedule`, `/ai`, `/login`, `/register`, and invite acceptance.
+5. No visual redesign is introduced as part of this phase.
 
-**Goal**: The supervisor performance dashboard exposes data-grounded sprint and team metrics — velocity, burndown, cycle time, throughput, and defect metrics — all computed from real sprint and task type data
-**Depends on**: Phase 13 (team scoping), Phase 14 (sprint data), Phase 15 (is_done flag and task types from Phase 12)
-**Requirements**: KPI-01, KPI-02, KPI-03, KPI-04, KPI-05
-**Success Criteria** (what must be TRUE):
+**Plans:** TBD
+**UI hint:** no
 
-1. Supervisor can view a velocity chart showing tasks completed per sprint per member over the last 6 sprints
-2. Supervisor can view a burndown chart for the active sprint and any closed sprint, showing remaining tasks vs elapsed time
-3. Performance dashboard shows average cycle time broken down by task type (feature/bug/task/improvement) over the last 3 months
-4. Performance dashboard shows tasks completed per week per member grouped by type as a stacked bar chart over the last 8 weeks
-5. Performance dashboard shows bugs reported vs bugs resolved per period, and MTTR per member for the last 30 days
-   **Plans**: TBD
-   **UI hint**: yes
+### Phase 21: Runtime Integration & Regression Verification
 
-### Phase 17: Sprint & Release Reminders
+**Goal:** Make the refactored structure production-safe by updating runtime entrypoints and verifying critical flows.
+**Depends on:** Phase 19, Phase 20
+**Requirements:** RUN-01, RUN-02, RUN-03, VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
 
-**Goal**: Team members and supervisors receive in-app notifications before sprint end dates and milestone due dates, with configurable lead time and no duplicate reminders
-**Depends on**: Phase 13 (team membership for fanout), Phase 14 (sprint model for trigger events)
-**Requirements**: REMIND-01, REMIND-02
-**Success Criteria** (what must be TRUE):
+**Success Criteria:**
 
-1. All sprint participants receive an in-app notification N days before the sprint end date (default: 2 days); N is configurable per team by the supervisor or admin
-2. Supervisor and admin receive an in-app notification N days before a milestone due date (default: 3 days); N is configurable per team
-3. Reminders are not duplicated if the sprint or milestone date is unchanged; a reminder is re-created if the date is moved
-4. Reminders persist across app restarts and Azure deploys (stored as EventNotification rows, not in-memory scheduler jobs)
-   **Plans**: TBD
+1. Dockerfile, compose/dev scripts, Azure startup commands, and uvicorn target reference the refactored backend app.
+2. Frontend check and production build pass.
+3. Backend tests pass.
+4. Smoke checks pass for login/session, task board load, AI task input, WebSocket chat connection, scheduler/notifications, and `/health`.
+5. Developer notes document old-to-new import paths, moved directories, and any temporary compatibility shims.
+
+**Plans:** TBD
+**UI hint:** no
 
 ---
 
 ## Progress Table
 
-| Phase                                          | Plans Complete | Status      | Completed |
-| ---------------------------------------------- | -------------- | ----------- | --------- |
-| 12. Task Types                                 | 0/?            | Not started | -         |
-| 13. Multi-Team Hierarchy + Timeline Visibility | 5/5            | Planned     | -         |
-| 14. Sprint Model                               | 4/4 | Complete    | 2026-04-26 |
-| 15. Custom Kanban Statuses                     | 0/?            | Not started | -         |
-| 16. Advanced KPI Dashboard                     | 0/?            | Not started | -         |
-| 17. Sprint & Release Reminders                 | 0/?            | Not started | -         |
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 18. Refactor Map & Safety Baseline | 0/? | Not started | - |
+| 19. Backend Package Restructure | 0/? | Not started | - |
+| 20. Frontend SvelteKit Structure | 0/? | Not started | - |
+| 21. Runtime Integration & Regression Verification | 0/? | Not started | - |
 
 ---
 
 ## Phase Sequencing
 
+```text
+Phase 18 - Refactor Map & Safety Baseline
+  ├─ Phase 19 - Backend Package Restructure
+  └─ Phase 20 - Frontend SvelteKit Structure
+       └─ Phase 21 - Runtime Integration & Regression Verification
 ```
-Phase 12 - Task Types               [Isolated; can run parallel to 13]
-Phase 13 - Multi-Team Hierarchy     [Gates all scoping; includes timeline visibility]
-  └─ Phase 14 - Sprint Model        [Requires team context for scoping]
-       └─ Phase 15 - Custom Statuses [Riskiest migration; burndown written once against is_done]
-            └─ Phase 16 - KPI Dashboard [Requires 12+13+14+15 all complete]
-Phase 13+14 → Phase 17 - Reminders  [Parallel workstream to 16; requires only hierarchy + sprints]
-```
+
+Phase 19 and Phase 20 can be planned independently after Phase 18, but Phase 21 must wait for both because it verifies integrated runtime behavior.
 
 ---
 
 ## Coverage
 
-| Requirement | Phase    | Status  |
-| ----------- | -------- | ------- |
-| TYPE-01     | Phase 12 | Pending |
-| TYPE-02     | Phase 12 | Pending |
-| TYPE-03     | Phase 12 | Pending |
-| TEAM-01     | Phase 13 | Pending |
-| TEAM-02     | Phase 13 | Pending |
-| TEAM-03     | Phase 13 | Pending |
-| TEAM-04     | Phase 13 | Pending |
-| TEAM-05     | Phase 13 | Pending |
-| VIS-01      | Phase 13 | Pending |
-| VIS-02      | Phase 13 | Pending |
-| VIS-03      | Phase 13 | Pending |
-| SPRINT-01   | Phase 14 | Pending |
-| SPRINT-02   | Phase 14 | Pending |
-| SPRINT-03   | Phase 14 | Pending |
-| SPRINT-04   | Phase 14 | Pending |
-| STATUS-01   | Phase 15 | Pending |
-| STATUS-02   | Phase 15 | Pending |
-| STATUS-03   | Phase 15 | Pending |
-| STATUS-04   | Phase 15 | Pending |
-| KPI-01      | Phase 16 | Pending |
-| KPI-02      | Phase 16 | Pending |
-| KPI-03      | Phase 16 | Pending |
-| KPI-04      | Phase 16 | Pending |
-| KPI-05      | Phase 16 | Pending |
-| REMIND-01   | Phase 17 | Pending |
-| REMIND-02   | Phase 17 | Pending |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| STRUCT-01 | Phase 18 | Pending |
+| STRUCT-02 | Phase 18 | Pending |
+| STRUCT-03 | Phase 18 | Pending |
+| BACK-01 | Phase 19 | Pending |
+| BACK-02 | Phase 19 | Pending |
+| BACK-03 | Phase 19 | Pending |
+| BACK-04 | Phase 19 | Pending |
+| BACK-05 | Phase 19 | Pending |
+| FRONT-01 | Phase 20 | Pending |
+| FRONT-02 | Phase 20 | Pending |
+| FRONT-03 | Phase 20 | Pending |
+| FRONT-04 | Phase 20 | Pending |
+| FRONT-05 | Phase 20 | Pending |
+| RUN-01 | Phase 21 | Pending |
+| RUN-02 | Phase 21 | Pending |
+| RUN-03 | Phase 21 | Pending |
+| VERIFY-01 | Phase 21 | Pending |
+| VERIFY-02 | Phase 21 | Pending |
+| VERIFY-03 | Phase 21 | Pending |
+| VERIFY-04 | Phase 21 | Pending |
 
-**Coverage: 26/26 requirements mapped ✓**
+**Coverage: 20/20 requirements mapped**

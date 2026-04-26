@@ -6,8 +6,8 @@ status: ready_to_plan
 last_updated: "2026-04-26T07:14:59.350Z"
 last_activity: 2026-04-26
 progress:
-  total_phases: 0
-  completed_phases: 1
+  total_phases: 4
+  completed_phases: 0
   total_plans: 0
   completed_plans: 0
   percent: 0
@@ -17,59 +17,64 @@ progress:
 
 ## Current Status
 
-**Milestone:** 2 — Team Hierarchy, Sprints & Advanced Analytics
-**Active Phase:** Phase 13 — Multi-Team Hierarchy + Timeline Visibility (context gathered; ready for planning)
-**Last Session:** 2026-04-26T07:06:00.280Z
+**Milestone:** v2.1 — Open WebUI-Style Project Structure Refactor
+**Active Phase:** Phase 18 — Refactor Map & Safety Baseline
+**Last Session:** 2026-04-26
+
+## Current Position
+
+Phase: 18
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-04-26 — Milestone v2.1 roadmap created
 
 ## Session Notes
 
--   Milestone 1 complete: all 11 phases done, 100% coverage.
--   Milestone 2 roadmap created: Phases 12–17.
--   Phase 12 (Task Types) is isolated — can run in parallel with Phase 13 if needed.
--   Phase 13 (Multi-Team Hierarchy) includes VIS-\* timeline visibility; do NOT defer to a later phase.
--   Phase 15 (Custom Statuses) uses dual-write strategy: retain tasks.status enum alongside new custom_status_id FK; drop enum only after KPIs are verified (deferred cleanup, if needed, goes in a Phase 18).
--   STATUS-04 (is_done flag) must land in Phase 15 before KPI queries are written in Phase 16.
--   Phase 17 (Reminders) depends only on Phase 13 + Phase 14; can be developed in parallel with Phase 16.
--   Phase 13 decisions (2026-04-24):
-    -   Default sub-team: one "Default Team", no supervisor pre-assigned; admin manually creates sub-teams and assigns supervisors post-migration.
-    -   Sub-team UI: extends existing `/team` page with sub-team tabs/sections.
-    -   Global sub-team switcher: admin has a persistent context switcher (sidebar/top nav) that scopes all pages; supervisor/member have implicit scope.
-    -   Project creation: scoped to active sub-team (admin via switcher, supervisor implicit); no per-form dropdowns.
-    -   Invite flow: scoped to inviter's active sub-team; no per-form selector.
-    -   API enforcement: 403 for cross-team access attempts; server-side filtering on all data endpoints.
--   User preference: Project uses **Bun** for frontend operations.
--   SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
--   Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
--   Zero new npm or Python packages — all needed libs already installed.
--   All schema changes via Alembic migrations only.
+- Milestone 1 complete: all 11 phases done, 100% coverage.
+- Milestone 2.0 roadmap created: Phases 12-17. This work is paused while v2.1 structural refactor is active.
+- Milestone v2.1 started 2026-04-26: refactor backend/frontend structure to follow Open WebUI-inspired organization before continuing feature expansion.
+- Reference repo: https://github.com/open-webui/open-webui
+- v2.1 phase sequence: Phase 18 refactor map, Phase 19 backend restructure, Phase 20 frontend restructure, Phase 21 runtime/regression verification.
+- User preference: Project uses Bun for frontend operations.
+- SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
+- Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
+- Zero new npm or Python packages unless a moved import cannot be resolved without one.
+- All schema changes via Alembic migrations only; v2.1 should avoid schema changes unless required for runtime correctness.
 
 ## Resume Point
 
-Phase 12 implemented. Next run `/gsd-verify-work 12`.
-Phase 13 context gathered. Next run `/gsd-plan-phase 13`.
+Next run `/gsd-discuss-phase 18` or `/gsd-plan-phase 18`.
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
--   Milestone 1 (Phases 1–11) complete.
--   Milestone 2 (Phases 12–17) roadmap created 2026-04-24.
+- Milestone 1 (Phases 1-11) complete.
+- Milestone 2.0 (Phases 12-17) roadmap created 2026-04-24 and paused for the structural refactor.
+- Milestone v2.1 (Phases 18-21) roadmap created 2026-04-26 as an independent structural refactor before resuming feature expansion.
 
-### Architecture Decisions (Milestone 2)
+### Architecture Decisions (Milestone 2.0)
 
--   SubTeam not Team: single-org deployment; Organization wrapper adds a join with zero value.
--   Dual-write for status migration: retain tasks.status enum alongside new tasks.custom_status_id for the full feature-build period; drop old column after KPI queries verified.
--   is_done replaces hardcoded done check: update_task endpoint must use custom_status.is_done == true after Phase 15, not TaskStatus.done enum comparison.
--   Sprint reminders via existing EventNotification table: insert rows on sprint activation; the existing 60s poll delivers them; unique constraint on (event_type, event_ref_id, user_id) prevents duplicates.
--   KPI queries: all aggregations as single GROUP BY queries — no N+1.
--   Verify layerchart version at Phase 16 kickoff (installed as next tag; code comments suggest it was bypassed).
+- SubTeam not Team: single-org deployment; Organization wrapper adds a join with zero value.
+- Dual-write for status migration: retain tasks.status enum alongside new tasks.custom_status_id FK for the full feature-build period; drop old column after KPI queries verified.
+- is_done replaces hardcoded done check: update_task endpoint must use custom_status.is_done == true after Phase 15, not TaskStatus.done enum comparison.
+- Sprint reminders via existing EventNotification table: insert rows on sprint activation; the existing 60s poll delivers them; unique constraint on (event_type, event_ref_id, user_id) prevents duplicates.
+- KPI queries: all aggregations as single GROUP BY queries — no N+1.
+- Verify layerchart version at Phase 16 kickoff (installed as next tag; code comments suggest it was bypassed).
+
+### Architecture Decisions (Milestone v2.1)
+
+- Follow Open WebUI structure as inspiration, not as an exact clone.
+- Keep backend under `backend/` and frontend under `frontend/` unless a later plan explicitly accepts the runtime/build impact of moving SvelteKit to repo-root `src/`.
+- Preserve API routes, Svelte routes, auth behavior, task workflows, AI task input, WebSocket chat, scheduler behavior, Docker/Azure runtime, and Alembic history.
+- No new dependencies unless an existing import cannot be moved safely without one.
 
 ### Watch-Out List
 
-1. Unscoped queries after Phase 13: audit tasks.py, projects.py, milestones.py, timeline.py, performance.py, dashboard.py, ai.py — all must gain sub_team_id predicates.
-2. Postgres enum drop sequence: multi-step, explicit op.execute() calls; do not use alembic autogenerate for this step.
-3. completed_at not set for custom terminal statuses: test that a task moved to a custom is_done status has completed_at set (Phase 15 completion gate).
-4. Sprint reminders lost on process restart: APScheduler run_date jobs are in-memory; store as EventNotification rows instead.
+1. Open WebUI uses `backend/open_webui/` and root `src/`; TeamFlow currently uses `backend/app/` and `frontend/src/`, so phase plans must decide what to mirror exactly versus adapt safely.
+2. Current imports use `from app...`; backend restructuring must update uvicorn targets, tests, Alembic env, scripts, and Docker startup together.
+3. Frontend route URLs must not change during structure moves.
+4. Existing uncommitted frontend changes and phase summaries predate v2.1; do not overwrite or revert them.
 
 ## Flags
 
@@ -85,11 +90,4 @@ None
 **Completed Phase:** 07 (azure-deployment-ci-cd) — 2026-04-23T22:30:00.000Z
 **Completed Phase:** 08 (user-invite-team-management) — 2026-04-24T00:00:00.000Z
 
-**Planned Phase:** 12 (task-types) — 1 plans — 2026-04-24T09:02:29.333Z
-
-## Current Position
-
-Phase: 15
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-04-26
+**Planned Phase:** 18 (refactor-map-safety-baseline) — 0 plans — 2026-04-26
