@@ -93,6 +93,8 @@ def _coerce_ai_parse(data: dict) -> AiParseResponse:
 async def list_tasks(
     project_id: Optional[int] = None,
     milestone_id: Optional[int] = None,
+    sprint_id: Optional[int] = None,
+    unassigned: bool = False,
     assignee_id: Optional[int] = None,
     status: Optional[TaskStatus] = None,
     types: Optional[str] = None,
@@ -112,6 +114,10 @@ async def list_tasks(
         query = query.where(Task.project_id == project_id)
     if milestone_id:
         query = query.where(Task.milestone_id == milestone_id)
+    if sprint_id:
+        query = query.where(Task.sprint_id == sprint_id)
+    if unassigned:
+        query = query.where(Task.sprint_id == None)
     if assignee_id:
         query = query.where(Task.assignee_id == assignee_id)
     if status:
