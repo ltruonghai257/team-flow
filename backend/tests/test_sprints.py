@@ -313,3 +313,268 @@ async def test_close_sprint_partial_mapping(db_session, async_client: AsyncClien
     # task2 and task3 should remain in sprint1 (not moved)
     assert task2.sprint_id == sprint1.id
     assert task3.sprint_id == sprint1.id
+
+
+@pytest.mark.asyncio
+async def test_sprint_create_with_end_date_triggers_reminder_rebuild(db_session, async_client: AsyncClient, sub_team):
+    """Test that creating a sprint with end_date triggers reminder rebuild."""
+    from app.models import EventNotification, NotificationEventType, NotificationStatus
+    
+    # Create admin user
+    admin = User(
+        email="admin@example.com",
+        username="admin",
+        full_name="Admin User",
+        hashed_password=hash_password("password"),
+        role=UserRole.admin,
+        sub_team_id=sub_team.id
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+
+    # Create project and milestone
+    project = Project(name="Test Project", sub_team_id=sub_team.id)
+    db_session.add(project)
+    await db_session.commit()
+    await db_session.refresh(project)
+
+    milestone = Milestone(
+        title="Test Milestone",
+        status="planned",
+        project_id=project.id
+    )
+    db_session.add(milestone)
+    await db_session.commit()
+    await db_session.refresh(milestone)
+
+    # Create a task with assignee to enable reminder generation
+    task = Task(
+        title="Test Task",
+        status="todo",
+        project_id=project.id,
+        milestone_id=milestone.id,
+        assignee_id=admin.id,
+        creator_id=admin.id
+    )
+    db_session.add(task)
+    await db_session.commit()
+
+    # Login as admin
+    login_response = await async_client.post("/api/auth/token", data={
+        "username": "admin",
+        "password": "password"
+    })
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create sprint with end_date
+    response = await async_client.post("/api/sprints/", json={
+        "name": "Test Sprint",
+        "start_date": "2026-04-27T00:00:00",
+        "end_date": "2026-05-10T23:59:59",
+        "milestone_id": milestone.id
+    }, headers=headers)
+
+    assert response.status_code == 201
+    sprint_id = response.json()["id"]
+
+    # Verify reminder was created
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.sprint_end,
+            EventNotification.event_ref_id == sprint_id,
+            EventNotification.user_id == admin.id,
+            EventNotification.status == NotificationStatus.pending
+        )
+    )
+    reminder = result.scalar_one_or_none()
+    assert reminder is not None
+
+
+@pytest.mark.asyncio
+async def test_sprint_update_end_date_triggers_reminder_rebuild(db_session, async_client: AsyncClient, sub_team):
+    """Test that updating sprint end_date triggers reminder rebuild."""
+    from app.models import EventNotification, NotificationEventType, NotificationStatus
+    from datetime import datetime, timedelta, timezone
+    
+    # Create admin user
+    admin = User(
+        email="admin@example.com",
+        username="admin",
+        full_name="Admin User",
+        hashed_password=hash_password("password"),
+        role=UserRole.admin,
+        sub_team_id=sub_team.id
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+
+    # Create project and milestone
+    project = Project(name="Test Project", sub_team_id=sub_team.id)
+    db_session.add(project)
+    await db_session.commit()
+    await db_session.refresh(project)
+
+    milestone = Milestone(
+        title="Test Milestone",
+        status="planned",
+        project_id=project.id
+    )
+    db_session.add(milestone)
+    await db_session.commit()
+    await db_session.refresh(milestone)
+
+    # Create a task with assignee
+    task = Task(
+        title="Test Task",
+        status="todo",
+        project_id=project.id,
+        milestone_id=milestone.id,
+        assignee_id=admin.id,
+        creator_id=admin.id
+    )
+    db_session.add(task)
+    await db_session.commit()
+
+    # Login as admin
+    login_response = await async_client.post("/api/auth/token", data={
+        "username": "admin",
+        "password": "password"
+    })
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create sprint with end_date
+    response = await async_client.post("/api/sprints/", json={
+        "name": "Test Sprint",
+        "start_date": "2026-04-27T00:00:00",
+        "end_date": "2026-05-10T23:59:59",
+        "milestone_id": milestone.id
+    }, headers=headers)
+
+    assert response.status_code == 201
+    sprint_id = response.json()["id"]
+
+    # Get initial reminder
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.sprint_end,
+            EventNotification.event_ref_id == sprint_id,
+        )
+    )
+    initial_reminders = result.scalars().all()
+    initial_count = len(initial_reminders)
+
+    # Update sprint end_date
+    response = await async_client.patch(f"/api/sprints/{sprint_id}", json={
+        "end_date": "2026-05-15T23:59:59"
+    }, headers=headers)
+
+    assert response.status_code == 200
+
+    # Verify reminders were rebuilt (pending deleted and recreated)
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.sprint_end,
+            EventNotification.event_ref_id == sprint_id,
+            EventNotification.status == NotificationStatus.pending
+        )
+    )
+    pending_reminders = result.scalars().all()
+    assert len(pending_reminders) == initial_count
+
+
+@pytest.mark.asyncio
+async def test_milestone_update_due_date_triggers_reminder_rebuild(db_session, async_client: AsyncClient, sub_team):
+    """Test that updating milestone due_date triggers reminder rebuild."""
+    from app.models import EventNotification, NotificationEventType, NotificationStatus
+    
+    # Create admin user
+    admin = User(
+        email="admin@example.com",
+        username="admin",
+        full_name="Admin User",
+        hashed_password=hash_password("password"),
+        role=UserRole.admin,
+        sub_team_id=sub_team.id
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+
+    # Create project and milestone
+    project = Project(name="Test Project", sub_team_id=sub_team.id)
+    db_session.add(project)
+    await db_session.commit()
+    await db_session.refresh(project)
+
+    milestone = Milestone(
+        title="Test Milestone",
+        status="planned",
+        due_date="2026-05-10T23:59:59",
+        project_id=project.id
+    )
+    db_session.add(milestone)
+    await db_session.commit()
+    await db_session.refresh(milestone)
+
+    # Create a task with assignee
+    task = Task(
+        title="Test Task",
+        status="todo",
+        project_id=project.id,
+        milestone_id=milestone.id,
+        assignee_id=admin.id,
+        creator_id=admin.id
+    )
+    db_session.add(task)
+    await db_session.commit()
+
+    # Login as admin
+    login_response = await async_client.post("/api/auth/token", data={
+        "username": "admin",
+        "password": "password"
+    })
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create milestone (triggers initial reminder build)
+    response = await async_client.post("/api/milestones/", json={
+        "title": "Another Milestone",
+        "status": "planned",
+        "due_date": "2026-05-10T23:59:59",
+        "project_id": project.id
+    }, headers=headers)
+
+    assert response.status_code == 201
+    milestone_id = response.json()["id"]
+
+    # Get initial reminder count
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.milestone_due,
+            EventNotification.event_ref_id == milestone_id,
+        )
+    )
+    initial_reminders = result.scalars().all()
+    initial_count = len(initial_reminders)
+
+    # Update milestone due_date
+    response = await async_client.patch(f"/api/milestones/{milestone_id}", json={
+        "due_date": "2026-05-15T23:59:59"
+    }, headers=headers)
+
+    assert response.status_code == 200
+
+    # Verify reminders were rebuilt (pending deleted and recreated)
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.milestone_due,
+            EventNotification.event_ref_id == milestone_id,
+            EventNotification.status == NotificationStatus.pending
+        )
+    )
+    pending_reminders = result.scalars().all()
+    assert len(pending_reminders) == initial_count

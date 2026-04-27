@@ -301,3 +301,83 @@ async def test_notification_bulk_multi_offset_still_works_for_schedule_reminders
     )
     rows = result.scalars().all()
     assert len(rows) == 2
+
+
+@pytest.mark.asyncio
+async def test_sprint_date_change_rebuild_preserves_sent_dismissed(db_session):
+    """Test that sent/dismissed reminders remain historical when sprint end_date changes."""
+    data = await _build_team_graph(db_session, sprint_hours=48, milestone_hours=72)
+    
+    # Create initial reminders
+    created = await rebuild_sprint_reminders(db_session, data["sprint"].id)
+    assert created == 2
+    
+    # Mark one as sent, one as dismissed
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.sprint_end,
+            EventNotification.event_ref_id == data["sprint"].id,
+        )
+    )
+    rows = result.scalars().all()
+    rows[0].status = NotificationStatus.sent
+    rows[1].status = NotificationStatus.dismissed
+    await db_session.commit()
+    
+    # Change sprint end date
+    data["sprint"].end_date = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=96)
+    await db_session.commit()
+    
+    # Rebuild reminders - should delete pending only
+    await rebuild_sprint_reminders(db_session, data["sprint"].id)
+    
+    # Verify sent/dismissed rows still exist
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.sprint_end,
+            EventNotification.event_ref_id == data["sprint"].id,
+        )
+    )
+    rows = result.scalars().all()
+    assert len(rows) == 2
+    assert {row.status for row in rows} == {NotificationStatus.sent, NotificationStatus.dismissed}
+
+
+@pytest.mark.asyncio
+async def test_milestone_date_change_rebuild_preserves_sent_dismissed(db_session):
+    """Test that sent/dismissed reminders remain historical when milestone due_date changes."""
+    data = await _build_team_graph(db_session, sprint_hours=48, milestone_hours=72)
+    
+    # Create initial reminders
+    created = await rebuild_milestone_reminders(db_session, data["milestone"].id)
+    assert created == 2
+    
+    # Mark one as sent, one as dismissed
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.milestone_due,
+            EventNotification.event_ref_id == data["milestone"].id,
+        )
+    )
+    rows = result.scalars().all()
+    rows[0].status = NotificationStatus.sent
+    rows[1].status = NotificationStatus.dismissed
+    await db_session.commit()
+    
+    # Change milestone due date
+    data["milestone"].due_date = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=120)
+    await db_session.commit()
+    
+    # Rebuild reminders - should delete pending only
+    await rebuild_milestone_reminders(db_session, data["milestone"].id)
+    
+    # Verify sent/dismissed rows still exist
+    result = await db_session.execute(
+        select(EventNotification).where(
+            EventNotification.event_type == NotificationEventType.milestone_due,
+            EventNotification.event_ref_id == data["milestone"].id,
+        )
+    )
+    rows = result.scalars().all()
+    assert len(rows) == 2
+    assert {row.status for row in rows} == {NotificationStatus.sent, NotificationStatus.dismissed}
