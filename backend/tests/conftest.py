@@ -14,7 +14,7 @@ os.environ.setdefault("COOKIE_SECURE", "false")
 
 from app.utils.auth import hash_password
 from app.db.database import Base, get_db
-from app.main import app
+from app.api.main import app  # canonical app target
 from app.models import SubTeam, User, UserRole
 
 @pytest_asyncio.fixture
