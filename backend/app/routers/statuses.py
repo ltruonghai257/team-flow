@@ -2,7 +2,7 @@ import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -103,6 +103,34 @@ async def _copy_statuses(
             legacy_status=s.legacy_status,
         )
         db.add(copy)
+
+
+async def _copy_transitions_by_slug(
+    db: AsyncSession,
+    source_set: StatusSet,
+    target_set: StatusSet,
+) -> None:
+    source_by_id = {status.id: status for status in source_set.statuses}
+    target_by_slug = {status.slug: status for status in target_set.statuses}
+    result = await db.execute(
+        select(StatusTransition).where(StatusTransition.status_set_id == source_set.id)
+    )
+    for transition in result.scalars().all():
+        from_status = source_by_id.get(transition.from_status_id)
+        to_status = source_by_id.get(transition.to_status_id)
+        if not from_status or not to_status:
+            continue
+        target_from = target_by_slug.get(from_status.slug)
+        target_to = target_by_slug.get(to_status.slug)
+        if not target_from or not target_to:
+            continue
+        db.add(
+            StatusTransition(
+                status_set_id=target_set.id,
+                from_status_id=target_from.id,
+                to_status_id=target_to.id,
+            )
+        )
 
 
 async def _status_task_count(db: AsyncSession, status_id: int) -> int:
@@ -477,6 +505,14 @@ async def delete_or_archive_status(
         for task in tasks_result.scalars().all():
             task.custom_status_id = replacement_status_id
         await db.flush()
+        await db.execute(
+            delete(StatusTransition).where(
+                or_(
+                    StatusTransition.from_status_id == status_id,
+                    StatusTransition.to_status_id == status_id,
+                )
+            )
+        )
         await db.delete(status)
         await db.flush()
     else:
@@ -485,6 +521,14 @@ async def delete_or_archive_status(
                 status_code=400,
                 detail="Statuses with tasks must be moved or archived before they can be deleted.",
             )
+        await db.execute(
+            delete(StatusTransition).where(
+                or_(
+                    StatusTransition.from_status_id == status_id,
+                    StatusTransition.to_status_id == status_id,
+                )
+            )
+        )
         await db.delete(status)
         await db.flush()
 
@@ -536,6 +580,9 @@ async def create_project_override(
 
     if effective:
         await _copy_statuses(db, effective, project_set)
+        await db.flush()
+        await db.refresh(project_set, ["statuses"])
+        await _copy_transitions_by_slug(db, effective, project_set)
         await db.flush()
 
     await db.refresh(project_set, ["statuses"])

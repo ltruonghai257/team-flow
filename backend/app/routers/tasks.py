@@ -13,13 +13,26 @@ from app.auth import get_current_user, get_sub_team
 from app.config import settings
 from app.database import get_db
 from app.limiter import limiter
-from app.models import CustomStatus, Project, StatusSet, StatusSetScope, SubTeam, Task, TaskPriority, TaskStatus, TaskType, User
+from app.models import (
+    CustomStatus,
+    Project,
+    StatusSet,
+    StatusSetScope,
+    StatusTransition,
+    SubTeam,
+    Task,
+    TaskPriority,
+    TaskStatus,
+    TaskType,
+    User,
+)
 from app.schemas import (
     AiBreakdownRequest,
     AiBreakdownResponse,
     AiBreakdownSubtask,
     AiParseRequest,
     AiParseResponse,
+    BlockedStatusTransitionDetail,
     TaskCreate,
     TaskOut,
     TaskUpdate,
@@ -91,6 +104,143 @@ async def _resolve_custom_status(
                     return s.id
 
     return None
+
+
+async def _get_effective_status_set(
+    db: AsyncSession,
+    project_id: Optional[int],
+    sub_team_id: Optional[int],
+) -> Optional[StatusSet]:
+    if project_id:
+        result = await db.execute(
+            select(StatusSet)
+            .options(selectinload(StatusSet.statuses))
+            .where(
+                StatusSet.scope == StatusSetScope.project,
+                StatusSet.project_id == project_id,
+            )
+        )
+        status_set = result.scalar_one_or_none()
+        if status_set:
+            return status_set
+
+    if sub_team_id:
+        result = await db.execute(
+            select(StatusSet)
+            .options(selectinload(StatusSet.statuses))
+            .where(
+                StatusSet.scope == StatusSetScope.sub_team_default,
+                StatusSet.sub_team_id == sub_team_id,
+            )
+        )
+        status_set = result.scalar_one_or_none()
+        if status_set:
+            return status_set
+
+    result = await db.execute(
+        select(StatusSet)
+        .options(selectinload(StatusSet.statuses))
+        .where(
+            StatusSet.scope == StatusSetScope.sub_team_default,
+            StatusSet.sub_team_id.is_(None),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def _resolve_effective_status_id_for_task(
+    db: AsyncSession,
+    *,
+    explicit_custom_status_id: Optional[int],
+    legacy_status: Optional[TaskStatus],
+    project_id: Optional[int],
+    sub_team_id: Optional[int],
+) -> Optional[int]:
+    return await _resolve_custom_status(
+        db,
+        explicit_custom_status_id,
+        legacy_status,
+        project_id,
+        sub_team_id,
+    )
+
+
+async def _enforce_status_transition(
+    db: AsyncSession,
+    task: Task,
+    *,
+    explicit_custom_status_id: Optional[int],
+    legacy_status: TaskStatus,
+    target_project_id: Optional[int],
+    sub_team_id: Optional[int],
+) -> Optional[int]:
+    current_status_id = await _resolve_effective_status_id_for_task(
+        db,
+        explicit_custom_status_id=task.custom_status_id,
+        legacy_status=task.status,
+        project_id=task.project_id,
+        sub_team_id=sub_team_id,
+    )
+    target_status_id = await _resolve_effective_status_id_for_task(
+        db,
+        explicit_custom_status_id=explicit_custom_status_id,
+        legacy_status=legacy_status,
+        project_id=target_project_id,
+        sub_team_id=sub_team_id,
+    )
+
+    if current_status_id is None or target_status_id is None:
+        return target_status_id
+    if current_status_id == target_status_id:
+        return target_status_id
+
+    target_status_result = await db.execute(
+        select(CustomStatus).where(CustomStatus.id == target_status_id)
+    )
+    target_status = target_status_result.scalar_one_or_none()
+    if not target_status:
+        raise HTTPException(status_code=400, detail="Invalid target status")
+
+    effective_status_set = await _get_effective_status_set(
+        db,
+        target_project_id,
+        sub_team_id,
+    )
+    if not effective_status_set:
+        return target_status_id
+
+    transitions_result = await db.execute(
+        select(StatusTransition).where(
+            StatusTransition.status_set_id == effective_status_set.id
+        )
+    )
+    transitions = transitions_result.scalars().all()
+    if not transitions:
+        return target_status_id
+
+    allowed_status_ids = [
+        transition.to_status_id
+        for transition in transitions
+        if transition.from_status_id == current_status_id
+    ]
+    if target_status_id in allowed_status_ids:
+        return target_status_id
+
+    current_status_result = await db.execute(
+        select(CustomStatus).where(CustomStatus.id == current_status_id)
+    )
+    current_status = current_status_result.scalar_one_or_none()
+    detail = BlockedStatusTransitionDetail(
+        code="status_transition_blocked",
+        message="This workflow does not allow moving the task to the selected status.",
+        status_set_id=effective_status_set.id,
+        current_status_id=current_status_id,
+        current_status_name=current_status.name if current_status else task.status.value,
+        target_status_id=target_status_id,
+        target_status_name=target_status.name,
+        allowed_status_ids=allowed_status_ids,
+    )
+    raise HTTPException(status_code=422, detail=detail.model_dump())
 
 _AI_BREAKDOWN_SYSTEM_PROMPT = """You are a task breakdown assistant. The user describes a feature or work item.
 Decompose it into 3–8 concrete subtasks. Respond with ONLY a valid JSON array (no markdown, no prose):
@@ -267,17 +417,31 @@ async def update_task(
 
     update_data = payload.model_dump(exclude_unset=True)
 
-    new_cs_id = update_data.pop("custom_status_id", None)
+    requested_custom_status_id = update_data.pop("custom_status_id", None)
     sub_team_id = sub_team.id if sub_team else None
-
-    if new_cs_id is not None or "status" in update_data:
-        resolved_cs_id = await _resolve_custom_status(
-            db,
-            new_cs_id,
-            update_data.get("status"),
-            task.project_id,
-            sub_team_id,
+    target_project_id = update_data.get("project_id", task.project_id)
+    target_legacy_status = update_data.get("status", task.status)
+    should_enforce_transition = (
+        requested_custom_status_id is not None
+        or "status" in update_data
+        or (
+            "project_id" in update_data
+            and update_data["project_id"] != task.project_id
         )
+    )
+
+    resolved_cs_id = task.custom_status_id
+    if should_enforce_transition:
+        resolved_cs_id = await _enforce_status_transition(
+            db,
+            task,
+            explicit_custom_status_id=requested_custom_status_id,
+            legacy_status=target_legacy_status,
+            target_project_id=target_project_id,
+            sub_team_id=sub_team_id,
+        )
+
+    if requested_custom_status_id is not None or "status" in update_data or "project_id" in update_data:
         if resolved_cs_id is not None:
             old_is_done = task.custom_status.is_done if task.custom_status else False
             new_cs_result = await db.execute(
@@ -293,15 +457,6 @@ async def update_task(
                 update_data["completed_at"] = None
 
             update_data["custom_status_id"] = resolved_cs_id
-        elif "status" in update_data:
-            new_status = update_data["status"]
-            old_is_done = task.custom_status.is_done if task.custom_status else (task.status == TaskStatus.done)
-            new_is_done = new_status == TaskStatus.done
-            if not old_is_done and new_is_done:
-                if not update_data.get("completed_at"):
-                    update_data["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
-            elif old_is_done and not new_is_done:
-                update_data["completed_at"] = None
 
     for field, value in update_data.items():
         setattr(task, field, value)
