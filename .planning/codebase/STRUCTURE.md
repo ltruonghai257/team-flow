@@ -49,6 +49,10 @@ windsurf-project/
 │   │   │       ├── NotificationBell.svelte
 │   │   │       ├── chat/
 │   │   │       │   └── UserPresenceIndicator.svelte
+│   │   │       ├── statuses/                 # Status-set management and transition rules
+│   │   │       │   ├── StatusSetManager.svelte
+│   │   │       │   ├── StatusTransitionEditor.svelte
+│   │   │       │   └── StatusTransitionPreview.svelte
 │   │   │       └── tasks/
 │   │   │           ├── AgileView.svelte      # Sprint board view
 │   │   │           ├── AiTaskInput.svelte    # Natural language task creation
