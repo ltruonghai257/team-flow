@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+Backend uses the Open WebUI-inspired package layout introduced in v2.1; see `docs/MIGRATION-V2.1.md` for the integrated guide and `backend/docs/MIGRATION-GUIDE-20.md` for the backend-only path map.
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

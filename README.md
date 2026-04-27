@@ -83,6 +83,8 @@ docker compose up --build
 
 ## Project Structure
 
+v2.1 structural refactor migration: see [`docs/MIGRATION-V2.1.md`](docs/MIGRATION-V2.1.md).
+
 ```
 windsurf-project/
 ├── backend/
