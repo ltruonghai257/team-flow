@@ -1,111 +1,141 @@
+<!-- refreshed: [YYYY-MM-DD] -->
 # Architecture
 
-*Mapped: 2026-04-22*
+**Analysis Date:** [YYYY-MM-DD]
 
-## Pattern
+## System Overview
 
-**Full-stack monorepo with decoupled frontend/backend.**
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                      Client Layer                            │
+├──────────────────┬──────────────────┬───────────────────────┤
+│    SvelteKit     │  Svelte Stores   │   Lib / Components    │
+│  `frontend/src/` │ `frontend/src/lib/stores/` │ `frontend/src/lib/components/` │
+└────────┬─────────┴────────┬─────────┴──────────┬────────────┘
+         │                  │                     │
+         ▼                  ▼                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      API Gateway (FastAPI)                   │
+│         `backend/app/api/main.py` & `backend/app/routers/`   │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Database / ORM (SQLAlchemy)                                 │
+│  `backend/app/db/database.py` & `backend/app/models.py`      │
+└─────────────────────────────────────────────────────────────┘
+```
 
-- Backend: FastAPI REST API + WebSocket server (async Python)
-- Frontend: SvelteKit SPA with server-side routing
-- Database: PostgreSQL (single schema, auto-migrated on startup)
-- Communication: REST over HTTP + multiplexed WebSocket for real-time
+## Component Responsibilities
+
+| Component | Responsibility | File |
+|-----------|----------------|------|
+| SvelteKit Routes | Page routing, page-level data fetching, and layouts | `frontend/src/routes/` |
+| Svelte Stores | Global state management (auth, notifications, teams) | `frontend/src/lib/stores/` |
+| API Clients | Typing and handling HTTP requests to backend | `frontend/src/lib/apis/` |
+| FastAPI Routers | Endpoint definitions, request validation, basic logic | `backend/app/routers/` |
+| SQLAlchemy Models | Database schema definitions | `backend/app/models.py` |
+| Pydantic Schemas | Request/Response validation and serialization | `backend/app/schemas/` |
+
+## Pattern Overview
+
+**Overall:** Client-Server SPA (Single Page Application) with RESTful API
+
+**Key Characteristics:**
+- **Asynchronous backend:** Heavy reliance on `async`/`await` in Python with Async SQLAlchemy and FastAPI.
+- **Component-driven UI:** SvelteKit frontend utilizing reusable Svelte components.
+- **Stateful stores:** Client-side caching and global state using Svelte stores (`authStore`, `notificationStore`).
+- **Dependency Injection:** FastAPI `Depends` is used pervasively for DB sessions (`get_db`) and Auth (`get_current_user`).
 
 ## Layers
 
-```
-┌─────────────────────────────────────────┐
-│  Frontend (SvelteKit / Svelte 5)        │
-│  Routes → Components → Stores → API    │
-└──────────────┬──────────────────────────┘
-               │ HTTP REST /api/*
-               │ WebSocket  /ws/chat
-┌──────────────▼──────────────────────────┐
-│  Backend (FastAPI)                      │
-│  Routers → Auth → DB Session           │
-│  WebSocket Manager (in-memory)         │
-│  APScheduler (background jobs)         │
-└──────────────┬──────────────────────────┘
-               │ asyncpg / SQLAlchemy async
-┌──────────────▼──────────────────────────┐
-│  PostgreSQL 16                          │
-└─────────────────────────────────────────┘
-```
+**Frontend Presentation Layer:**
+- Purpose: UI rendering, user interaction, routing.
+- Location: `frontend/src/routes/` and `frontend/src/lib/components/`
+- Contains: `.svelte` and `.ts` files.
+- Depends on: API clients, Svelte stores.
+- Used by: End users.
 
-## Backend Components
+**Frontend Data/State Layer:**
+- Purpose: Managing application state, fetching data, handling logic outside UI.
+- Location: `frontend/src/lib/stores/` and `frontend/src/lib/apis/`
+- Contains: Typescript API clients and Svelte readable/writable stores.
+- Depends on: Backend API.
+- Used by: Presentation Layer.
 
-### Entry Point
-`backend/app/main.py` — creates `FastAPI` app, registers all routers, sets up CORS middleware, manages lifespan (DB init + scheduler start/stop)
+**Backend API Layer:**
+- Purpose: Expose endpoints, enforce authentication/authorization, parse requests.
+- Location: `backend/app/routers/`
+- Contains: FastAPI APIRouters.
+- Depends on: Core/Services, Models.
+- Used by: Frontend Data Layer.
 
-### Routers (`backend/app/routers/`)
-Each router is a self-contained module with its own `APIRouter` prefix:
-
-| Router | Prefix | Responsibility |
-|--------|--------|----------------|
-| `auth.py` | `/api/auth` | Login (form), register, `/me`, logout |
-| `users.py` | `/api/users` | User CRUD, list team |
-| `projects.py` | `/api/projects` | Project CRUD |
-| `milestones.py` | `/api/milestones` | Milestone CRUD, filter by project |
-| `tasks.py` | `/api/tasks` | Task CRUD, filters, AI-parse endpoint |
-| `schedules.py` | `/api/schedules` | Calendar event CRUD with date range filter |
-| `notifications.py` | `/api/notifications` | Reminder CRUD, bulk set, dismiss |
-| `ai.py` | `/api/ai` | Persistent AI conversations + quick-chat via LiteLLM |
-| `chat.py` | `/api/chat` | Channel management |
-| `dashboard.py` | `/api/dashboard` | Aggregated stats |
-| `websocket.py` | `/ws` | Real-time WebSocket (chat, presence, assistant streaming) |
-
-### Auth Flow
-1. `POST /api/auth/token` — returns JWT, sets `access_token` HttpOnly cookie
-2. Subsequent requests: `get_current_user` dependency reads cookie OR Bearer header
-3. WebSocket: `get_user_from_cookie` validates token during handshake
-
-### WebSocket Architecture (`backend/app/websocket/manager.py`)
-- `ConnectionManager` singleton — in-memory, multi-device per user
-- Tracks: active sockets, channel subscriptions, assistant history per connection, cancel events for streaming
-- Message routing: type-dispatched JSON messages (`type` field)
-
-### Database Session
-`get_db()` — async generator providing `AsyncSession`, auto-commit on success, rollback on exception
-
-## Frontend Components
-
-### Routing (`frontend/src/routes/`)
-SvelteKit file-based routing:
-- `/` — Dashboard
-- `/projects` — Project list
-- `/tasks` — Task board (Kanban + Agile sprint views)
-- `/milestones` — Milestone tracker
-- `/team` — Team management + presence
-- `/schedule` — Calendar scheduler
-- `/ai` — AI assistant chat
-- `/login`, `/register` — Auth pages
-
-### State Management (`frontend/src/lib/stores/`)
-Svelte writable stores:
-- `auth.ts` — `authStore` (user, loading), `currentUser` derived, `isLoggedIn` derived
-- `chat.ts` — chat channel/DM state
-- `notifications.ts` — notification polling store
-
-### API Client (`frontend/src/lib/api.ts`)
-Thin fetch wrapper with `credentials: 'include'` for cookie auth. Organized by domain: `auth`, `users`, `projects`, `milestones`, `tasks`, `schedules`, `notifications`, `ai`, `chat`, `dashboard`.
-
-### WebSocket Client (`frontend/src/lib/websocket.ts`)
-`ChatWebSocket` singleton — single multiplexed WS connection, listener pattern, heartbeat + reconnect.
+**Backend Data Layer:**
+- Purpose: Database interactions, transaction management.
+- Location: `backend/app/db/` and `backend/app/models.py`
+- Contains: SQLAlchemy ORM definitions and sessions.
+- Depends on: PostgreSQL (implied by asyncpg/psycopg dependency).
+- Used by: API Layer.
 
 ## Data Flow
 
-### REST Request
-`Component` → `api.ts request()` → `fetch /api/*` → FastAPI router → `get_current_user` → DB → response
+### Primary Request Path (e.g., Fetching Tasks)
 
-### WebSocket Message
-`Component` → `chatWS.send({type, ...})` → `/ws/chat` → `websocket.py` dispatch → `ConnectionManager` → broadcast to target users
+1. Svelte Component calls API method (`frontend/src/lib/apis/tasks.ts`)
+2. FastAPI Router receives request (`backend/app/routers/tasks.py`)
+3. FastAPI dependency injects DB session and verifies user (`get_db`, `get_current_user`)
+4. Router queries DB via SQLAlchemy (`select(Task).where(...)`)
+5. Data returned as Pydantic model response (`TaskOut`)
+6. Frontend updates store/component state.
 
-### Notification Flow
-`APScheduler` (60s) → `process_due_notifications()` → DB query pending → flip to `sent` → frontend polling store detects new → toast notification
+## Key Abstractions
 
-## Key Design Decisions
+**FastAPI Dependency Injection:**
+- Purpose: Reusable logic for endpoints (Auth, DB, Limiting).
+- Examples: `backend/app/db/database.py:get_db`, `backend/app/utils/auth.py:get_current_user`
+- Pattern: Dependency Injection.
 
-- **No Alembic migrations in use yet** — schema created via `create_all` on startup (dev-friendly, not production-safe)
-- **In-memory WebSocket state** — channel subs and assistant history lost on server restart; not persisted to DB
-- **LiteLLM as AI abstraction** — easy model/provider switching via single `AI_MODEL` env var
-- **Cookie-based auth** — avoids localStorage token; works with SameSite cookies for CSRF protection
+**Svelte Stores:**
+- Purpose: Global, reactive state.
+- Examples: `frontend/src/lib/stores/auth.ts`, `frontend/src/lib/stores/notifications.ts`
+- Pattern: Observable / Publish-Subscribe.
+
+## Entry Points
+
+**Frontend Application:**
+- Location: `frontend/src/app.html` & `frontend/src/routes/+layout.svelte`
+- Triggers: Browser request.
+- Responsibilities: Initialization, Auth check, Layout rendering.
+
+**Backend Application:**
+- Location: `backend/app/api/main.py`
+- Triggers: Uvicorn/ASGI server startup.
+- Responsibilities: Configure CORS, register routers, start schedulers, handle migrations.
+
+## Architectural Constraints
+
+- **Threading:** Asynchronous event loops in both JS (browser) and Python (asyncio/FastAPI).
+- **Global state:** Handled locally in frontend via Svelte stores. Backend is mostly stateless across requests.
+- **Database Sessions:** Managed exclusively via FastAPI Dependency Injection (`get_db()`) to ensure proper connection pooling and cleanup.
+
+## Anti-Patterns
+
+### Logic in Routers
+
+**What happens:** Business logic and complex queries are sometimes written directly in `backend/app/routers/*.py`.
+**Why it's wrong:** It makes testing difficult without a full HTTP context and reduces code reusability.
+**Do this instead:** Extract complex operations into a dedicated `backend/app/services/` layer (e.g., `backend/app/services/task_service.py`).
+
+## Error Handling
+
+**Strategy:** Exception-based with unified HTTP error responses.
+
+**Patterns:**
+- Backend: Raising FastAPI `HTTPException` which gets translated to JSON error responses.
+- Frontend: Try-catch blocks in API clients or components, often feeding into a toast notification system (`svelte-sonner`).
+
+## Cross-Cutting Concerns
+
+**Logging:** Standard Python `logging` module configured in the backend.
+**Validation:** Pydantic schemas in the backend (`backend/app/schemas/`).
+**Authentication:** JWT-based or Session-based, validated via `Depends(get_current_user)` in FastAPI.

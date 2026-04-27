@@ -1,52 +1,77 @@
-# Integrations
+# External Integrations
 
-*Mapped: 2026-04-22*
+**Analysis Date:** 2026-04-28
 
-## Database
+## APIs & External Services
 
-- **PostgreSQL 16** (via Docker image `postgres:16-alpine`)
-  - Connection: `postgresql+asyncpg://postgres:password@localhost:5432/taskmanager`
-  - ORM: SQLAlchemy 2.x async engine (`backend/app/database.py`)
-  - Migrations: Alembic (configured, `backend/app/` — migration files not yet generated)
-  - Schema auto-created on startup via `Base.metadata.create_all`
+**AI Models:**
+- LiteLLM - Used for AI features routing and processing (`backend/app/utils/ai_client.py`)
+  - SDK/Client: `litellm`
+  - Auth: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` (supports GPT-4o, Claude, etc.)
 
-## AI / LLM
+**Email Sending:**
+- SMTP (FastAPI-Mail) - Sending user invites and KPI warnings (`backend/app/utils/email_service.py`)
+  - SDK/Client: `fastapi-mail`
+  - Auth: `MAIL_USERNAME`, `MAIL_PASSWORD`
+  - Default Server: `smtp.gmail.com`
 
-- **LiteLLM** (`backend/app/routers/ai.py`) — provider-agnostic LLM gateway
-  - Configured via `AI_MODEL` setting (default `gpt-4o`)
-  - Supports: OpenAI (`OPENAI_API_KEY`), Anthropic (`ANTHROPIC_API_KEY`), Ollama (local), and any LiteLLM-supported provider
-  - Used for: persistent AI conversation history, single-turn quick-chat, AI task parsing (NLP/JSON modes)
+## Data Storage
 
-## Authentication
+**Databases:**
+- PostgreSQL 16
+  - Connection: `DATABASE_URL` (e.g. `postgresql+asyncpg://...`)
+  - Client: `asyncpg` with `SQLAlchemy` ORM (`backend/app/core/config.py`)
 
-- **JWT / Cookie-based** (no third-party auth provider)
-  - `python-jose` for JWT sign/verify (`backend/app/auth.py`)
-  - `bcrypt` for password hashing
-  - Token delivered as `HttpOnly` cookie `access_token`; also accepts Bearer header
-  - 7-day expiry (`ACCESS_TOKEN_EXPIRE_MINUTES=10080`)
+**File Storage:**
+- Local filesystem only
 
-## WebSocket
+**Caching:**
+- None detected (Local memory / direct database queries)
 
-- **FastAPI native WebSocket** (`backend/app/routers/websocket.py`, `backend/app/websocket/manager.py`)
-  - Single `/ws/chat` endpoint multiplexed for: assistant chat, team channel messages, direct messages, presence updates
-  - Client: `frontend/src/lib/websocket.ts` — `ChatWebSocket` class with heartbeat (30s), exponential backoff reconnect (max 5 attempts)
-  - Auth via `access_token` cookie during WS handshake
+## Authentication & Identity
 
-## Background Jobs
+**Auth Provider:**
+- Custom
+  - Implementation: JWT (JSON Web Tokens) generated using `python-jose` with `HS256` and passwords hashed via `bcrypt` (`backend/requirements.txt`, `backend/app/core/config.py`).
 
-- **APScheduler** (`AsyncIOScheduler`) — `backend/app/scheduler_jobs.py`
-  - Job: `process_due_notifications` — polls every 60s, flips `EventNotification` rows from `pending` → `sent`
-  - Lifecycle managed in FastAPI lifespan context manager
+## Monitoring & Observability
 
-## Frontend → Backend Proxy
+**Error Tracking:**
+- None detected
 
-- Vite dev server proxies `/api/*` and `/ws/*` to backend (`frontend/vite.config.ts`)
-- Production: SvelteKit node adapter; proxy/reverse-proxy must be configured externally (nginx/caddy)
+**Logs:**
+- Standard Python logging module (`logging`) to stdout/stderr. Used actively in services like `backend/app/utils/email_service.py`.
 
-## No External Integrations (currently)
+## CI/CD & Deployment
 
-- No email sending (notifications are in-app only)
-- No OAuth providers
-- No file storage (S3, etc.)
-- No analytics or monitoring services
-- No push notification services
+**Hosting:**
+- Azure App Service (`scripts/deploy.sh`)
+
+**CI Pipeline:**
+- GitLab CI (`.gitlab-ci.yml` is present)
+- Azure Container Registry (ACR) used for monolith container building.
+
+## Environment Configuration
+
+**Required env vars:**
+- `DATABASE_URL` - Database connection string
+- `SECRET_KEY` - Used for JWT signing (must be changed in production)
+- `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` - For AI integration
+- `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SERVER` - For SMTP email sending
+- `ENVIRONMENT` - 'development' or 'production'
+
+**Secrets location:**
+- Local: `.env` file (loaded by Pydantic `BaseSettings` in `backend/app/core/config.py`)
+- Production: Azure App Service configuration settings
+
+## Webhooks & Callbacks
+
+**Incoming:**
+- None detected
+
+**Outgoing:**
+- None detected
+
+---
+
+*Integration audit: 2026-04-28*

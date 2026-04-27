@@ -1,121 +1,112 @@
-# Structure
+# Codebase Structure
 
-*Mapped: 2026-04-22*
+**Analysis Date:** [YYYY-MM-DD]
 
 ## Directory Layout
 
 ```
-windsurf-project/
-├── backend/                    # Python FastAPI backend
-│   ├── app/
-│   │   ├── main.py             # App factory, router registration, lifespan
-│   │   ├── config.py           # Settings (pydantic-settings, .env)
-│   │   ├── database.py         # SQLAlchemy async engine + session factory
-│   │   ├── models.py           # All SQLAlchemy ORM models
-│   │   ├── schemas.py          # Pydantic request/response schemas
-│   │   ├── auth.py             # JWT creation, cookie/bearer auth dependencies
-│   │   ├── scheduler_jobs.py   # APScheduler background jobs
-│   │   ├── routers/            # One file per domain (11 routers)
-│   │   │   ├── ai.py
-│   │   │   ├── auth.py
-│   │   │   ├── chat.py
-│   │   │   ├── dashboard.py
-│   │   │   ├── milestones.py
-│   │   │   ├── notifications.py
-│   │   │   ├── projects.py
-│   │   │   ├── schedules.py
-│   │   │   ├── tasks.py
-│   │   │   ├── users.py
-│   │   │   └── websocket.py
-│   │   └── websocket/
-│   │       └── manager.py      # ConnectionManager singleton
-│   ├── .env.example
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── frontend/                   # SvelteKit frontend
-│   ├── src/
-│   │   ├── app.html            # HTML shell
-│   │   ├── app.css             # Global CSS (Tailwind imports)
-│   │   ├── lib/
-│   │   │   ├── api.ts          # Typed fetch wrapper (all API calls)
-│   │   │   ├── utils.ts        # Shared utilities
-│   │   │   ├── websocket.ts    # WebSocket client singleton
-│   │   │   ├── stores/
-│   │   │   │   ├── auth.ts     # Auth state store
-│   │   │   │   ├── chat.ts     # Chat state store
-│   │   │   │   └── notifications.ts  # Notification polling store
-│   │   │   └── components/
-│   │   │       ├── NotificationBell.svelte
-│   │   │       ├── chat/
-│   │   │       │   └── UserPresenceIndicator.svelte
-│   │   │       ├── statuses/                 # Status-set management and transition rules
-│   │   │       │   ├── StatusSetManager.svelte
-│   │   │       │   ├── StatusTransitionEditor.svelte
-│   │   │       │   └── StatusTransitionPreview.svelte
-│   │   │       └── tasks/
-│   │   │           ├── AgileView.svelte      # Sprint board view
-│   │   │           ├── AiTaskInput.svelte    # Natural language task creation
-│   │   │           ├── KanbanBoard.svelte    # Drag-and-drop kanban
-│   │   │           └── KanbanCard.svelte     # Task card
-│   │   └── routes/
-│   │       ├── +layout.svelte   # Root layout (sidebar nav, auth guard)
-│   │       ├── +page.svelte     # Dashboard
-│   │       ├── ai/+page.svelte
-│   │       ├── login/+page.svelte
-│   │       ├── milestones/+page.svelte
-│   │       ├── projects/+page.svelte
-│   │       ├── register/+page.svelte
-│   │       ├── schedule/+page.svelte
-│   │       ├── tasks/+page.svelte
-│   │       └── team/+page.svelte
-│   ├── package.json
-│   ├── svelte.config.js        # adapter-node
-│   ├── vite.config.ts          # Proxy config for /api, /ws
-│   ├── tailwind.config.js
-│   └── Dockerfile
-│
-├── openspec/                   # OpenSpec change management
-│   ├── config.yaml
-│   ├── changes/                # Active + archived change specs
-│   └── specs/                  # Global spec library
-│
-├── src/lib/components/         # Root-level src (appears partially duplicated/unused)
-│   └── tasks/                  # Empty — likely a leftover artifact
-│
-├── docker-compose.yml          # Full-stack dev/prod orchestration
-├── package.json                # Root (no scripts — likely workspace root)
-├── README.md
-└── .gitignore
+[project-root]/
+├── backend/               # FastAPI backend application
+│   ├── alembic/           # Database migration scripts
+│   ├── app/               # Main backend source code
+│   │   ├── api/           # Entrypoints and API configuration
+│   │   ├── core/          # Core configuration and security
+│   │   ├── db/            # Database connection and session management
+│   │   ├── models/        # (Migrating) SQLAlchemy ORM models
+│   │   ├── routers/       # API endpoint definitions (controllers)
+│   │   ├── schemas/       # Pydantic validation schemas
+│   │   ├── services/      # Business logic services
+│   │   ├── utils/         # Helper functions
+│   │   └── models.py      # Legacy/Current main models file
+│   └── tests/             # Backend test suite
+├── frontend/              # SvelteKit frontend application
+│   ├── playwright-report/ # E2E test reports
+│   ├── src/               # Main frontend source code
+│   │   ├── lib/           # Shared utilities and components
+│   │   │   ├── apis/      # API client wrappers for backend communication
+│   │   │   ├── components/# Reusable Svelte UI components
+│   │   │   ├── stores/    # Svelte state stores
+│   │   │   └── types/     # TypeScript type definitions
+│   │   └── routes/        # SvelteKit file-based routing pages
+│   └── tests/             # Playwright E2E tests
+├── scripts/               # Utility scripts for deployment
+└── docs/                  # Project documentation and migration guides
 ```
 
-## Key Locations
+## Directory Purposes
 
-| What | Where |
-|------|-------|
-| App entry (backend) | `backend/app/main.py` |
-| All DB models | `backend/app/models.py` |
-| All API schemas | `backend/app/schemas.py` |
-| Auth logic | `backend/app/auth.py` |
-| Environment config | `backend/app/config.py` + `backend/.env` |
-| WebSocket hub | `backend/app/websocket/manager.py` |
-| API client (frontend) | `frontend/src/lib/api.ts` |
-| WS client (frontend) | `frontend/src/lib/websocket.ts` |
-| Auth store (frontend) | `frontend/src/lib/stores/auth.ts` |
-| Root layout / nav | `frontend/src/routes/+layout.svelte` |
-| Docker orchestration | `docker-compose.yml` |
+**`backend/app/routers/`:**
+- Purpose: Define API endpoints, handle HTTP requests/responses, and perform basic request validation.
+- Contains: FastAPI router files (e.g., `tasks.py`, `projects.py`).
+- Key files: `backend/app/api/main.py` (includes all routers).
+
+**`frontend/src/routes/`:**
+- Purpose: Define application pages based on file paths.
+- Contains: SvelteKit page and layout components (`+page.svelte`, `+layout.svelte`).
+- Key files: `frontend/src/routes/+layout.svelte` (Main layout).
+
+**`frontend/src/lib/apis/`:**
+- Purpose: Provide strongly typed client functions to interact with the backend API.
+- Contains: TypeScript wrapper functions.
+- Key files: `frontend/src/lib/apis/request.ts` (base fetcher), `tasks.ts`, `projects.ts`.
+
+## Key File Locations
+
+**Entry Points:**
+- `backend/app/api/main.py`: Main FastAPI application initialization.
+- `frontend/src/app.html`: Base HTML template for SvelteKit.
+- `frontend/src/routes/+layout.svelte`: Root layout wrapper for the frontend application.
+
+**Configuration:**
+- `backend/app/core/config.py`: Backend settings loaded via Pydantic `BaseSettings`.
+- `frontend/vite.config.ts`: Vite bundler configuration for SvelteKit.
+- `frontend/svelte.config.js`: Svelte compiler and kit configuration.
+- `frontend/tailwind.config.js`: TailwindCSS styling configuration.
+
+**Core Logic:**
+- `backend/app/models.py`: Database table definitions.
+- `backend/app/schemas/`: Data validation and serialization definitions.
+- `frontend/src/lib/stores/`: Client-side global state logic.
+
+**Testing:**
+- `backend/tests/`: Pytest suite for backend endpoints and logic.
+- `frontend/tests/`: Playwright suite for frontend end-to-end testing.
 
 ## Naming Conventions
 
-- **Backend files**: snake_case Python modules, one router per domain
-- **Frontend files**: PascalCase for `.svelte` components, camelCase for `.ts` modules
-- **Routes**: lowercase directory names matching URL paths
-- **Stores**: named `*Store` (e.g. `authStore`, `notificationStore`)
-- **API modules**: named by resource domain (`auth`, `tasks`, `projects`, etc.)
+**Files:**
+- Backend Routers: `snake_case.py` (e.g., `sub_teams.py`).
+- Svelte Components: `PascalCase.svelte` (e.g., `NotificationBell.svelte`).
+- SvelteKit Routes: Special files prefixed with `+` (e.g., `+page.svelte`).
+- Frontend Libs/Utils: `camelCase.ts` or `kebab-case.ts` (e.g., `status-sets.ts`).
 
-## Notable Structural Issues
+**Directories:**
+- Route parameters: `[parameterName]` (e.g., `frontend/src/routes/performance/[id]`).
 
-- `src/lib/components/tasks/` at root level — appears to be a leftover from project scaffolding, not used by frontend
-- Root `package.json` / `yarn.lock` at top level — no scripts defined; frontend has its own `package.json`
-- No test directories found in either backend or frontend
-- No Alembic `migrations/` directory — schema managed via `create_all`
+## Where to Add New Code
+
+**New Feature (Full Stack):**
+1. **Backend Model:** Update `backend/app/models.py` or `backend/app/models/`.
+2. **Backend Schema:** Add Pydantic models in `backend/app/schemas/`.
+3. **Backend Router:** Create a new file in `backend/app/routers/` and include it in `backend/app/api/main.py`.
+4. **Frontend API Client:** Add a new service wrapper in `frontend/src/lib/apis/`.
+5. **Frontend UI:** Create a new page folder in `frontend/src/routes/` and corresponding components in `frontend/src/lib/components/`.
+
+**New Component/Module:**
+- Implementation: `frontend/src/lib/components/[FeatureName]/[ComponentName].svelte`
+
+**Utilities:**
+- Shared frontend helpers: `frontend/src/lib/utils/` or `frontend/src/lib/` directly.
+- Shared backend helpers: `backend/app/utils/`.
+
+## Special Directories
+
+**`backend/alembic/`:**
+- Purpose: Database migration scripts.
+- Generated: Partially (migration files are generated by Alembic).
+- Committed: Yes.
+
+**`frontend/.svelte-kit/` & `frontend/build/`:**
+- Purpose: Compiled artifacts and temporary development files.
+- Generated: Yes.
+- Committed: No (should be in `.gitignore`).

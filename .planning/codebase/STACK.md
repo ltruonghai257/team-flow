@@ -1,69 +1,81 @@
-# Stack
+# Technology Stack
 
-*Mapped: 2026-04-22*
+**Analysis Date:** 2026-04-28
 
 ## Languages
 
-- **Python 3.13** — backend (`backend/`)
-- **TypeScript 5.4** — frontend (`frontend/src/`)
-- **Svelte 5 / HTML/CSS** — UI templates
+**Primary:**
+- TypeScript 5.4 - Frontend logic and components (`frontend/package.json`)
+- Python 3.12 - Backend API and business logic (`Dockerfile`, `backend/requirements.txt`)
 
-## Runtime & Servers
+**Secondary:**
+- Svelte/HTML/CSS - Frontend views (`frontend/src/`)
+- Shell/Bash - Deployment and setup scripts (`scripts/deploy.sh`)
 
-- **Uvicorn** (ASGI, `uvicorn[standard]>=0.30.0`) — serves FastAPI backend on port 8000
-- **Vite 6 / Node** — SvelteKit dev server on port 5173; production build via `@sveltejs/adapter-node`
+## Runtime
+
+**Environment:**
+- Node.js / Bun 1 - Frontend build environment (`Dockerfile`, `frontend/package.json`)
+- Python 3.12-slim - Backend runtime (`Dockerfile`)
+- Docker - Local development and production deployment (`docker-compose.yml`, `Dockerfile`)
+- Nginx / Supervisor - Production process management and reverse proxy (`Dockerfile`)
+
+**Package Manager:**
+- Yarn / Bun - Frontend package managers (lockfiles present for both)
+- pip - Backend package manager (`backend/requirements.txt`)
+- Lockfile: present (`yarn.lock`, `bun.lock`)
 
 ## Frameworks
 
-| Layer | Framework | Version |
-|-------|-----------|---------|
-| Backend API | FastAPI | >=0.115.0 |
-| Frontend | SvelteKit | ^2.5.7 |
-| UI components | Svelte 5 | ^5.0.0 |
-| CSS | TailwindCSS | ^3.4.4 |
+**Core:**
+- SvelteKit 2.5 - Frontend framework for SPA building (`frontend/package.json`)
+- FastAPI 0.115 - Backend REST API framework (`backend/requirements.txt`)
 
-## Key Libraries
+**Testing:**
+- Playwright 1.59 - E2E testing for the frontend (`frontend/package.json`)
+- Pytest - Backend testing (`backend/tests/`)
 
-### Backend
-- `sqlalchemy>=2.0.36` + `asyncpg>=0.30.0` — async ORM + PostgreSQL driver
-- `alembic>=1.14.0` — database migrations
-- `pydantic>=2.10.0` + `pydantic-settings>=2.6.0` — schema validation + config
-- `python-jose[cryptography]>=3.3.0` — JWT encoding/decoding
-- `bcrypt>=4.0.0` — password hashing
-- `litellm>=1.55.0` — unified LLM API gateway (OpenAI, Anthropic, Ollama, etc.)
-- `apscheduler>=3.10.4` — background job scheduler (AsyncIOScheduler)
-- `httpx>=0.28.0` — async HTTP client
+**Build/Dev:**
+- Vite 6.0 - Frontend build tool (`frontend/vite.config.ts`)
+- TailwindCSS 3.4 - Styling framework (`frontend/tailwind.config.js`)
+- Uvicorn 0.30.0 - Backend ASGI server (`backend/requirements.txt`)
+- Docker Compose - Local orchestrator (`docker-compose.yml`)
 
-### Frontend
-- `lucide-svelte ^0.378.0` — icon library
-- `svelte-dnd-action ^0.9.69` — drag-and-drop for Kanban
-- `svelte-sonner ^0.3.27` — toast notifications
-- `date-fns ^3.6.0` — date utilities
+## Key Dependencies
+
+**Critical:**
+- SQLAlchemy 2.0.36 - Backend ORM for database interactions
+- asyncpg 0.30.0 - Asynchronous PostgreSQL database driver
+- Alembic 1.14.0 - Database migration tool
+- svelte-dnd-action 0.9.69 - Drag and drop functionality for Kanban/boards
+- layerchart & d3-shape - Data visualization on the frontend
+
+**Infrastructure:**
+- litellm 1.55.0 - Universal API client for AI model integrations
+- apscheduler 3.10.4 - Backend background job scheduling
+- fastapi-mail 1.4.1 - Sending emails asynchronously from FastAPI
+- slowapi 0.1.9 - Rate limiting for FastAPI
 
 ## Configuration
 
-### Backend (`backend/app/config.py`)
-Uses `pydantic-settings` `BaseSettings` reading from `.env`:
-```
-DATABASE_URL=postgresql+asyncpg://...
-SECRET_KEY=...
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=10080  # 7 days
-COOKIE_SECURE=True
-AI_MODEL=gpt-4o
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=...
-```
+**Environment:**
+- Configured via `.env` file loaded through Pydantic's `BaseSettings` (`backend/app/core/config.py`).
+- Requires variables like `DATABASE_URL`, `SECRET_KEY`, `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`, and `MAIL_*` credentials.
 
-### Frontend (`frontend/vite.config.ts`)
-- `PUBLIC_API_BASE` env var controls backend proxy target (default `http://localhost:8000`)
-- `/api/*` and `/ws/*` proxied to backend
+**Build:**
+- Frontend: `frontend/vite.config.ts`, `frontend/svelte.config.js`, `frontend/tailwind.config.js`
+- Backend: `Dockerfile` (Monolith setup using multistage builds)
+- Infrastructure: `docker-compose.yml`
 
-## Package Management
-- **Backend**: pip / `requirements.txt` (no lock file)
-- **Frontend**: yarn 1.22.22 (`yarn.lock`) + bun (`bun.lock` also present)
+## Platform Requirements
 
-## Containerization
-- `docker-compose.yml` — three services: `postgres:16-alpine`, `teamflow_backend`, `teamflow_frontend`
-- Individual `Dockerfile`s in `backend/` and `frontend/`
-- Backend port 8000, frontend port 3000 in container; postgres port 5432
+**Development:**
+- Docker Desktop or equivalent (Docker Compose for `postgres`, `backend`, `frontend`)
+- Node.js/Bun and Python 3.12 (if running natively)
+
+**Production:**
+- Azure App Service (deployed via Azure Container Registry). Built as a monolith container running Nginx, Supervisor, FastAPI, and Svelte static files (`scripts/deploy.sh`).
+
+---
+
+*Stack analysis: 2026-04-28*

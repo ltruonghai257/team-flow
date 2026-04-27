@@ -1,119 +1,81 @@
-# Conventions
+# Coding Conventions
 
-*Mapped: 2026-04-22*
+**Analysis Date:** 2024-05-18
 
-## Backend (Python)
+## Naming Patterns
 
-### Code Style
-- Python 3.13, standard PEP 8 — no formatter config found (no `pyproject.toml`, no `ruff.toml`)
-- Type hints used throughout; `Optional[T]` style (not `T | None`) — pre-3.10 style preserved
-- `from __future__ import annotations` used in `scheduler_jobs.py` only
+**Files:**
+- **Backend:** Python files use `snake_case.py` (e.g., `performance.py`, `sub_teams.py`, `test_tasks.py`).
+- **Frontend Components:** Svelte components use `PascalCase.svelte` (e.g., `KanbanCard.svelte`, `StatusTransitionEditor.svelte`).
+- **Frontend Tests:** Playwright tests use `snake_case.spec.ts` or `kebab-case.spec.ts` (e.g., `sprint_board.spec.ts`, `task-modal.spec.ts`).
 
-### Naming
-- Modules: `snake_case` (e.g. `scheduler_jobs.py`, `task.py`)
-- Classes: `PascalCase` (e.g. `TaskStatus`, `ConnectionManager`)
-- Functions/variables: `snake_case`
-- Pydantic schemas: `{Domain}Create`, `{Domain}Update`, `{Domain}Out` triplet pattern
-- Enum values: lowercase strings matching the concept (e.g. `TaskStatus.todo = "todo"`)
+**Functions:**
+- **Backend:** Python functions use `snake_case` (e.g., `def get_db():`, `def test_task_model_retains...`).
+- **Frontend:** TypeScript/JavaScript functions use `camelCase` (e.g., `taskTypeValue`, `formatDate`, `isOverdue`).
 
-### Router Pattern
-Each router file follows this structure:
-```python
-router = APIRouter(prefix="/api/{domain}", tags=["{domain}"])
+**Variables:**
+- **Backend:** `snake_case` for instances and variables. Constants likely use `UPPER_SNAKE_CASE`.
+- **Frontend:** `camelCase` for state, props, and standard variables.
 
-@router.get("/", response_model=List[{Domain}Out])
-async def list_{domain}s(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    ...
+**Types & Classes:**
+- **Backend & Frontend:** `PascalCase` for Python classes, Pydantic schemas, and TypeScript interfaces/types (e.g., `Project`, `Milestone`, `TaskOut`).
 
-@router.post("/", response_model={Domain}Out, status_code=201)
-async def create_{domain}(payload: {Domain}Create, db: AsyncSession = Depends(get_db), ...):
-    ...
+## Code Style
 
-@router.patch("/{id}", response_model={Domain}Out)
-async def update_{domain}(id: int, payload: {Domain}Update, ...):
-    update_data = payload.model_dump(exclude_unset=True)  # only update provided fields
-    ...
+**Backend (Python/FastAPI):**
+- **Type Hinting:** Fully typed using standard Python type hints and Pydantic models.
+- **Decorators:** Extensive use of `@router.get`, `@router.post`, etc. 
+- **Response Models:** Always defined explicitly in the decorator (e.g., `@router.get("/", response_model=List[ProjectOut])`).
+- **Status Codes:** Explicit status codes are used for mutations (e.g., `status_code=201` for POST, `status_code=204` for DELETE).
+- **ORM:** SQLAlchemy classes inherit from a declarative `Base` (`app.db.database.Base`).
 
-@router.delete("/{id}", status_code=204)
-async def delete_{domain}(...):
-    ...
-```
+**Frontend (SvelteKit):**
+- **Component Structure:** `<script lang="ts">`, followed by HTML/Svelte markup, typically without `<style>` tags because Tailwind CSS is used.
+- **Styling:** Tailwind CSS utility classes are used exclusively for styling.
+- **Reactivity:** Using Svelte standard reactive declarations and event modifiers (`on:click|stopPropagation`).
+- **Icons:** Uses `lucide-svelte` for iconography.
 
-### Error Handling
-- `HTTPException` with appropriate status codes (400, 401, 404, 422, 502)
-- 404: "X not found" pattern: `result.scalar_one_or_none()` → `if not X: raise HTTPException(404, ...)`
-- 502: wraps external service errors (LiteLLM): `except Exception as e: raise HTTPException(502, ...)`
-- DB session: automatic rollback on exception via `get_db()` generator
+## Import Organization
 
-### Database Patterns
-- `await db.flush()` after writes (not `commit()`) — session committed by `get_db()` at end of request
-- `selectinload()` for eager-loading relationships (e.g. `Task.assignee`)
-- All queries use `select(Model).where(...)` style (SQLAlchemy 2.x)
-- `payload.model_dump(exclude_unset=True)` for partial updates (PATCH semantics)
+**Backend:**
+1. Standard library imports (e.g., `from datetime import datetime`).
+2. Third-party packages (e.g., `from fastapi import APIRouter`, `from sqlalchemy import Column`).
+3. Local application imports (e.g., `from app.models import Task`, `from app.db.database import get_db`).
 
-### Datetime Handling
-- Store naive UTC datetimes in DB (`datetime.utcnow()`)
-- `_to_naive_utc()` validator in schemas strips tzinfo from incoming tz-aware datetimes
-- Validator applied via `field_validator(..., mode="after")` pattern
+**Frontend:**
+1. Svelte/SvelteKit built-ins or libraries (`import { test, expect } from '@playwright/test';`).
+2. Path aliases for internal utilities (`import { formatDate } from '$lib/utils';`).
+3. Components (`import { Pencil } from 'lucide-svelte';`).
 
-### AI Response Handling
-- LiteLLM responses: `response.choices[0].message.content`
-- JSON extraction: tries `re.search(r"```(?:json)?\s*(\{.*?\})\s*```", ...)` before falling back to bare `{...}` extraction
-- `_coerce_ai_parse()` pattern: normalize raw dict, drop invalid enum values gracefully
+## Error Handling
 
-## Frontend (TypeScript / Svelte)
+**Backend Patterns:**
+- FastAPI `HTTPException` is raised for business logic validation errors and resource not found errors.
+- Structured details are returned in 422 errors for specific failures (e.g., `status_transition_blocked` with current and target status IDs).
 
-### Code Style
-- TypeScript strict mode (`tsconfig.json`)
-- Svelte 5 syntax — uses `$:` reactive declarations, Svelte stores
-- No ESLint/Prettier config found — code style is consistent but not enforced by tooling
+## Logging
 
-### Naming
-- Component files: `PascalCase.svelte` (e.g. `KanbanBoard.svelte`, `NotificationBell.svelte`)
-- Module files: `camelCase.ts` (e.g. `api.ts`, `websocket.ts`)
-- Store exports: `camelCase` + `Store` suffix (e.g. `authStore`, `notificationStore`)
-- Derived stores: descriptive names (e.g. `currentUser`, `isLoggedIn`)
+**Framework:** Standard console/print or Python logging module (implied, typical for FastAPI).
 
-### API Client Pattern (`frontend/src/lib/api.ts`)
-```typescript
-const BASE = '/api';
+**Patterns:**
+- Unhandled exceptions are caught by FastAPI's default handlers.
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    // always: credentials: 'include', Content-Type: application/json
-}
+## Function Design
 
-export const {domain} = {
-    list: () => request('/domain/'),
-    get: (id: number) => request(`/domain/${id}`),
-    create: (data: object) => request('/domain/', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: number, data: object) => request(`/domain/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    delete: (id: number) => request(`/domain/${id}`, { method: 'DELETE' })
-};
-```
+**Parameters:**
+- Backend relies on dependency injection for request dependencies like `db_session: AsyncSession = Depends(get_db)`.
 
-### Store Pattern
-```typescript
-function createXStore() {
-    const { subscribe, set, update } = writable<XState>({...});
-    return {
-        subscribe,
-        async action() { ... }
-    };
-}
-export const xStore = createXStore();
-export const derivedValue = derived(xStore, ($s) => $s.field);
-```
+**Return Values:**
+- Pydantic schemas (defined in `response_model`) strictly dictate the shape of API responses.
 
-### Component Conventions
-- Auth guard in `+layout.svelte` via `onMount` + reactive `$:` statements
-- Icon imports from `lucide-svelte` (tree-shaken per-component)
-- Toast notifications via `svelte-sonner` `toast.info()`
-- Dark theme: `bg-gray-950` / `bg-gray-900` base, `text-gray-400` secondary, `primary-600` accent
-- TailwindCSS utility classes inline (no separate CSS modules)
+## Module Design
 
-### WebSocket Messaging
-All WS messages are JSON objects with a `type` discriminator field:
-```typescript
-chatWS.send({ type: 'channel_message', channel_id: 1, content: '...' });
-chatWS.send({ type: 'heartbeat' });
-```
+**Backend Exports:**
+- Routers are initialized with `router = APIRouter(...)` and then mounted in `main.py`.
+
+**Frontend Exports:**
+- Components are exported implicitly by Svelte. Functions in utilities are explicitly exported using `export function` or `export const`.
+
+---
+
+*Convention analysis: 2024-05-18*
