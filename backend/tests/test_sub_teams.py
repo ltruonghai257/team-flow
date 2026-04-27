@@ -89,6 +89,9 @@ async def test_supervisor_proposal_creates_pending_notification_and_preserves_se
         role=UserRole.supervisor,
         sub_team_id=sub_team.id,
     )
+    sub_team.supervisor_id = supervisor.id
+    db_session.add(sub_team)
+    await db_session.commit()
     admin = await _create_user(
         db_session,
         email="admin@example.com",
@@ -162,6 +165,9 @@ async def test_admin_can_update_and_approve_reminder_settings(
         role=UserRole.supervisor,
         sub_team_id=sub_team.id,
     )
+    sub_team.supervisor_id = supervisor.id
+    db_session.add(sub_team)
+    await db_session.commit()
 
     admin_token = await _login(async_client, admin.username, "password")
     admin_headers = {
@@ -187,14 +193,18 @@ async def test_admin_can_update_and_approve_reminder_settings(
         json={"milestone_reminders_enabled": False},
         headers=supervisor_headers,
     )
+    print("RESPONSE:", response.json())
     assert response.status_code == 201
     proposal_id = response.json()["id"]
 
+    async_client.cookies.clear()
     response = await async_client.post(
         f"/api/sub-teams/reminder-settings/proposals/{proposal_id}/review",
         json={"decision": "approve"},
         headers=admin_headers,
     )
+    if response.status_code != 200:
+        print("REVIEW RESPONSE:", response.json())
     assert response.status_code == 200
     reviewed = response.json()
     assert reviewed["status"] == "approved"
