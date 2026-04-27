@@ -1,33 +1,79 @@
-import pytest
+import os
+from pathlib import Path
 
-from app.models import SubTeam, User, UserRole
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+os.environ.setdefault(
+    "DATABASE_URL",
+    f"sqlite+aiosqlite:///{Path(__file__).resolve().parent / 'test.db'}",
+)
+os.environ.setdefault("RUN_MIGRATIONS", "false")
+os.environ.setdefault("COOKIE_SECURE", "false")
+
 from app.auth import hash_password
+from app.database import Base, get_db
+from app.main import app
+from app.models import SubTeam, User, UserRole
 
-@pytest.fixture
+@pytest_asyncio.fixture
+async def db_session(tmp_path):
+    db_path = tmp_path / "test.db"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", echo=False)
+    session_local = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with session_local() as session:
+        yield session
+
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def async_client(db_session: AsyncSession):
+    async def override_get_db():
+        try:
+            yield db_session
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        yield client
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+@pytest_asyncio.fixture
 async def sub_team(db_session):
-    """Create a test sub-team"""
     sub_team = SubTeam(name="Test Team", supervisor_id=None)
     db_session.add(sub_team)
     await db_session.commit()
     await db_session.refresh(sub_team)
     yield sub_team
-    await db_session.delete(sub_team)
-    await db_session.commit()
 
-@pytest.fixture
+
+@pytest_asyncio.fixture
 async def user_with_sub_team(db_session, sub_team):
-    """Create a test user with sub-team assignment"""
     user = User(
         email="test@example.com",
         username="testuser",
         full_name="Test User",
         hashed_password=hash_password("password"),
         role=UserRole.member,
-        sub_team_id=sub_team.id
+        sub_team_id=sub_team.id,
     )
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
     yield user
-    await db_session.delete(user)
-    await db_session.commit()
