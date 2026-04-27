@@ -90,3 +90,42 @@ def test_compat_websocket_manager_same_object():
     from app.socket.manager import manager as canonical_manager
     from app.websocket.manager import manager as compat_manager
     assert canonical_manager is compat_manager
+
+
+# ── Plan 20-02: Model Package ─────────────────────────────────────────────────
+
+def test_aggregate_models_import():
+    from app.models import User, Task, EventNotification
+    assert User is not None
+    assert Task is not None
+    assert EventNotification is not None
+
+
+def test_aggregate_models_full_required_set():
+    import app.models as m
+    required = [
+        "User", "SubTeam", "Project", "Milestone", "Sprint", "Task",
+        "StatusSet", "CustomStatus", "StatusTransition",
+        "EventNotification", "Schedule", "AIConversation",
+    ]
+    missing = [name for name in required if not hasattr(m, name)]
+    assert not missing, f"Missing from app.models: {missing}"
+
+
+def test_canonical_model_domain_imports():
+    from app.models.users import User, SubTeam, TeamInvite, KPIWeightSettings
+    from app.models.work import Task, Project, Milestone, Sprint, StatusSet, CustomStatus, StatusTransition, Schedule
+    from app.models.notifications import EventNotification, SubTeamReminderSettings, ReminderSettingsProposal
+    from app.models.communication import ChatChannel, ChatConversation, ChatMessage, UserPresence
+    from app.models.ai import AIConversation, AIMessage
+    assert Task is not None
+    assert User is not None
+    assert AIConversation is not None
+
+
+def test_models_metadata_tables():
+    from app.db.database import Base
+    import app.models  # noqa: F401 — ensure registration
+    tables = set(Base.metadata.tables.keys())
+    for expected in ("users", "tasks", "event_notifications"):
+        assert expected in tables, f"Table '{expected}' not in metadata"
