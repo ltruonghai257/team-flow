@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Enum,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -194,6 +196,11 @@ class StatusSet(Base):
         order_by="CustomStatus.position",
         cascade="all, delete-orphan",
     )
+    transitions = relationship(
+        "StatusTransition",
+        back_populates="status_set",
+        cascade="all, delete-orphan",
+    )
     sub_team = relationship("SubTeam")
     project = relationship("Project")
 
@@ -223,6 +230,69 @@ class CustomStatus(Base):
 
     status_set = relationship("StatusSet", back_populates="statuses")
     tasks = relationship("Task", back_populates="custom_status")
+    outgoing_transitions = relationship(
+        "StatusTransition",
+        back_populates="from_status",
+        foreign_keys="StatusTransition.from_status_id",
+        cascade="all, delete-orphan",
+    )
+    incoming_transitions = relationship(
+        "StatusTransition",
+        back_populates="to_status",
+        foreign_keys="StatusTransition.to_status_id",
+        cascade="all, delete-orphan",
+    )
+
+
+class StatusTransition(Base):
+    __tablename__ = "status_transitions"
+    __table_args__ = (
+        UniqueConstraint(
+            "status_set_id",
+            "from_status_id",
+            "to_status_id",
+            name="uq_status_transitions_status_set_from_to",
+        ),
+        CheckConstraint(
+            "from_status_id != to_status_id",
+            name="ck_status_transitions_no_self_transition",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    status_set_id = Column(
+        Integer,
+        ForeignKey("status_sets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    from_status_id = Column(
+        Integer,
+        ForeignKey("custom_statuses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    to_status_id = Column(
+        Integer,
+        ForeignKey("custom_statuses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+
+    status_set = relationship("StatusSet", back_populates="transitions")
+    from_status = relationship(
+        "CustomStatus",
+        back_populates="outgoing_transitions",
+        foreign_keys=[from_status_id],
+    )
+    to_status = relationship(
+        "CustomStatus",
+        back_populates="incoming_transitions",
+        foreign_keys=[to_status_id],
+    )
 
 
 class Task(Base):
