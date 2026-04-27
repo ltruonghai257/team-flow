@@ -8,11 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.ai_client import acompletion
-from app.auth import get_current_user, get_sub_team
-from app.config import settings
-from app.database import get_db
-from app.limiter import limiter
+from app.utils.ai_client import acompletion
+from app.utils.auth import get_current_user, get_sub_team
+from app.core.config import settings
+from app.db.database import get_db
+from app.core.limiter import limiter
 from app.models import (
     CustomStatus,
     Project,

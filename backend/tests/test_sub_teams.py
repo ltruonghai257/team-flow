@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.auth import hash_password
+from app.utils.auth import hash_password
 from app.models import (
     EventNotification,
     NotificationEventType,

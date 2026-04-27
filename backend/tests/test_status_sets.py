@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 
-from app.auth import hash_password
+from app.utils.auth import hash_password
 from app.models import (
     CustomStatus,
     Project,

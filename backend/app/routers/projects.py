@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user, get_sub_team
-from app.database import get_db
+from app.utils.auth import get_current_user, get_sub_team
+from app.db.database import get_db
 from app.models import Project, SubTeam, User, UserRole
 from app.schemas import ProjectCreate, ProjectOut, ProjectUpdate
 

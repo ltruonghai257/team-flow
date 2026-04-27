@@ -6,9 +6,9 @@ from sqlalchemy import func, select, extract, case, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import require_supervisor, get_sub_team
-from app.database import get_db
-from app.email_service import send_kpi_warning_email
+from app.utils.auth import require_supervisor, get_sub_team
+from app.db.database import get_db
+from app.utils.email_service import send_kpi_warning_email
 from app.models import Project, SubTeam, User, Task, TaskStatus, TaskType, ChatMessage, KPIWeightSettings, CustomStatus, Sprint, SprintStatus
 from app.schemas import (
     PerformanceDashboard,

@@ -9,10 +9,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai_client import acompletion
-from app.auth import get_user_from_cookie
-from app.config import settings
-from app.database import AsyncSessionLocal
+from app.utils.ai_client import acompletion
+from app.utils.auth import get_user_from_cookie
+from app.core.config import settings
+from app.db.database import AsyncSessionLocal
 from app.models import (
     ChatChannel,
     ChatChannelMember,

@@ -7,17 +7,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import (
+from app.utils.auth import (
     create_access_token,
     get_current_user,
     get_sub_team,
     hash_password,
     require_supervisor_or_admin,
 )
-from app.config import settings
-from app.database import get_db
-from app.email_service import send_invite_email
-from app.limiter import limiter
+from app.core.config import settings
+from app.db.database import get_db
+from app.utils.email_service import send_invite_email
+from app.core.limiter import limiter
 from app.models import InviteStatus, SubTeam, TeamInvite, User, UserRole
 from app.schemas import (
     DirectAddRequest,

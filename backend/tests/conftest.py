@@ -12,8 +12,8 @@ os.environ.setdefault(
 os.environ.setdefault("RUN_MIGRATIONS", "false")
 os.environ.setdefault("COOKIE_SECURE", "false")
 
-from app.auth import hash_password
-from app.database import Base, get_db
+from app.utils.auth import hash_password
+from app.db.database import Base, get_db
 from app.main import app
 from app.models import SubTeam, User, UserRole
 

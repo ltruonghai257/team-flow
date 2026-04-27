@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.models import Milestone, Project
-from app.auth import hash_password
+from app.utils.auth import hash_password
 
 @pytest.mark.asyncio
 async def test_project_sub_team_scoping(async_client: AsyncClient, admin_user, db_session):
