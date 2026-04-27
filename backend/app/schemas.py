@@ -214,6 +214,36 @@ class StatusSetOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class StatusTransitionOut(BaseModel):
+    id: int
+    status_set_id: int
+    from_status_id: int
+    to_status_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class StatusTransitionPair(BaseModel):
+    from_status_id: int
+    to_status_id: int
+
+
+class StatusTransitionsReplace(BaseModel):
+    transitions: List[StatusTransitionPair]
+
+
+class BlockedStatusTransitionDetail(BaseModel):
+    code: str
+    message: str
+    status_set_id: int
+    current_status_id: int
+    current_status_name: str
+    target_status_id: int
+    target_status_name: str
+    allowed_status_ids: List[int]
+
+
 class CustomStatusCreate(BaseModel):
     name: str
     color: str = "#64748b"
