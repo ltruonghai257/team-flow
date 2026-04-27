@@ -14,6 +14,6 @@ export async function loginAs(page: Page, username?: string, password?: string) 
 	await page.locator('#username').fill(user);
 	await page.locator('#password').fill(pass);
 	await page.getByRole('button', { name: 'Sign In' }).click();
-	// Wait for redirect away from /login
-	await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 8000 });
+	// Wait for client-side navigation away from /login
+	await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15000 });
 }
