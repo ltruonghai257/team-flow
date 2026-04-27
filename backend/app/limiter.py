@@ -1,5 +1,3 @@
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
-# TODO: upgrade to Redis-backed storage for multi-instance
-limiter = Limiter(key_func=get_remote_address)
+# Phase 20 compatibility delegate — canonical path: app.core.limiter
+# Review for removal in Phase 22 after runtime/Docker/Azure verification.
+from app.core.limiter import limiter  # noqa: F401
