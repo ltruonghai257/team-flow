@@ -2,7 +2,7 @@ import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,6 +13,7 @@ from app.models import (
     Project,
     StatusSet,
     StatusSetScope,
+    StatusTransition,
     SubTeam,
     Task,
     User,
@@ -26,6 +27,8 @@ from app.schemas import (
     StatusDeletePayload,
     StatusReorderPayload,
     StatusSetOut,
+    StatusTransitionOut,
+    StatusTransitionsReplace,
 )
 
 router = APIRouter(prefix="/api/status-sets", tags=["status-sets"])
@@ -147,6 +150,40 @@ def _enrich_statuses(status_set: StatusSet, task_counts: dict) -> StatusSetOut:
     )
 
 
+async def _get_status_set_or_404(db: AsyncSession, status_set_id: int) -> StatusSet:
+    result = await db.execute(
+        select(StatusSet)
+        .options(selectinload(StatusSet.statuses))
+        .where(StatusSet.id == status_set_id)
+    )
+    status_set = result.scalar_one_or_none()
+    if not status_set:
+        raise HTTPException(status_code=404, detail="Status set not found")
+    return status_set
+
+
+async def _list_status_transitions(
+    db: AsyncSession, status_set_id: int, include_archived: bool
+) -> List[StatusTransition]:
+    result = await db.execute(
+        select(StatusTransition)
+        .options(
+            selectinload(StatusTransition.from_status),
+            selectinload(StatusTransition.to_status),
+        )
+        .where(StatusTransition.status_set_id == status_set_id)
+        .order_by(StatusTransition.from_status_id, StatusTransition.to_status_id)
+    )
+    transitions = result.scalars().all()
+    if include_archived:
+        return transitions
+    return [
+        transition
+        for transition in transitions
+        if not transition.from_status.is_archived and not transition.to_status.is_archived
+    ]
+
+
 @router.get("/default", response_model=StatusSetOut)
 async def get_default_set(
     db: AsyncSession = Depends(get_db),
@@ -182,6 +219,98 @@ async def get_effective_set(
     for s in status_set.statuses:
         task_counts[s.id] = await _status_task_count(db, s.id)
     return _enrich_statuses(status_set, task_counts)
+
+
+@router.get("/{status_set_id}/transitions", response_model=List[StatusTransitionOut])
+async def get_status_transitions(
+    status_set_id: int,
+    include_archived: bool = False,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await _get_status_set_or_404(db, status_set_id)
+    return await _list_status_transitions(db, status_set_id, include_archived)
+
+
+@router.post("/{status_set_id}/transitions", response_model=List[StatusTransitionOut])
+async def replace_status_transitions(
+    status_set_id: int,
+    payload: StatusTransitionsReplace,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
+):
+    _require_status_write_scope(current_user, sub_team)
+    status_set = await _get_status_set_or_404(db, status_set_id)
+    status_map = {status.id: status for status in status_set.statuses}
+    seen_pairs: set[tuple[int, int]] = set()
+
+    for pair in payload.transitions:
+        from_status = status_map.get(pair.from_status_id)
+        to_status = status_map.get(pair.to_status_id)
+        if not from_status or not to_status:
+            raise HTTPException(
+                status_code=400,
+                detail="Transition statuses must belong to this status set",
+            )
+        if from_status.is_archived or to_status.is_archived:
+            raise HTTPException(
+                status_code=400,
+                detail="Transition statuses must not be archived",
+            )
+        if pair.from_status_id == pair.to_status_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Self-transitions are not allowed",
+            )
+        key = (pair.from_status_id, pair.to_status_id)
+        if key in seen_pairs:
+            raise HTTPException(
+                status_code=400,
+                detail="Duplicate transition pair",
+            )
+        seen_pairs.add(key)
+
+    await db.execute(
+        delete(StatusTransition).where(StatusTransition.status_set_id == status_set_id)
+    )
+    for from_status_id, to_status_id in seen_pairs:
+        db.add(
+            StatusTransition(
+                status_set_id=status_set_id,
+                from_status_id=from_status_id,
+                to_status_id=to_status_id,
+            )
+        )
+    await db.flush()
+    return await _list_status_transitions(db, status_set_id, include_archived=True)
+
+
+@router.delete(
+    "/{status_set_id}/transitions/{transition_id}",
+    response_model=StatusTransitionOut,
+)
+async def delete_status_transition(
+    status_set_id: int,
+    transition_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    sub_team: Optional[SubTeam] = Depends(get_sub_team),
+):
+    _require_status_write_scope(current_user, sub_team)
+    result = await db.execute(
+        select(StatusTransition).where(
+            StatusTransition.id == transition_id,
+            StatusTransition.status_set_id == status_set_id,
+        )
+    )
+    transition = result.scalar_one_or_none()
+    if not transition:
+        raise HTTPException(status_code=404, detail="Transition not found")
+    deleted = StatusTransitionOut.model_validate(transition)
+    await db.delete(transition)
+    await db.flush()
+    return deleted
 
 
 @router.post("/default/statuses", response_model=CustomStatusOut, status_code=201)
