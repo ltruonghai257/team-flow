@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import {
 		tasks as tasksApi,
@@ -9,7 +10,7 @@
 		sprints as sprintsApi,
 		statusSets
 	} from '$lib/api';
-	import type { CustomStatus, StatusSet } from '$lib/api';
+	import type { CustomStatus, StatusSet, StatusTransition } from '$lib/api';
 	import StatusSetManager from '$lib/components/statuses/StatusSetManager.svelte';
 	import { isSupervisor } from '$lib/stores/auth';
 	import {
@@ -46,6 +47,7 @@
 	import SprintCloseModal from '$lib/components/sprints/SprintCloseModal.svelte';
 
 	type ViewMode = 'list' | 'kanban' | 'agile';
+	type StatusManagerTab = 'statuses' | 'transitions';
 
 	let taskList: any[] = [];
 	let backlogTaskList: any[] = [];
@@ -58,6 +60,7 @@
 	let showModal = false;
 	let showCloseSprintModal = false;
 	let showStatusManager = false;
+	let statusManagerTab: StatusManagerTab = 'statuses';
 	let editingTask: any = null;
 	let filterStatus = '';
 	let filterStatusId: number | null = null;
@@ -69,8 +72,11 @@
 	let filterProjectId: number | null = null;
 	let viewMode: ViewMode = 'list';
 	let aiMode: 'form' | 'nlp' | 'json' | 'breakdown' = 'form';
+	let transitionRows: StatusTransition[] = [];
 
 	const VIEW_KEY = 'tasks_view_mode';
+	const STATUS_MANAGER_KEY = 'status_manager';
+	const STATUS_TAB_KEY = 'status_tab';
 	const taskTypeIcons: Record<string, any> = {
 		feature: Sparkles,
 		bug: Bug,
@@ -98,6 +104,7 @@
 		statusSetData?.scope === 'project' && !filterProjectId && projectList.length > 1;
 	$: isTaskDone = (t: any) =>
 		t.custom_status?.is_done ?? (t.status === 'done');
+	$: hasTransitionRules = transitionRows.length > 0;
 
 	onMount(async () => {
 		const saved = localStorage.getItem(VIEW_KEY) as ViewMode | null;
@@ -119,6 +126,16 @@
 		const params = new URLSearchParams(routeKey);
 		const taskId = parsePositiveId(params.get('task_id'));
 		const sprintId = parsePositiveId(params.get('sprint_id'));
+		const statusManagerParam = params.get(STATUS_MANAGER_KEY);
+		const statusTabParam = params.get(STATUS_TAB_KEY);
+
+		showStatusManager =
+			statusManagerParam === '1' ||
+			statusManagerParam === 'true' ||
+			statusTabParam != null;
+		if (statusTabParam === 'transitions' || statusTabParam === 'statuses') {
+			statusManagerTab = statusTabParam;
+		}
 
 		highlightedTaskId = taskId;
 
@@ -148,11 +165,57 @@
 		}
 	}
 
+	async function syncStatusManagerRoute(open: boolean, tab: StatusManagerTab = statusManagerTab) {
+		const url = new URL($page.url);
+		if (open) {
+			url.searchParams.set(STATUS_MANAGER_KEY, '1');
+			url.searchParams.set(STATUS_TAB_KEY, tab);
+		} else {
+			url.searchParams.delete(STATUS_MANAGER_KEY);
+			url.searchParams.delete(STATUS_TAB_KEY);
+		}
+		await goto(url, {
+			replaceState: true,
+			noScroll: true,
+			keepFocus: true
+		});
+	}
+
+	function openStatusManager(tab: StatusManagerTab = statusManagerTab) {
+		showStatusManager = true;
+		statusManagerTab = tab;
+		void syncStatusManagerRoute(true, tab);
+	}
+
+	function closeStatusManager() {
+		showStatusManager = false;
+		void syncStatusManagerRoute(false);
+	}
+
+	function setStatusManagerTab(tab: StatusManagerTab) {
+		statusManagerTab = tab;
+		showStatusManager = true;
+		void syncStatusManagerRoute(true, tab);
+	}
+
 	async function loadStatusSet() {
 		try {
 			statusSetData = await statusSets.getEffective(filterProjectId ?? undefined);
 		} catch {
 			statusSetData = null;
+		}
+		await loadTransitionRows();
+	}
+
+	async function loadTransitionRows() {
+		if (!statusSetData?.id) {
+			transitionRows = [];
+			return;
+		}
+		try {
+			transitionRows = await statusSets.getTransitions(statusSetData.id, true);
+		} catch {
+			transitionRows = [];
 		}
 	}
 
@@ -212,6 +275,144 @@
 	$: activeSprint = sprintList.find((s) => s.id === selectedSprintId);
 	$: incompleteTasks = taskList.filter((t) => !isTaskDone(t));
 
+	function resolveTaskStatusId(task: any): number | null {
+		if (task?.custom_status_id != null) return task.custom_status_id;
+		if (task?.custom_status?.id != null) return task.custom_status.id;
+		const legacyStatus = task?.status;
+		if (!legacyStatus) return null;
+		const matched = statusSetData?.statuses.find(
+			(s: CustomStatus) => s.legacy_status === legacyStatus || s.slug === legacyStatus
+		);
+		return matched?.id ?? null;
+	}
+
+	function getTaskStatusName(task: any): string {
+		return (
+			statusDisplayName(task?.custom_status) ||
+			statusLabels[task?.status] ||
+			task?.status ||
+			'Unknown'
+		);
+	}
+
+	function getStatusById(statusId: number | null | undefined): CustomStatus | null {
+		if (statusId == null) return null;
+		return (
+			statusSetData?.statuses.find((s: CustomStatus) => s.id === statusId) ??
+			activeStatuses.find((s: CustomStatus) => s.id === statusId) ??
+			null
+		);
+	}
+
+	function getAllowedTargetStatusIds(currentStatusId: number | null): number[] {
+		const activeStatusIds = activeStatuses.map((s: CustomStatus) => s.id);
+		if (!hasTransitionRules || currentStatusId == null) return activeStatusIds;
+		const allowed = new Set<number>([currentStatusId]);
+		for (const transition of transitionRows) {
+			if (
+				transition.from_status_id === currentStatusId &&
+				activeStatusIds.includes(transition.to_status_id)
+			) {
+				allowed.add(transition.to_status_id);
+			}
+		}
+		return activeStatusIds.filter((statusId) => allowed.has(statusId));
+	}
+
+	function isMoveAllowed(task: any, targetStatusId: number | null): boolean {
+		const currentStatusId = resolveTaskStatusId(task);
+		if (currentStatusId == null || targetStatusId == null) return true;
+		if (currentStatusId === targetStatusId || !hasTransitionRules) return true;
+		return transitionRows.some(
+			(transition) =>
+				transition.from_status_id === currentStatusId &&
+				transition.to_status_id === targetStatusId
+		);
+	}
+
+	function getTaskStatusOptions(task: any) {
+		const currentStatusId = resolveTaskStatusId(task);
+		const allowedStatusIds = getAllowedTargetStatusIds(currentStatusId);
+		const allowedStatuses = activeStatuses.filter((status: CustomStatus) =>
+			allowedStatusIds.includes(status.id)
+		);
+		const currentStatus = getStatusById(currentStatusId);
+		const currentLabel = getTaskStatusName(task);
+
+		if (currentStatus) {
+			if (allowedStatuses.some((status) => status.id === currentStatus.id)) {
+				return allowedStatuses;
+			}
+			return [currentStatus, ...allowedStatuses];
+		}
+
+		return [
+			{
+				id: null,
+				status_set_id: statusSetData?.id ?? 0,
+				name: currentLabel,
+				slug: task?.status ?? '',
+				color: task?.custom_status?.color ?? '#64748b',
+				position: -1,
+				is_done: task?.custom_status?.is_done ?? task?.status === 'done',
+				is_archived: false,
+				legacy_status: task?.status ?? null,
+				task_count: 0,
+				created_at: '',
+				updated_at: ''
+			} as unknown as CustomStatus,
+			...allowedStatuses
+		];
+	}
+
+	function getLegacyStatusOptions(currentStatus: string) {
+		const options = [
+			{ value: 'todo', label: 'To Do' },
+			{ value: 'in_progress', label: 'In Progress' },
+			{ value: 'review', label: 'Review' },
+			{ value: 'done', label: 'Done' },
+			{ value: 'blocked', label: 'Blocked' }
+		];
+		if (!options.some((option) => option.value === currentStatus)) {
+			return [{ value: currentStatus, label: statusLabels[currentStatus] ?? currentStatus }, ...options];
+		}
+		return options;
+	}
+
+	type TaskWorkflowError = {
+		code?: string;
+		current_status_name?: string;
+		target_status_name?: string;
+		allowed_status_ids?: number[];
+	};
+
+	function getWorkflowErrorDetail(error: any): TaskWorkflowError | null {
+		const detail = error?.detail;
+		if (detail && typeof detail === 'object' && detail.code === 'status_transition_blocked') {
+			return detail as TaskWorkflowError;
+		}
+		return null;
+	}
+
+	function toastWorkflowBlocked(detail: TaskWorkflowError | null, fallback = 'This move is not allowed by the workflow rules.') {
+		if (detail?.current_status_name && detail?.target_status_name) {
+			toast.error(`Cannot move from ${detail.current_status_name} to ${detail.target_status_name}`);
+			return;
+		}
+		toast.error(fallback);
+	}
+
+	async function refreshWorkflowData() {
+		await loadStatusSet();
+	}
+
+	function isStatusRestricted(targetStatusId: number): boolean {
+		if (!hasTransitionRules) return false;
+		return activeStatuses.some(
+			(status: CustomStatus) => !canMoveStatus(status.id, targetStatusId)
+		);
+	}
+
 	function resetForm() {
 		const defaultStatus = activeStatuses[0] ?? null;
 		form = {
@@ -244,7 +445,7 @@
 			title: t.title,
 			description: t.description || '',
 			status: t.status,
-			custom_status_id: t.custom_status_id ?? null,
+			custom_status_id: activeStatuses.length > 0 ? resolveTaskStatusId(t) : null,
 			priority: t.priority,
 			type: t.type || 'task',
 			due_date: t.due_date ? t.due_date.slice(0, 10) : '',
@@ -291,9 +492,11 @@
 			estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
 			project_id: form.project_id ? Number(form.project_id) : null,
 			assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
-			sprint_id: editingTask ? form.sprint_id : selectedSprintId,
-			custom_status_id: form.custom_status_id ?? undefined
+			sprint_id: editingTask ? form.sprint_id : selectedSprintId
 		};
+		if (editingTask && activeStatuses.length > 0) {
+			payload.custom_status_id = form.custom_status_id ?? undefined;
+		}
 		try {
 			if (editingTask) {
 				await tasksApi.update(editingTask.id, payload);
@@ -305,7 +508,13 @@
 			showModal = false;
 			await loadTasks();
 		} catch (e: any) {
-			toast.error(e.message);
+			const detail = getWorkflowErrorDetail(e);
+			if (detail) {
+				toastWorkflowBlocked(detail);
+				await refreshWorkflowData();
+			} else {
+				toast.error(e.message);
+			}
 		}
 	}
 
@@ -363,7 +572,13 @@
 			await tasksApi.update(taskId, patch);
 		} catch (e: any) {
 			taskList = prev;
-			toast.error(e.message || 'Failed to update status');
+			const detail = getWorkflowErrorDetail(e);
+			if (detail) {
+				toastWorkflowBlocked(detail);
+				await refreshWorkflowData();
+			} else {
+				toast.error(e.message || 'Failed to update status');
+			}
 			throw e;
 		}
 	}
@@ -378,8 +593,48 @@
 			toast.success('Task moved');
 			await loadTasks();
 		} catch (e: any) {
-			toast.error(e.message || 'Failed to move task');
+			const detail = getWorkflowErrorDetail(e);
+			if (detail) {
+				toastWorkflowBlocked(detail);
+				await refreshWorkflowData();
+			} else {
+				toast.error(e.message || 'Failed to move task');
+			}
+			await loadTasks();
 		}
+	}
+
+	async function handleTaskMoveBlocked(e: CustomEvent) {
+		toastWorkflowBlocked(e.detail ?? null);
+		await refreshWorkflowData();
+		await loadTasks();
+	}
+
+	function getBlockedMoveDetail(task: any, targetStatusId: number) {
+		const currentStatusId = resolveTaskStatusId(task);
+		const targetStatus = getStatusById(targetStatusId);
+		const currentStatus = getStatusById(currentStatusId);
+		return {
+			allowed: isMoveAllowed(task, targetStatusId),
+			currentStatusId,
+			currentStatusName: currentStatus?.name ?? getTaskStatusName(task),
+			targetStatusId,
+			targetStatusName: targetStatus?.name ?? 'Selected status',
+			allowedStatusIds: getAllowedTargetStatusIds(currentStatusId)
+		};
+	}
+
+	function assessTaskMove(task: any, targetStatusId: number) {
+		return getBlockedMoveDetail(task, targetStatusId);
+	}
+
+	function canMoveStatus(currentStatusId: number, targetStatusId: number) {
+		if (currentStatusId === targetStatusId || !hasTransitionRules) return true;
+		return transitionRows.some(
+			(transition) =>
+				transition.from_status_id === currentStatusId &&
+				transition.to_status_id === targetStatusId
+		);
 	}
 
 	$: filterStatus, selectedTypes, filterMine, selectedSprintId, viewMode, loadTasks();
@@ -476,12 +731,12 @@
 
 		{#if $isSupervisor}
 			<button
-				on:click={() => (showStatusManager = !showStatusManager)}
+				on:click={() => (showStatusManager ? closeStatusManager() : openStatusManager())}
 				class="text-xs text-gray-400 hover:text-white border border-gray-700 rounded px-2 py-1.5 transition-colors"
 			>
-				Manage Statuses
-			</button>
-		{/if}
+				{showStatusManager ? 'Hide Statuses' : 'Manage Statuses'}
+		</button>
+	{/if}
 		<label class="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
 			<input
 				type="checkbox"
@@ -514,6 +769,8 @@
 				scopeLabel={filterProjectId && !isMixedProjectView ? 'Project' : 'Sub-team default'}
 				canManage={$isSupervisor}
 				{isMixedProjectView}
+				activeTab={statusManagerTab}
+				onTabChange={setStatusManagerTab}
 				onRefresh={loadStatusSet}
 			/>
 			{#if isMixedProjectView}
@@ -534,7 +791,10 @@
 			backlogTasks={backlogTaskList}
 			activeSprintId={selectedSprintId}
 			statuses={activeStatuses}
+			assessTaskMove={assessTaskMove}
+			isStatusRestricted={isStatusRestricted}
 			on:taskMove={handleTaskMove}
+			on:taskMoveBlocked={handleTaskMoveBlocked}
 			onEdit={openEdit}
 		/>
 	{:else if viewMode === 'agile'}
@@ -757,19 +1017,19 @@
 						<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 							<div>
 								<label class="label" for="t-status-e">Status</label>
-								<select id="t-status-e" bind:value={form.custom_status_id} class="input">
-									{#if activeStatuses.length > 0}
-										{#each activeStatuses as s}
+								{#if activeStatuses.length > 0}
+									<select id="t-status-e" bind:value={form.custom_status_id} class="input">
+										{#each getTaskStatusOptions(editingTask) as s}
 											<option value={s.id}>{s.name}</option>
 										{/each}
-									{:else}
-										<option value={null}>To Do</option>
-										<option value={null}>In Progress</option>
-										<option value={null}>Review</option>
-										<option value={null}>Done</option>
-										<option value={null}>Blocked</option>
-									{/if}
-								</select>
+									</select>
+								{:else}
+									<select id="t-status-e" bind:value={form.status} class="input">
+										{#each getLegacyStatusOptions(form.status) as option}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+									</select>
+								{/if}
 							</div>
 							<div>
 								<label class="label" for="t-priority-e">Priority</label>

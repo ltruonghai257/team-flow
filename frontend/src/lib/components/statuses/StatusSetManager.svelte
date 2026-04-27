@@ -12,20 +12,21 @@
 	export let scopeLabel = 'Sub-team default';
 	export let canManage = false;
 	export let isMixedProjectView = false;
+	export let activeTab: 'statuses' | 'transitions' = 'statuses';
+	export let onTabChange: (tab: 'statuses' | 'transitions') => void = () => {};
 	export let onRefresh: () => void = () => {};
 
 	let editingStatus: CustomStatus | null = null;
 	let deletingStatus: CustomStatus | null = null;
 	let creatingNew = false;
 	let savingOrder = false;
-	let activeTab: 'statuses' | 'transitions' = 'statuses';
 	let loadedTransitionSetId: number | null = null;
 	let loadingTransitions = false;
 	let transitions: StatusTransition[] = [];
 	let transitionLoadError = '';
 
-	$: if (isMixedProjectView) {
-		activeTab = 'statuses';
+	$: if (isMixedProjectView && activeTab !== 'statuses') {
+		onTabChange('statuses');
 	}
 	$: if (statusSet?.id && !isMixedProjectView && statusSet.id !== loadedTransitionSetId) {
 		void loadTransitions(statusSet.id);
@@ -136,7 +137,7 @@
 		<div class="inline-flex rounded border border-gray-700 bg-gray-900 p-0.5 text-xs">
 			<button
 				type="button"
-				on:click={() => (activeTab = 'statuses')}
+				on:click={() => onTabChange('statuses')}
 				class="rounded px-2 py-1 {activeTab === 'statuses'
 					? 'bg-indigo-600 text-white'
 					: 'text-gray-400 hover:text-gray-200'}"
@@ -145,7 +146,7 @@
 			</button>
 			<button
 				type="button"
-				on:click={() => (activeTab = 'transitions')}
+				on:click={() => onTabChange('transitions')}
 				class="rounded px-2 py-1 {activeTab === 'transitions'
 					? 'bg-indigo-600 text-white'
 					: 'text-gray-400 hover:text-gray-200'}"

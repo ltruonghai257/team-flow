@@ -8,6 +8,12 @@ interface SubTeam {
     supervisor_id: number | null;
 }
 
+interface ApiError extends Error {
+    detail?: unknown;
+    status?: number;
+    payload?: unknown;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function request<T = any>(
     path: string,
@@ -35,7 +41,20 @@ async function request<T = any>(
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || 'Request failed');
+        const detail = err?.detail ?? err;
+        const message =
+            typeof detail === 'string'
+                ? detail
+                : typeof detail?.message === 'string'
+                    ? detail.message
+                    : typeof err?.message === 'string'
+                        ? err.message
+                        : res.statusText || 'Request failed';
+        const error = new Error(message) as ApiError;
+        error.detail = detail;
+        error.status = res.status;
+        error.payload = err;
+        throw error;
     }
     if (res.status === 204) return undefined as T;
     return res.json();

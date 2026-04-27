@@ -15,7 +15,7 @@
 		try {
 			await authStore.login(username, password);
 			goto('/');
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message || 'Login failed');
 		} finally {
 			loading = false;

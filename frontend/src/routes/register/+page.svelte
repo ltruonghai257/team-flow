@@ -12,7 +12,7 @@
 			await auth.register(form);
 			toast.success('Account created! Please sign in.');
 			goto('/login');
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message || 'Registration failed');
 		} finally {
 			loading = false;
