@@ -4,7 +4,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { Info } from 'lucide-svelte';
 	import { statusLabels } from '$lib/utils';
-	import type { CustomStatus } from '$lib/api';
+	import type { CustomStatus } from '$lib/types';
 	import KanbanCard from './KanbanCard.svelte';
 
 	export let tasks: any[] = [];

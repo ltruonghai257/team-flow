@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { statusColorPalette } from '$lib/utils';
-	import type { CustomStatus } from '$lib/api';
+	import type { CustomStatus } from '$lib/types';
 
 	export let status: CustomStatus;
 	export let onSave: (data: { name: string; color: string; is_done: boolean }) => void = () => {};

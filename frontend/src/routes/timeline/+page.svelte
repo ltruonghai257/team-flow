@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { timeline, tasks as taskApi } from '$lib/api';
+	import { timeline, tasks as taskApi } from '$lib/apis';
 	import { toast } from 'svelte-sonner';
 	import TimelineToolbar from '$lib/components/timeline/TimelineToolbar.svelte';
 	import TimelineGantt from '$lib/components/timeline/TimelineGantt.svelte';

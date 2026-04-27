@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { performance } from '$lib/api';
+    import { performance } from '$lib/apis';
     import { toast } from 'svelte-sonner';
 
     export let userId: number;

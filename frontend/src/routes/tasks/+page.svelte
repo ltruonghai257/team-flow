@@ -9,8 +9,8 @@
 		milestones as milestonesApi,
 		sprints as sprintsApi,
 		statusSets
-	} from '$lib/api';
-	import type { CustomStatus, StatusSet, StatusTransition } from '$lib/api';
+	} from '$lib/apis';
+	import type { CustomStatus, StatusSet, StatusTransition } from '$lib/types';
 	import StatusSetManager from '$lib/components/statuses/StatusSetManager.svelte';
 	import { isSupervisor } from '$lib/stores/auth';
 	import {

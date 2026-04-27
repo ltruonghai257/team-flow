@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tasks as tasksApi } from '$lib/api';
+	import { tasks as tasksApi } from '$lib/apis';
 	import { Sparkles, Code2, FormInput, Layers } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';

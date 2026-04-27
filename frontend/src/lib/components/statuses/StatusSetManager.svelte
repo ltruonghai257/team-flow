@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Plus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { statusSets } from '$lib/api';
-	import type { CustomStatus, StatusSet, StatusTransition, StatusTransitionPair } from '$lib/api';
+	import { statusSets } from '$lib/apis';
+	import type { CustomStatus, StatusSet, StatusTransition, StatusTransitionPair } from '$lib/types';
 	import StatusEditorRow from './StatusEditorRow.svelte';
 	import StatusReorderList from './StatusReorderList.svelte';
 	import StatusDeleteDialog from './StatusDeleteDialog.svelte';

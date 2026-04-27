@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { X, Info } from 'lucide-svelte';
-	import { sprints } from '$lib/api';
+	import { sprints } from '$lib/apis';
 
 	const dispatch = createEventDispatcher();
 

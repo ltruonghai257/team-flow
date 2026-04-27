@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { ai as aiApi } from '$lib/api';
+	import { ai as aiApi } from '$lib/apis';
 	import { timeAgo } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { Plus, Send, Trash2, Bot, User, Sparkles, MessageSquare } from 'lucide-svelte';

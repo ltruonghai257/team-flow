@@ -1,5 +1,5 @@
 import { writable, derived } from 'svelte/store';
-import { auth as authApi } from '$lib/api';
+import { auth as authApi } from '$lib/apis';
 
 interface User {
 	id: number;

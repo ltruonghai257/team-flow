@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { performance } from '$lib/api';
+	import { performance } from '$lib/apis';
 	import { downloadCsv } from '$lib/components/performance/csv';
 	import KpiTabs from '$lib/components/performance/KpiTabs.svelte';
 	import KpiScoreCard from '$lib/components/performance/KpiScoreCard.svelte';

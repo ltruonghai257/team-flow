@@ -1,5 +1,5 @@
 import { writable, derived } from 'svelte/store';
-import { notifications as notifApi } from '$lib/api';
+import { notifications as notifApi } from '$lib/apis';
 
 export interface NotificationItem {
 	id: number;

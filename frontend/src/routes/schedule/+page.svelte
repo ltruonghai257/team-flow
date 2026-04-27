@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { schedules as schedulesApi, tasks as tasksApi, notifications as notifApi } from '$lib/api';
+	import { schedules as schedulesApi, tasks as tasksApi, notifications as notifApi } from '$lib/apis';
 	import { formatDateTime } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { Plus, Pencil, Trash2, X, Calendar, MapPin, Clock, Bell, CheckSquare } from 'lucide-svelte';

@@ -9,7 +9,7 @@
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
 	import { formatReminderOffset } from '$lib/utils';
 	import { Toaster, toast } from 'svelte-sonner';
-	import { sub_teams } from '$lib/api';
+	import { sub_teams } from '$lib/apis';
 	import {
 		LayoutDashboard,
 		CheckSquare,

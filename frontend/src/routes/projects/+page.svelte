@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { projects as projectsApi, ai as aiApi, statusSets } from '$lib/api';
-	import type { StatusSet } from '$lib/api';
+	import { projects as projectsApi, ai as aiApi, statusSets } from '$lib/apis';
+	import type { StatusSet } from '$lib/types';
 	import { formatDate } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { Plus, Pencil, Trash2, X, FolderOpen, Sparkles } from 'lucide-svelte';

@@ -5,10 +5,9 @@
 		tasks as tasksApi,
 		invites as invitesApi,
 		sub_teams as subTeamsApi,
-		reminderSettings as reminderSettingsApi,
-		type ReminderSettings,
-		type ReminderSettingsProposal
-	} from '$lib/api';
+		reminderSettings as reminderSettingsApi
+	} from '$lib/apis';
+	import type { ReminderSettings, ReminderSettingsProposal } from '$lib/types';
 	import { initials, statusColors, statusLabels, priorityColors, formatDate } from '$lib/utils';
 	import { authStore, isSupervisor } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';

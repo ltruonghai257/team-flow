@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { auth } from '$lib/api';
+	import { auth } from '$lib/apis';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 

@@ -5,7 +5,7 @@
 		StatusSet,
 		StatusTransition,
 		StatusTransitionPair,
-	} from '$lib/api';
+	} from '$lib/types';
 	import StatusTransitionPreview from './StatusTransitionPreview.svelte';
 
 	export let statusSet: StatusSet | null = null;

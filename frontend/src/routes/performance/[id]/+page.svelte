@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { performance } from '$lib/api';
+	import { performance } from '$lib/apis';
 	import KpiScoreCard from '$lib/components/performance/KpiScoreCard.svelte';
 	// layerchart removed — using inline SVG area chart below
 	import { 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { GripVertical, Pencil, Trash2 } from 'lucide-svelte';
-	import type { CustomStatus } from '$lib/api';
+	import type { CustomStatus } from '$lib/types';
 
 	export let statuses: CustomStatus[] = [];
 	export let managementMode = false;

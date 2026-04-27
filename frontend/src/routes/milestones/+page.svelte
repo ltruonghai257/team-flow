@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { tick } from 'svelte';
 	import { page } from '$app/stores';
-	import { milestones as milestonesApi, projects as projectsApi } from '$lib/api';
+	import { milestones as milestonesApi, projects as projectsApi } from '$lib/apis';
 	import { formatDate, milestoneStatusColors } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { Plus, Pencil, Trash2, X, Flag, Calendar } from 'lucide-svelte';

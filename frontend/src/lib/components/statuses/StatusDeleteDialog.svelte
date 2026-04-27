@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CustomStatus } from '$lib/api';
+	import type { CustomStatus } from '$lib/types';
 
 	export let status: CustomStatus;
 	export let availableStatuses: CustomStatus[] = [];

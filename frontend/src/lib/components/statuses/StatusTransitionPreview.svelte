@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { AlertTriangle, ArrowRight } from 'lucide-svelte';
-	import type { CustomStatus, StatusTransitionPair } from '$lib/api';
+	import type { CustomStatus, StatusTransitionPair } from '$lib/types';
 
 	export let statuses: CustomStatus[] = [];
 	export let transitions: StatusTransitionPair[] = [];

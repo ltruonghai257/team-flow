@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { statusSets } from '$lib/api';
-	import type { StatusSet } from '$lib/api';
+	import { statusSets } from '$lib/apis';
+	import type { StatusSet } from '$lib/types';
 	import StatusSetManager from './StatusSetManager.svelte';
 
 	export let project: { id: number; name: string; sub_team_id: number | null };

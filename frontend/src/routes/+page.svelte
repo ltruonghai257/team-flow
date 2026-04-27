@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { dashboard } from '$lib/api';
+	import { dashboard } from '$lib/apis';
 	import { formatDate, statusColors, statusLabels, priorityColors, isOverdue, milestoneStatusColors } from '$lib/utils';
 	import { CheckSquare, Clock, AlertTriangle, Users, TrendingUp, Flag } from 'lucide-svelte';
 

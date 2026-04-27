@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import { invites } from '$lib/api';
+	import { invites } from '$lib/apis';
 	import { authStore } from '$lib/stores/auth';
 	import { ShieldCheck, Loader2 } from 'lucide-svelte';
 

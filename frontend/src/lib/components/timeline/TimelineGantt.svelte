@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { tasks as taskApi } from '$lib/api';
+	import { tasks as taskApi } from '$lib/apis';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
 
