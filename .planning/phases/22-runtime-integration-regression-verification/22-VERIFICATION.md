@@ -78,6 +78,49 @@ No stale `app.main:app` references remain in runtime config.
 
 ---
 
+## Playwright E2E
+
+- Command run: `cd frontend && npx playwright test --reporter=list,html` (cancelled — running stack not available during execution)
+- Result: **static-fallback** (D-11 applies)
+- Specs executed: n/a (static enumeration only)
+- Summary line: n/a
+- Failed specs: n/a
+- HTML report path: `frontend/playwright-report/index.html` (not generated — blocked)
+- Blocker: Playwright requires the dev server (`bun run dev`) and backend (`:8000`) running locally. Neither was running during execution. `bunx` command not on PATH (`zsh: command not found: bunx`).
+- Static fallback — test inventory (from `rtk rg "^\s*test\("` across `frontend/tests/`):
+  - `sprint_board.spec.ts`: 4 tests (kanban board, sprint selector, drag-to-backlog, filter)
+  - `status_transition.spec.ts`: 6 tests (URL shareable, transition matrix, generate flow, kanban load, task modal, URL tab)
+  - `mobile/task-modal.spec.ts`: 2 tests (visible+keyboard-safe, internal scroll)
+  - `mobile/task-types.spec.ts`: 4 tests (type badges, multi-filter, default create, AI subtasks)
+  - `mobile/sidebar.spec.ts`: 5 tests (hamburger, open, backdrop close, nav link, breakpoint hidden)
+  - `mobile/status-management-roles.spec.ts`: ~11 tests (admin/supervisor/member visibility, create controls, kanban columns)
+  - `mobile/kanban-scroll.spec.ts`: 2 tests (horizontal scroll, touch-action)
+  - Total enumerated: ~34 tests (project: mobile-chrome)
+- Run timestamp: 2026-04-27T16:32:00Z
+
+---
+
+## Manual Smoke (Plan 22-03)
+
+| Flow | Requirement | Canonical Path | Status | Snippet | Blocker / Fallback | Timestamp |
+|------|-------------|----------------|--------|---------|--------------------|-----------|
+| Login | VERIFY-03 | POST /api/auth/token | pending | — | Stack not running during execution | — |
+| Session | VERIFY-03 | GET /api/auth/me | pending | — | Stack not running during execution | — |
+| Task board | VERIFY-03 | GET /tasks (route) | pending | — | Stack not running during execution | — |
+| AI input | VERIFY-03 | POST /api/ai/breakdown | pending | — | Stack not running during execution | — |
+| WebSocket chat | VERIFY-03 | ws://localhost:8000/ws/chat | pending | — | Stack not running during execution | — |
+| Scheduler/notifications | VERIFY-03 | GET /api/notifications | pending | — | Stack not running during execution | — |
+| /health | VERIFY-03 | GET /health | pending | — | Stack not running during execution | — |
+
+### Smoke Coverage Result
+
+- Total flows required by VERIFY-03: 6
+- Recorded: 0 (pending user execution)
+- Documented blockers / fallbacks: 7 (D-11 — stack not running)
+- Net result: **pending** — all six flows require a running stack; Plan 22-04 signoff blocked until smoke is completed
+
+---
+
 ## Verification Floor Coverage (Plan 22-02)
 
 | Layer | Required | Status After Plan 22-02 | Plan |
