@@ -179,7 +179,7 @@ _Updated: 2026-04-27_
 4. Current route URLs keep working: `/`, `/tasks`, `/projects`, `/milestones`, `/team`, `/timeline`, `/performance`, `/schedule`, `/ai`, `/login`, `/register`, and invite acceptance.
 5. No visual redesign is introduced as part of this phase.
 
-**Plans:** TBD
+**Plans:** 0/4 plans executed
 **UI hint:** no
 
 ### Phase 22: Runtime Integration & Regression Verification
@@ -210,7 +210,7 @@ _Updated: 2026-04-27_
 | 18. Status Transition Graph | 3/4 | In Progress | - |
 | 19. Refactor Map & Safety Baseline | 0/4 | Planned | - |
 | 20. Backend Package Restructure | 0/5 | Planned    |  |
-| 21. Frontend SvelteKit Structure | 0/? | Not started | - |
+| 21. Frontend SvelteKit Structure | 0/4 | Planned    |  |
 | 22. Runtime Integration & Regression Verification | 0/? | Not started | - |
 
 ---
