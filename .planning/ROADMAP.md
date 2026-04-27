@@ -188,7 +188,7 @@ _Updated: 2026-04-26_
 |-------|----------------|--------|-----------|
 | 16. Advanced KPI Dashboard | 0/5 | Planned | - |
 | 17. Sprint & Release Reminders | 0/5 | Planned | - |
-| 18. Status Transition Graph | 0/4 | Planned | - |
+| 18. Status Transition Graph | 3/4 | In Progress | - |
 | 19. Refactor Map & Safety Baseline | 0/? | Not started | - |
 | 20. Backend Package Restructure | 0/? | Not started | - |
 | 21. Frontend SvelteKit Structure | 0/? | Not started | - |
@@ -222,7 +222,7 @@ Phase 20 and Phase 21 can be planned independently after Phase 19, but Phase 22 
 | REMIND-01 | Phase 17 | Pending |
 | REMIND-02 | Phase 17 | Pending |
 | TRANS-01 | Phase 18 | Pending |
-| TRANS-02 | Phase 18 | Pending |
+| TRANS-02 | Phase 18 | Complete |
 | TRANS-03 | Phase 18 | Pending |
 | STRUCT-01 | Phase 19 | Pending |
 | STRUCT-02 | Phase 19 | Pending |
