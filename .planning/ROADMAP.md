@@ -104,7 +104,7 @@ _Updated: 2026-04-27_
 ## Phases
 
 - [ ] **Phase 19: Refactor Map & Safety Baseline** — Document target structure, map current files to new locations, identify protected behavior, and establish pre-move verification commands
-- [ ] **Phase 20: Backend Package Restructure** — Move FastAPI code toward an Open WebUI-style package layout and update imports, router registration, Alembic config, tests, and runtime targets
+- [x] **Phase 20: Backend Package Restructure** — Move FastAPI code toward an Open WebUI-style package layout and update imports, router registration, Alembic config, tests, and runtime targets (completed 2026-04-27)
 - [ ] **Phase 21: Frontend SvelteKit Structure** — Move frontend API clients/types/utilities into Open WebUI-style `src/lib` groups while preserving routes and UI behavior
 - [ ] **Phase 22: Runtime Integration & Regression Verification** — Update Docker/dev/Azure entrypoints, run full checks, perform smoke tests, and document old-to-new paths
 
@@ -153,7 +153,7 @@ _Updated: 2026-04-27_
 4. Backend tests import the new package paths and pass.
 5. Temporary compatibility shims, if needed, are documented and limited to migration support.
 
-**Plans:** 0/5 plans executed
+**Plans:** 5/5 plans complete
 - **Wave 1:** `20-01` - Package skeleton, canonical app factory, runtime module groups, and compatibility delegates
 - **Wave 2** *(blocked on Wave 1 completion)*: `20-02` - Domain model package split and Alembic metadata safety
 - **Wave 3** *(blocked on Wave 2 completion)*: `20-03` - Domain schema package split with aggregate exports
@@ -209,7 +209,7 @@ _Updated: 2026-04-27_
 | 17. Sprint & Release Reminders | 5/5 | ✅ Done | 2026-04-28 |
 | 18. Status Transition Graph | 3/4 | In Progress | - |
 | 19. Refactor Map & Safety Baseline | 0/4 | Planned | - |
-| 20. Backend Package Restructure | 0/5 | Planned    |  |
+| 20. Backend Package Restructure | 5/5 | Complete   | 2026-04-27 |
 | 21. Frontend SvelteKit Structure | 4/4 | ✅ Done | 2026-04-27 |
 | 22. Runtime Integration & Regression Verification | 0/? | Not started | - |
 
