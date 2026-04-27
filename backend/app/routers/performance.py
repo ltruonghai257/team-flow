@@ -331,6 +331,7 @@ async def get_user_performance_detail(
     # 4. Recent Completed Tasks
     recent_tasks_stmt = (
         select(Task)
+        .options(selectinload(Task.custom_status), selectinload(Task.assignee))
         .where(Task.assignee_id == user_id, Task.status == TaskStatus.done)
         .order_by(desc(Task.completed_at))
         .limit(5)

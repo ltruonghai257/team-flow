@@ -10,6 +10,16 @@ export function formatDateTime(date: string | Date | null | undefined): string {
 	return format(new Date(date), 'MMM d, yyyy h:mm a');
 }
 
+export function formatReminderOffset(minutes: number | null | undefined): string {
+	if (minutes === null || minutes === undefined) return 'Reminder';
+	if (minutes >= 60) {
+		const hours = minutes / 60;
+		const value = Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+		return `${value} ${hours === 1 ? 'hour' : 'hours'}`;
+	}
+	return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
 export function timeAgo(date: string | Date | null | undefined): string {
 	if (!date) return '—';
 	return formatDistanceToNow(new Date(date), { addSuffix: true });

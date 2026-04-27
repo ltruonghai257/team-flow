@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool = False
     FRONTEND_URL: str = "http://localhost:5173"
 
-    RUN_MIGRATIONS: bool = True
+    RUN_MIGRATIONS: bool = False
 
     @field_validator("SECRET_KEY")
     @classmethod

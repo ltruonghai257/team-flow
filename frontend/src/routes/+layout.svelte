@@ -7,6 +7,7 @@
 	import { notificationStore, type NotificationItem } from '$lib/stores/notifications';
 	import { subTeamStore } from '$lib/stores/subTeam';
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
+	import { formatReminderOffset } from '$lib/utils';
 	import { Toaster, toast } from 'svelte-sonner';
 	import { sub_teams } from '$lib/api';
 	import {
@@ -78,7 +79,7 @@
 			notificationStore.start((newOnes: NotificationItem[]) => {
 				for (const n of newOnes) {
 					toast.info(n.title_cache, {
-						description: `Reminder · ${n.offset_minutes} min before · ${new Date(n.start_at_cache).toLocaleString()}`
+						description: `Reminder · ${formatReminderOffset(n.offset_minutes)} before · ${new Date(n.start_at_cache).toLocaleString()}`
 					});
 				}
 			});

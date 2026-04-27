@@ -120,6 +120,18 @@ async def _insert_generated_rows(
 
     created = 0
     for user_id, roles in recipient_roles.items():
+        existing = await session.execute(
+            select(EventNotification.id).where(
+                EventNotification.user_id == user_id,
+                EventNotification.event_type == event_type,
+                EventNotification.event_ref_id == event_ref_id,
+                EventNotification.status.in_(
+                    [NotificationStatus.pending, NotificationStatus.sent]
+                ),
+            )
+        )
+        if existing.scalar_one_or_none() is not None:
+            continue
         title = _reminder_title(kind, name, lead_time_days, event_date, "participant" in roles)
         notification = EventNotification(
             user_id=user_id,
@@ -150,15 +162,6 @@ async def rebuild_sprint_reminders(session: AsyncSession, sprint_id: int) -> int
         )
         await session.flush()
         return 0
-
-    await session.execute(
-        delete(EventNotification).where(
-            EventNotification.event_type == NotificationEventType.sprint_end,
-            EventNotification.event_ref_id == sprint_id,
-            EventNotification.status == NotificationStatus.pending,
-        )
-    )
-    await session.flush()
 
     result = await session.execute(
         select(Task.assignee_id)
@@ -204,15 +207,6 @@ async def rebuild_milestone_reminders(session: AsyncSession, milestone_id: int) 
         )
         await session.flush()
         return 0
-
-    await session.execute(
-        delete(EventNotification).where(
-            EventNotification.event_type == NotificationEventType.milestone_due,
-            EventNotification.event_ref_id == milestone_id,
-            EventNotification.status == NotificationStatus.pending,
-        )
-    )
-    await session.flush()
 
     result = await session.execute(
         select(Task.assignee_id)

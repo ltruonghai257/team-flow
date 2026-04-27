@@ -2,7 +2,7 @@
 	import { Bell, X } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { notificationStore, unreadCount, type NotificationItem } from '$lib/stores/notifications';
-	import { formatDateTime } from '$lib/utils';
+	import { formatDateTime, formatReminderOffset } from '$lib/utils';
 
 	let open = false;
 
@@ -31,25 +31,31 @@
 		}
 	}
 
-	function handleItemClick(n: NotificationItem) {
+	async function handleItemClick(n: NotificationItem) {
 		close();
+		const focus = Date.now();
+		try {
+			await notificationStore.dismiss(n.id);
+		} catch {
+			/* ignore */
+		}
 		switch (n.event_type) {
 			case 'schedule':
 				goto('/schedule');
 				break;
 			case 'task':
-				goto('/tasks');
+				goto(`/tasks?task_id=${n.event_ref_id}&focus=${focus}`);
 				break;
 			case 'sprint_end':
-				goto(`/tasks?sprint_id=${n.event_ref_id}`);
+				goto(`/tasks?sprint_id=${n.event_ref_id}&focus=${focus}`);
 				break;
 			case 'milestone_due':
-				goto(`/milestones?milestone_id=${n.event_ref_id}`);
+				goto(`/milestones?milestone_id=${n.event_ref_id}&focus=${focus}`);
 				break;
 			case 'reminder_settings_proposal':
 				goto('/team');
 				break;
-		default:
+			default:
 				goto('/tasks');
 		}
 	}
@@ -102,7 +108,7 @@
 							>
 								<p class="text-sm font-medium text-gray-200 truncate">{n.title_cache}</p>
 								<p class="text-xs text-gray-500 mt-0.5">
-									{n.offset_minutes} min reminder · {formatDateTime(n.start_at_cache)}
+									{formatReminderOffset(n.offset_minutes)} before · {formatDateTime(n.start_at_cache)}
 								</p>
 								<p class="text-[10px] text-gray-600 mt-0.5 uppercase tracking-wide">
 									{n.event_type}

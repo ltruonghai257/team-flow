@@ -13,6 +13,7 @@
 	let showModal = false;
 	let editingMilestone: any = null;
 	let highlightedMilestoneId: number | null = null;
+	let handledRouteKey = '';
 
 	let form = {
 		title: '',
@@ -24,32 +25,40 @@
 	};
 
 	onMount(async () => {
-		const milestoneQuery = $page.url.searchParams.get('milestone_id');
-		if (milestoneQuery) {
-			const parsed = Number(milestoneQuery);
-			if (!Number.isNaN(parsed)) {
-				highlightedMilestoneId = parsed;
-			}
-		}
 		loading = true;
 		try {
 			[milestoneList, projectList] = await Promise.all([milestonesApi.list(), projectsApi.list()]);
-			if (
-				highlightedMilestoneId &&
-				!milestoneList.some((m) => m.id === highlightedMilestoneId)
-			) {
-				highlightedMilestoneId = null;
-			}
-			await tick();
-			if (highlightedMilestoneId) {
-				document
-					.getElementById(`milestone-${highlightedMilestoneId}`)
-					?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-			}
 		} finally {
 			loading = false;
 		}
+		await applyRouteHighlight($page.url.searchParams.toString());
 	});
+
+	function parsePositiveId(value: string | null): number | null {
+		if (!value) return null;
+		const parsed = Number(value);
+		return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+	}
+
+	async function applyRouteHighlight(routeKey: string) {
+		if (routeKey === handledRouteKey) return;
+		handledRouteKey = routeKey;
+
+		const milestoneId = parsePositiveId(new URLSearchParams(routeKey).get('milestone_id'));
+		highlightedMilestoneId =
+			milestoneId && milestoneList.some((m) => m.id === milestoneId) ? milestoneId : null;
+
+		await tick();
+		if (highlightedMilestoneId) {
+			document
+				.getElementById(`milestone-${highlightedMilestoneId}`)
+				?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		}
+	}
+
+	$: if (typeof window !== 'undefined' && !loading) {
+		applyRouteHighlight($page.url.searchParams.toString());
+	}
 
 	function openCreate() {
 		editingMilestone = null;
@@ -87,7 +96,7 @@
 			}
 			showModal = false;
 			milestoneList = await milestonesApi.list();
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}
@@ -98,7 +107,7 @@
 			await milestonesApi.delete(id);
 			toast.success('Milestone deleted');
 			milestoneList = await milestonesApi.list();
-		} catch (e) {
+		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}

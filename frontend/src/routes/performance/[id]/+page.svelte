@@ -23,6 +23,21 @@
 	let kpiScorecard = $state<any>(null);
 	const userId = parseInt($page.params.id ?? '0');
 
+	// Tooltip state
+	let tooltip = $state<string | null>(null);
+	let tooltipStyle = $state('');
+
+	function showTooltip(e: MouseEvent, text: string) {
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		tooltip = text;
+		const tipW = 288;
+		let left = rect.left;
+		if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+		if (left < 8) left = 8;
+		tooltipStyle = `position:fixed;left:${left}px;top:${rect.top - 8}px;transform:translateY(-100%);`;
+	}
+	function hideTooltip() { tooltip = null; }
+
 	onMount(async () => {
 		try {
 			data = await performance.memberStats(userId);
@@ -127,32 +142,47 @@
 					<h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest">Efficiency Metrics</h3>
 					
 					<div class="space-y-4">
-						<div class="flex items-center justify-between p-4 bg-gray-950 rounded-xl border border-gray-800/50">
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="flex items-center justify-between p-4 bg-gray-950 rounded-xl border border-gray-800/50 cursor-help group"
+							onmouseenter={(e) => showTooltip(e, 'Number of tasks currently in progress or not yet completed. High counts may indicate workload overload.')}
+							onmouseleave={hideTooltip}
+						>
 							<div class="flex items-center gap-3">
 								<div class="p-2 bg-blue-500/10 rounded-lg text-blue-400">
 									<CheckSquare size={18} />
 								</div>
-								<span class="text-sm font-medium text-gray-300">Active Tasks</span>
+								<span class="text-sm font-medium text-gray-300">Active Tasks <span class="text-gray-600 text-[9px]">ⓘ</span></span>
 							</div>
 							<span class="text-lg font-bold text-white">{data.metrics.active_tasks}</span>
 						</div>
 
-						<div class="flex items-center justify-between p-4 bg-gray-950 rounded-xl border border-gray-800/50">
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="flex items-center justify-between p-4 bg-gray-950 rounded-xl border border-gray-800/50 cursor-help group"
+							onmouseenter={(e) => showTooltip(e, 'Tasks completed within the last 30 days. Measures recent velocity and output.')}
+							onmouseleave={hideTooltip}
+						>
 							<div class="flex items-center gap-3">
 								<div class="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
 									<CheckCircle2 size={18} />
 								</div>
-								<span class="text-sm font-medium text-gray-300">Done (30d)</span>
+								<span class="text-sm font-medium text-gray-300">Done (30d) <span class="text-gray-600 text-[9px]">ⓘ</span></span>
 							</div>
 							<span class="text-lg font-bold text-white">{data.metrics.completed_30d}</span>
 						</div>
 
-						<div class="flex items-center justify-between p-4 bg-gray-950 rounded-xl border border-gray-800/50">
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="flex items-center justify-between p-4 bg-gray-950 rounded-xl border border-gray-800/50 cursor-help group"
+							onmouseenter={(e) => showTooltip(e, 'Average hours from task creation to completion. Lower values indicate faster delivery.')}
+							onmouseleave={hideTooltip}
+						>
 							<div class="flex items-center gap-3">
 								<div class="p-2 bg-purple-500/10 rounded-lg text-purple-400">
 									<Clock size={18} />
 								</div>
-								<span class="text-sm font-medium text-gray-300">Avg Cycle Time</span>
+								<span class="text-sm font-medium text-gray-300">Avg Cycle Time <span class="text-gray-600 text-[9px]">ⓘ</span></span>
 							</div>
 							<span class="text-lg font-bold text-white">{data.metrics.avg_cycle_time ?? '-'}h</span>
 						</div>
@@ -273,6 +303,17 @@
 					</div>
 				</div>
 			</div>
+		</div>
+	{/if}
+
+	<!-- Tooltip portal -->
+	{#if tooltip}
+		<div
+			style={tooltipStyle}
+			class="z-[9999] w-72 bg-gray-900 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 shadow-xl whitespace-pre-line pointer-events-none"
+			role="tooltip"
+		>
+			{tooltip}
 		</div>
 	{/if}
 </div>

@@ -7,6 +7,8 @@ Creates:
   - 1 StatusSet + 5 CustomStatuses (is_done semantics for KPI)
   - 2 projects (scoped to the sub-team)
   - 4 milestones
+  - 2 sprints for reminder demo coverage
+  - reminder settings + generated reminder notifications
   - KPI-targeted tasks per member producing realistic score distribution:
       Alice       ~92  Good
       Bob         ~73  Fair
@@ -18,7 +20,7 @@ Creates:
 Run from the backend directory:
     python -m app.scripts.seed_demo
 
-Safe to re-run — skips rows that already exist.
+Safe to re-run — clears app tables before reseeding.
 """
 
 import asyncio
@@ -39,21 +41,37 @@ def _h(hours_ago: float) -> datetime:
     return _now() - timedelta(hours=hours_ago)
 
 
+async def _clear_database(db) -> None:
+    from sqlalchemy import text
+
+    from app.database import Base
+
+    table_names = ", ".join(f'"{table.name}"' for table in Base.metadata.tables.values())
+    if table_names:
+        await db.execute(text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE"))
+
+
 async def main() -> None:
     from sqlalchemy import select
     from app.database import AsyncSessionLocal
     from app.models import (
-        User, UserRole, SubTeam,
+        User, UserRole, SubTeam, SubTeamReminderSettings,
         StatusSet, StatusSetScope, CustomStatus,
         Project, Milestone, MilestoneStatus,
+        Sprint, SprintStatus,
         Task, TaskStatus, TaskPriority, TaskType,
         NotificationStatus, NotificationEventType, EventNotification,
         Schedule, ChatChannel, ChatChannelMember,
         ChatConversation, ChatMessage, TeamInvite, InviteStatus,
     )
     from app.auth import hash_password
+    from app.services.reminder_notifications import (
+        rebuild_milestone_reminders,
+        rebuild_sprint_reminders,
+    )
 
     async with AsyncSessionLocal() as db:
+        await _clear_database(db)
 
         # ------------------------------------------------------------------
         # Users
@@ -98,6 +116,28 @@ async def main() -> None:
             if u.sub_team_id != sub_team.id:
                 u.sub_team_id = sub_team.id
         await db.flush()
+
+        # ------------------------------------------------------------------
+        # Reminder Settings
+        # ------------------------------------------------------------------
+        result = await db.execute(
+            select(SubTeamReminderSettings).where(
+                SubTeamReminderSettings.sub_team_id == sub_team.id
+            )
+        )
+        reminder_settings = result.scalar_one_or_none()
+        if not reminder_settings:
+            reminder_settings = SubTeamReminderSettings(
+                sub_team_id=sub_team.id,
+                lead_time_days=2,
+                sprint_reminders_enabled=True,
+                milestone_reminders_enabled=True,
+            )
+            db.add(reminder_settings)
+            await db.flush()
+            print("  created reminder settings")
+        else:
+            print("  skipped reminder settings (exists)")
 
         # ------------------------------------------------------------------
         # StatusSet + CustomStatuses
@@ -175,7 +215,7 @@ async def main() -> None:
             dict(title="Auth & RBAC",   project=proj_backend, status=MilestoneStatus.completed,
                  start_date=_days(-60), due_date=_days(-10)),
             dict(title="MVP Release",   project=proj_mobile,  status=MilestoneStatus.planned,
-                 start_date=_days(-5),  due_date=_days(30)),
+                 start_date=_days(-5),  due_date=_days(1)),
             dict(title="Design System", project=proj_mobile,  status=MilestoneStatus.in_progress,
                  start_date=_days(-20), due_date=_days(7)),
         ]
@@ -196,6 +236,47 @@ async def main() -> None:
             milestones.append(m)
 
         ms_launch, ms_auth, ms_mvp, ms_design = milestones
+
+        # ------------------------------------------------------------------
+        # Sprints
+        # ------------------------------------------------------------------
+        sprints_data = [
+            dict(
+                name="Release Sprint",
+                project=proj_backend,
+                milestone=ms_launch,
+                status=SprintStatus.active,
+                start_date=_days(-6),
+                end_date=_days(1),
+            ),
+            dict(
+                name="Mobile Sprint",
+                project=proj_mobile,
+                milestone=ms_mvp,
+                status=SprintStatus.active,
+                start_date=_days(-4),
+                end_date=_days(8),
+            ),
+        ]
+        sprints: dict[str, Sprint] = {}
+        for sd in sprints_data:
+            milestone = sd.pop("milestone")
+            sd.pop("project")
+            result = await db.execute(
+                select(Sprint).where(
+                    Sprint.name == sd["name"],
+                    Sprint.milestone_id == milestone.id,
+                )
+            )
+            sprint = result.scalar_one_or_none()
+            if not sprint:
+                sprint = Sprint(**sd, milestone_id=milestone.id)
+                db.add(sprint)
+                await db.flush()
+                print(f"  created sprint: {sd['name']}")
+            else:
+                print(f"  skipped sprint (exists): {sd['name']}")
+            sprints[sd["name"]] = sprint
 
         # ------------------------------------------------------------------
         # Tasks
@@ -522,6 +603,7 @@ async def main() -> None:
                  due_date=None, created_at_h=48),
         ]
 
+        tasks_by_title: dict[str, Task] = {}
         for td in tasks_raw:
             project      = td.pop("project")
             milestone    = td.pop("milestone")
@@ -549,6 +631,38 @@ async def main() -> None:
                 print(f"  created task: {td['title']}")
             else:
                 print(f"  skipped task (exists): {td['title']}")
+            tasks_by_title[td["title"]] = t
+
+        await db.flush()
+
+        # Attach a few tasks to sprints so the reminder feature has demo data.
+        result = await db.execute(
+            select(Task).where(
+                Task.title.in_(
+                    [
+                        "Set up CI/CD pipeline",
+                        "Write API documentation",
+                        "Error handling middleware",
+                    ]
+                )
+            )
+        )
+        for task in result.scalars().all():
+            task.sprint_id = sprints["Release Sprint"].id
+
+        result = await db.execute(
+            select(Task).where(
+                Task.title.in_(
+                    [
+                        "Login screen UI",
+                        "Push notification setup",
+                        "Onboarding flow wireframes",
+                    ]
+                )
+            )
+        )
+        for task in result.scalars().all():
+            task.sprint_id = sprints["Mobile Sprint"].id
 
         await db.flush()
 
@@ -591,7 +705,8 @@ async def main() -> None:
         if not result.scalars().first():
             notif_data = [
                 dict(user=users["supervisor"], title="Fix overdue bug is past due!",
-                     event_type=NotificationEventType.task, event_ref_id=1,
+                     event_type=NotificationEventType.task,
+                     event_ref_id=tasks_by_title["Fix overdue scheduler bug"].id,
                      start_at=_days(-3), remind_at=_days(-3), status=NotificationStatus.sent),
                 dict(user=users["supervisor"], title="Reminder: Release Review in 15 min",
                      event_type=NotificationEventType.schedule, event_ref_id=schedule_objs[0].id,
@@ -629,6 +744,10 @@ async def main() -> None:
             print("  created event notifications")
         else:
             print("  skipped notifications (exist)")
+
+        await rebuild_sprint_reminders(db, sprints["Release Sprint"].id)
+        await rebuild_sprint_reminders(db, sprints["Mobile Sprint"].id)
+        await rebuild_milestone_reminders(db, ms_mvp.id)
 
         # ------------------------------------------------------------------
         # Chat channels

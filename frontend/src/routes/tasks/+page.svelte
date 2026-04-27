@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import {
 		tasks as tasksApi,
@@ -64,6 +64,8 @@
 	let selectedTypes: string[] = [];
 	let filterMine = false;
 	let selectedSprintId: number | null = null;
+	let highlightedTaskId: number | null = null;
+	let handledRouteKey = '';
 	let filterProjectId: number | null = null;
 	let viewMode: ViewMode = 'list';
 	let aiMode: 'form' | 'nlp' | 'json' | 'breakdown' = 'form';
@@ -100,15 +102,51 @@
 	onMount(async () => {
 		const saved = localStorage.getItem(VIEW_KEY) as ViewMode | null;
 		if (saved && ['list', 'kanban', 'agile'].includes(saved)) viewMode = saved;
-		const sprintQuery = $page.url.searchParams.get('sprint_id');
-		if (sprintQuery) {
-			const parsed = Number(sprintQuery);
-			if (!Number.isNaN(parsed)) {
-				selectedSprintId = parsed;
-			}
-		}
 		await loadAll();
+		await applyRouteSelection($page.url.searchParams.toString());
 	});
+
+	function parsePositiveId(value: string | null): number | null {
+		if (!value) return null;
+		const parsed = Number(value);
+		return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+	}
+
+	async function applyRouteSelection(routeKey: string) {
+		if (routeKey === handledRouteKey) return;
+		handledRouteKey = routeKey;
+
+		const params = new URLSearchParams(routeKey);
+		const taskId = parsePositiveId(params.get('task_id'));
+		const sprintId = parsePositiveId(params.get('sprint_id'));
+
+		highlightedTaskId = taskId;
+
+		if (taskId) {
+			filterStatus = '';
+			selectedTypes = [];
+			filterMine = false;
+			viewMode = 'list';
+			try {
+				const task = await tasksApi.get(taskId);
+				selectedSprintId = task.sprint_id ?? null;
+			} catch {
+				// Keep the route visible even if the referenced task no longer exists.
+			}
+			await loadTasks();
+			await tick();
+			document.getElementById(`task-${taskId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			return;
+		}
+
+		if (sprintId) {
+			filterStatus = '';
+			selectedTypes = [];
+			filterMine = false;
+			selectedSprintId = sprintId;
+			await loadTasks();
+		}
+	}
 
 	async function loadStatusSet() {
 		try {
@@ -151,6 +189,10 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	$: if (typeof window !== 'undefined' && !loading) {
+		applyRouteSelection($page.url.searchParams.toString());
 	}
 
 	async function loadTasks() {
@@ -510,7 +552,12 @@
 	{:else}
 		<div class="space-y-2">
 			{#each taskList as t}
-				<div class="card flex items-start gap-4 hover:border-gray-700 transition-colors py-3.5">
+				<div
+					id={`task-${t.id}`}
+					class="card flex items-start gap-4 hover:border-gray-700 transition-colors py-3.5 {highlightedTaskId === t.id
+						? 'ring-1 ring-primary-500/40 border-primary-500/40'
+						: ''}"
+				>
 					<button on:click={() => toggleStatus(t)} class="mt-0.5 flex-shrink-0">
 						<div
 							class="w-5 h-5 rounded-full border-2 {isTaskDone(t)
