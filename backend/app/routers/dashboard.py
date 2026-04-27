@@ -92,7 +92,7 @@ async def get_dashboard(
 
     recent_tasks_result = await db.execute(
         select(Task)
-        .options(selectinload(Task.assignee))
+        .options(selectinload(Task.assignee), selectinload(Task.custom_status))
         .order_by(Task.updated_at.desc())
         .limit(10)
     )

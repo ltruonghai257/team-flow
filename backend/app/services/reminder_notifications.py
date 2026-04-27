@@ -130,7 +130,7 @@ async def _insert_generated_rows(
                 ),
             )
         )
-        if existing.scalar_one_or_none() is not None:
+        if existing.first() is not None:
             continue
         title = _reminder_title(kind, name, lead_time_days, event_date, "participant" in roles)
         notification = EventNotification(
