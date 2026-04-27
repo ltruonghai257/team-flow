@@ -4,6 +4,7 @@ from httpx import AsyncClient
 from app.auth import hash_password
 from app.models import (
     CustomStatus,
+    Project,
     StatusSet,
     StatusSetScope,
     StatusTransition,
@@ -355,3 +356,72 @@ async def test_transition_get_filters_archived_endpoints_and_writes_reject_archi
         headers=headers,
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_project_override_copies_transition_snapshot(async_client: AsyncClient, db_session):
+    sub_team, status_set, todo, review, done = await _create_status_set(
+        db_session, suffix="_override"
+    )
+    supervisor = await _create_user(
+        db_session,
+        email="workflow-override-supervisor@example.com",
+        username="workflow-override-supervisor",
+        role=UserRole.supervisor,
+        sub_team_id=sub_team.id,
+    )
+    sub_team.supervisor_id = supervisor.id
+    project = Project(name="Override Project", sub_team_id=sub_team.id)
+    db_session.add(project)
+    await db_session.commit()
+    await db_session.refresh(project)
+
+    db_session.add(
+        StatusTransition(
+            status_set_id=status_set.id,
+            from_status_id=todo.id,
+            to_status_id=review.id,
+        )
+    )
+    await db_session.commit()
+
+    token = await _login(async_client, supervisor.username)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = await async_client.post(
+        f"/api/status-sets/projects/{project.id}/override",
+        headers=headers,
+    )
+    assert response.status_code == 201
+    override_set_id = response.json()["id"]
+    override_statuses = {status["slug"]: status["id"] for status in response.json()["statuses"]}
+
+    response = await async_client.get(
+        f"/api/status-sets/{override_set_id}/transitions",
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": response.json()[0]["id"],
+            "status_set_id": override_set_id,
+            "from_status_id": override_statuses[todo.slug],
+            "to_status_id": override_statuses[review.slug],
+            "created_at": response.json()[0]["created_at"],
+        }
+    ]
+
+    response = await async_client.post(
+        f"/api/status-sets/{status_set.id}/transitions",
+        json={"transitions": [{"from_status_id": review.id, "to_status_id": done.id}]},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    response = await async_client.get(
+        f"/api/status-sets/{override_set_id}/transitions",
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["from_status_id"] == override_statuses[todo.slug]
+    assert response.json()[0]["to_status_id"] == override_statuses[review.slug]
