@@ -1,267 +1,63 @@
 # Roadmap: TeamFlow
 
-_Updated: 2026-04-27_
+_Updated: 2026-04-28_
 
 ---
 
-## Milestone History
+## Milestones
 
-### Milestone 1: Production-Ready Team Management Platform
-
-**Status:** Complete (Phases 1-11)
-**Completed:** 2026-04-24
-
-| Phase | Name | Requirements | Status |
-|-------|------|--------------|--------|
-| 1 | Production Hardening | REQ-01 | Done |
-| 2 | RBAC & Role Model | REQ-07 | Done |
-| 3 | Supervisor Performance Dashboard | REQ-02 | Done |
-| 4 | Team Timeline View | REQ-03 | Done |
-| 5 | Enhanced AI Features | REQ-04 | Done |
-| 6 | Mobile-Responsive UI | REQ-06 | Done |
-| 7 | Azure Deployment & CI/CD | REQ-05 | Done |
-| 8 | User Invite & Team Management | - | Done |
-| 9 | Verification Docs (Phases 1-3) | - | Done |
-| 10 | Verification Docs (Phases 4-5) | - | Done |
-| 11 | Verification Docs (Phases 6-8) | - | Done |
-
-### Milestone 2.0: Team Hierarchy, Sprints & Advanced Analytics
-
-**Status:** In progress — Phase 18 remaining before v2.1 structural refactor begins
-**Phases:** 12-18
-
-| Phase | Name | Status |
-|-------|------|--------|
-| 12 | Task Types | ✅ Done |
-| 13 | Multi-team Hierarchy & Timeline Visibility | ✅ Done |
-| 14 | Sprint Model | ✅ Done |
-| 15 | Custom Kanban Statuses | ✅ Done |
-| 16 | Advanced KPI Dashboard | ✅ Done |
-| 17 | Sprint & Release Reminders | ✅ Done |
-| 18 | Status Transition Graph (Workflow Rules) | 📋 Planned |
-
-**Phase 17: Sprint & Release Reminders**
-- **Goal:** Team members and supervisors receive in-app notifications N days before sprint end and milestone due dates; configurable lead time; no duplicate reminders via `EventNotification` rows
-- **Depends on:** Phase 13 (team membership for fanout), Phase 14 (sprint model for trigger events)
-- **Requirements:** REMIND-01, REMIND-02
-- **Plans:**
-  - **Wave 1:** `17-01` - Backend reminder settings, proposal approval, migration, and notification event contracts
-  - **Wave 2** *(blocked on Wave 1 completion)*: `17-02` - Reminder recipient generation and scheduler reconciliation
-  - **Wave 3** *(blocked on Waves 1-2 completion)*: `17-03` - Sprint/milestone date-change rebuild hooks
-  - **Wave 4** *(blocked on Wave 1 completion)*: `17-04` - `/team` reminder settings and proposal review UI
-  - **Wave 5** *(blocked on Waves 1-4 completion)*: `17-05` - Notification copy, bell routing, target handling, and final verification
-- **Cross-cutting constraints:**
-  - Reminder settings are scoped by sub-team with a default 2-day shared lead time.
-  - Supervisors propose setting changes; admins approve/apply them on `/team`.
-  - Generated sprint/milestone reminders use existing `EventNotification` delivery and prevent duplicate generated rows without breaking existing schedule/task reminder offsets.
-  - Recipient fanout includes participants plus responsible supervisors, deduped per user per event.
-- **Success Criteria:**
-  1. All sprint participants receive an in-app notification N days before sprint end date (default 2 days); N is configurable per sub-team by supervisor/admin
-  2. Milestone due-date reminders are sent to all project members
-  3. Duplicate reminders are prevented via `EventNotification` unique constraint on `(event_type, event_ref_id, user_id)`
-  4. Reminders are delivered through the existing 60s notification poll
-
-**Phase 18: Status Transition Graph (Workflow Rules)**
-- **Goal:** Add directed graph of allowed status transitions per status set (YouTrack-style). Any task move not permitted by the graph is rejected. Empty graph = free movement (fully backward-compatible).
-- **Depends on:** Phase 15 (custom status model)
-- **Requirements:** TRANS-01, TRANS-02, TRANS-03
-- **Plans:**
-  - **Wave 1:** `18-01` - StatusTransition persistence, migration, schemas, and transition API foundation
-  - **Wave 2** *(blocked on Wave 1 completion)*: `18-02` - Backend task-update enforcement plus project override and status lifecycle behavior
-  - **Wave 3** *(blocked on Waves 1-2 completion)*: `18-03` - StatusSetManager transition matrix, quick-start action, warnings, and read-only preview
-  - **Wave 4** *(blocked on Waves 1-3 completion)*: `18-04` - Kanban/dropdown transition enforcement UX, structured blocked-move feedback, and final regression verification
-- **Cross-cutting constraints:**
-  - Empty transition list preserves free movement until rules are saved.
-  - Transition rules are strict allowlists when any edge exists; backend enforcement remains authoritative.
-  - Transition editing uses active statuses only; archived transitions are hidden by default and available through `include_archived=true`.
-  - Project overrides copy matching transition rules once and then behave as independent snapshots.
-  - Matrix/table editing is primary; graph preview is read-only and non-interactive.
-- **Success Criteria:**
-  1. `StatusTransition` model with `(status_set_id, from_status_id, to_status_id)` unique constraint exists and is migrated
-  2. `GET/POST/DELETE /status-sets/{id}/transitions` endpoints work; supervisor/admin only for write
-  3. Task update rejects moves not in allowed transition list with HTTP 422 when rules are defined
-  4. Kanban drag-drop enforces transitions client-side with a toast on blocked moves
-  5. Task edit form status dropdown filters to permitted next statuses only
-  6. Transition matrix UI in `StatusSetManager` (supervisor/admin only)
-  7. Zero regressions when no transitions are defined (free movement preserved)
-
-**Sequencing:** Complete Phases 16, 17, and 18 first, then begin Milestone v2.1 structural refactor.
-
----
-
-## Milestone v2.1: Open WebUI-Style Project Structure Refactor
-
-> **Starts after Milestone 2.0 (Phases 16–18) is complete.**
-
-**Goal:** Refactor TeamFlow's FastAPI backend and SvelteKit frontend into a clearer Open WebUI-inspired structure while preserving behavior.
-
-**Reference repo:** `https://github.com/open-webui/open-webui`
-
-**Definition of Done:** Backend and frontend folders follow the agreed Open WebUI-inspired target structure; imports, runtime entrypoints, Docker/Azure paths, Alembic, tests, and SvelteKit build/check all work; critical user flows behave the same as before the refactor.
+- ✅ **v1.0** — Production-Ready Team Management Platform (Phases 1-11) — shipped 2026-04-24
+- ✅ **v2.0** — Team Hierarchy, Sprints & Advanced Analytics (Phases 12-18) — shipped 2026-04-28
+- ✅ **v2.1** — Open WebUI-Style Project Structure Refactor (Phases 19-22) — shipped 2026-04-28
 
 ---
 
 ## Phases
 
-- [ ] **Phase 19: Refactor Map & Safety Baseline** — Document target structure, map current files to new locations, identify protected behavior, and establish pre-move verification commands
-- [x] **Phase 20: Backend Package Restructure** — Move FastAPI code toward an Open WebUI-style package layout and update imports, router registration, Alembic config, tests, and runtime targets (completed 2026-04-27)
-- [ ] **Phase 21: Frontend SvelteKit Structure** — Move frontend API clients/types/utilities into Open WebUI-style `src/lib` groups while preserving routes and UI behavior
-- [ ] **Phase 22: Runtime Integration & Regression Verification** — Update Docker/dev/Azure entrypoints, run full checks, perform smoke tests, and document old-to-new paths
+<details>
+<summary>✅ v1.0 MVP (Phases 1-11) — SHIPPED 2026-04-24</summary>
+
+- [x] Phase 1: Production Hardening (2/2 plans) — completed 2026-04-23
+- [x] Phase 2: RBAC & Role Model (2/2 plans) — completed 2026-04-23
+- [x] Phase 3: Supervisor Performance Dashboard (2/2 plans) — completed 2026-04-23
+- [x] Phase 4: Team Timeline View (2/2 plans) — completed 2026-04-23
+- [x] Phase 5: Enhanced AI Features (2/2 plans) — completed 2026-04-23
+- [x] Phase 6: Mobile-Responsive UI (2/2 plans) — completed 2026-04-23
+- [x] Phase 7: Azure Deployment & CI/CD (2/2 plans) — completed 2026-04-23
+- [x] Phase 8: User Invite & Team Management (2/2 plans) — completed 2026-04-24
+- [x] Phase 9: Verification Docs (Phases 1-3) (1/1 plan) — completed 2026-04-24
+- [x] Phase 10: Verification Docs (Phases 4-5) (1/1 plan) — completed 2026-04-24
+- [x] Phase 11: Verification Docs (Phases 6-8) (1/1 plan) — completed 2026-04-24
+
+</details>
+
+<details>
+<summary>✅ v2.0 Team Hierarchy, Sprints & Advanced Analytics (Phases 12-18) — SHIPPED 2026-04-28</summary>
+
+- [x] Phase 12: Task Types (5/5 plans) — completed 2026-04-26
+- [x] Phase 13: Multi-team Hierarchy & Timeline Visibility (5/5 plans) — completed 2026-04-26
+- [x] Phase 14: Sprint Model (5/5 plans) — completed 2026-04-26
+- [x] Phase 15: Custom Kanban Statuses (5/5 plans) — completed 2026-04-26
+- [x] Phase 16: Advanced KPI Dashboard (5/5 plans) — completed 2026-04-27
+- [x] Phase 17: Sprint & Release Reminders (5/5 plans) — completed 2026-04-28
+- [x] Phase 18: Status Transition Graph (Workflow Rules) (4/4 plans) — completed 2026-04-27
+
+</details>
+
+<details>
+<summary>✅ v2.1 Open WebUI-Style Project Structure Refactor (Phases 19-22) — SHIPPED 2026-04-28</summary>
+
+- [x] Phase 19: Refactor Map & Safety Baseline (4/4 plans) — completed 2026-04-27
+- [x] Phase 20: Backend Package Restructure (5/5 plans) — completed 2026-04-27
+- [x] Phase 21: Frontend SvelteKit Structure (4/4 plans) — completed 2026-04-27
+- [x] Phase 22: Runtime Integration & Regression Verification (4/4 plans) — completed 2026-04-27
+
+</details>
 
 ---
 
-## Phase Details
-
-### Phase 19: Refactor Map & Safety Baseline
-
-**Goal:** Create a concrete migration map before moving code so the refactor stays surgical and verifiable.
-**Depends on:** Nothing
-**Requirements:** STRUCT-01, STRUCT-02, STRUCT-03
-
-**Success Criteria:**
-
-1. Target backend structure is documented, including package root, routers, models/domain modules, schemas, migrations, utils, socket/websocket, config, and app entrypoint.
-2. Target frontend structure is documented, including `src/lib/apis`, `components`, `stores`, `types`, `utils`, and route boundaries.
-3. Current file-to-target mapping exists for backend and frontend files that will move.
-4. Protected behavior list exists for API routes, auth/session behavior, Svelte routes, WebSocket chat, scheduler jobs, AI task input, Docker runtime, and Alembic migrations.
-5. Pre-refactor verification commands are run or explicitly documented if blocked by environment.
-
-**Plans:**
-  - **Wave 1:** `19-01` - Safety baseline and protected behavior inventory
-  - **Wave 2** *(blocked on Wave 1 completion)*: `19-02` - Backend target structure, file map, coupling notes, and Phase 20 migration slices
-  - **Wave 2** *(blocked on Wave 1 completion)*: `19-03` - Frontend target structure, API/type map, route boundaries, and Phase 21 migration slices
-  - **Wave 3** *(blocked on Waves 1-2 completion)*: `19-04` - Final refactor playbook, traceability, shim policy, and Phase 20/21/22 handoff
-- **Cross-cutting constraints:**
-  - Keep `backend/app` and `frontend/src` as roots; Open WebUI is structural inspiration, not an exact clone.
-  - Phase 19 is documentation-only: no code moves, API behavior changes, UI redesign, dependency additions, or schema changes.
-  - Baseline checks must be run or documented with exact failure reason and next-best fallback.
-  - Protected behavior includes API routes, auth/session, Svelte routes, `/ws/chat`, scheduler/notifications, AI task input, Docker/runtime, and Alembic history.
-  - Any temporary compatibility shim in later phases must be small, documented, owned, and have removal notes.
-**UI hint:** no
-
-### Phase 20: Backend Package Restructure
-
-**Goal:** Reorganize backend code into a maintainable Open WebUI-inspired FastAPI package layout without changing API behavior.
-**Depends on:** Phase 19
-**Requirements:** BACK-01, BACK-02, BACK-03, BACK-04, BACK-05
-
-**Success Criteria:**
-
-1. Backend package structure matches the approved target map and has clear module boundaries for routers, schemas, models/domain modules, config, utils, migrations, and socket/websocket code.
-2. FastAPI app startup, router registration, CORS, rate limiting, scheduler startup/shutdown, WebSocket routing, and `/health` response remain behaviorally unchanged.
-3. Alembic can locate metadata and run migrations against the new package paths without rewriting existing migration history.
-4. Backend tests import the new package paths and pass.
-5. Temporary compatibility shims, if needed, are documented and limited to migration support.
-
-**Plans:** 5/5 plans complete
-- **Wave 1:** `20-01` - Package skeleton, canonical app factory, runtime module groups, and compatibility delegates
-- **Wave 2** *(blocked on Wave 1 completion)*: `20-02` - Domain model package split and Alembic metadata safety
-- **Wave 3** *(blocked on Wave 2 completion)*: `20-03` - Domain schema package split with aggregate exports
-- **Wave 4** *(blocked on Waves 2-3 completion)*: `20-04` - Router import migration and selected helper extraction
-- **Wave 5** *(blocked on Waves 1-4 completion)*: `20-05` - Backend migration guide, shim cleanup, Alembic/runtime smoke, and final verification
-- **Cross-cutting constraints:**
-  - Giant model/schema files may become pure facades or retain hard-to-split leftovers at planner discretion.
-  - Phase 20 completion requires backend tests, Alembic validation, and uvicorn `/health` startup smoke.
-  - Phase 20 smoke covers `/health` plus router registration/import checks; broader user-flow smoke remains Phase 22.
-**UI hint:** no
-
-### Phase 21: Frontend SvelteKit Structure
-
-**Goal:** Reorganize frontend shared code into Open WebUI-style SvelteKit folders while preserving existing routes and UI behavior.
-**Depends on:** Phase 19
-**Requirements:** FRONT-01, FRONT-02, FRONT-03, FRONT-04, FRONT-05
-
-**Success Criteria:**
-
-1. Frontend shared code uses `src/lib/apis`, `src/lib/components`, `src/lib/stores`, `src/lib/types`, and `src/lib/utils` consistently.
-2. API client behavior remains stable after splitting feature-focused API modules.
-3. Shared types are centralized where useful and imported by routes/components without introducing circular dependencies.
-4. Current route URLs keep working: `/`, `/tasks`, `/projects`, `/milestones`, `/team`, `/timeline`, `/performance`, `/schedule`, `/ai`, `/login`, `/register`, and invite acceptance.
-5. No visual redesign is introduced as part of this phase.
-
-**Plans:** 4/4 plans executed — COMPLETE 2026-04-27
-**UI hint:** no
-
-### Phase 22: Runtime Integration & Regression Verification
-
-**Goal:** Make the refactored structure production-safe by updating runtime entrypoints and verifying critical flows.
-**Depends on:** Phase 20, Phase 21
-**Requirements:** RUN-01, RUN-02, RUN-03, VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
-
-**Success Criteria:**
-
-1. Dockerfile, compose/dev scripts, Azure startup commands, and uvicorn target reference the refactored backend app.
-2. Frontend check and production build pass.
-3. Backend tests pass.
-4. Smoke checks pass for login/session, task board load, AI task input, WebSocket chat connection, scheduler/notifications, and `/health`.
-5. Developer notes document old-to-new import paths, moved directories, and any temporary compatibility shims.
-
-**Plans:** TBD
-**UI hint:** no
+**Known deferred items at close: 4 (see STATE.md Deferred Items)**
 
 ---
 
-## Progress Table
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 16. Advanced KPI Dashboard | 5/5 | ✅ Done | 2026-04-27 |
-| 17. Sprint & Release Reminders | 5/5 | ✅ Done | 2026-04-28 |
-| 18. Status Transition Graph | 3/4 | In Progress | - |
-| 19. Refactor Map & Safety Baseline | 0/4 | Planned | - |
-| 20. Backend Package Restructure | 5/5 | Complete   | 2026-04-27 |
-| 21. Frontend SvelteKit Structure | 4/4 | ✅ Done | 2026-04-27 |
-| 22. Runtime Integration & Regression Verification | 0/? | Not started | - |
-
----
-
-## Phase Sequencing
-
-```text
-Milestone 2.0 (remaining):
-Phase 16 - Advanced KPI Dashboard
-Phase 17 - Sprint & Release Reminders
-Phase 18 - Status Transition Graph
-
-Milestone v2.1 (starts after Phase 18):
-Phase 19 - Refactor Map & Safety Baseline
-  ├─ Phase 20 - Backend Package Restructure
-  └─ Phase 21 - Frontend SvelteKit Structure
-       └─ Phase 22 - Runtime Integration & Regression Verification
-```
-
-Phase 20 and Phase 21 can be planned independently after Phase 19, but Phase 22 must wait for both because it verifies integrated runtime behavior.
-
----
-
-## Coverage
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| REMIND-01 | Phase 17 | Complete |
-| REMIND-02 | Phase 17 | Complete |
-| TRANS-01 | Phase 18 | Pending |
-| TRANS-02 | Phase 18 | Complete |
-| TRANS-03 | Phase 18 | Pending |
-| STRUCT-01 | Phase 19 | Pending |
-| STRUCT-02 | Phase 19 | Pending |
-| STRUCT-03 | Phase 19 | Pending |
-| BACK-01 | Phase 20 | Pending |
-| BACK-02 | Phase 20 | Pending |
-| BACK-03 | Phase 20 | Pending |
-| BACK-04 | Phase 20 | Pending |
-| BACK-05 | Phase 20 | Pending |
-| FRONT-01 | Phase 21 | Complete |
-| FRONT-02 | Phase 21 | Complete |
-| FRONT-03 | Phase 21 | Complete |
-| FRONT-04 | Phase 21 | Complete |
-| FRONT-05 | Phase 21 | Complete |
-| RUN-01 | Phase 22 | Pending |
-| RUN-02 | Phase 22 | Pending |
-| RUN-03 | Phase 22 | Pending |
-| VERIFY-01 | Phase 22 | Pending |
-| VERIFY-02 | Phase 22 | Pending |
-| VERIFY-03 | Phase 22 | Pending |
-| VERIFY-04 | Phase 22 | Pending |
-
-**Coverage: 25/25 requirements mapped**
+For detailed phase information, see archived milestone files in `.planning/milestones/`.

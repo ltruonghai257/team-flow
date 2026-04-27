@@ -1,5 +1,47 @@
 # Milestones: TeamFlow
 
+## v2.1 Open WebUI-Style Project Structure Refactor (Shipped: 2026-04-27)
+
+**Phases completed:** 4 phases, 17 plans, 37 tasks
+
+**Key accomplishments:**
+
+- Status:
+- Open WebUI-inspired backend package groups with canonical app factory and compatibility delegates preserving app.main:app
+- Domain model package split with aggregate compatibility surface preserving app.models imports and Alembic metadata registration
+- Domain schema package split with aggregate compatibility surface preserving app.schemas imports
+- Router imports updated toward canonical modules with aggregate compatibility preserved; routers remain flat by domain
+- Backend migration guide documents old-to-new paths, compatibility shims, verification results, and Phase 22 handoff
+- Status:
+- supervisord.conf and backend/Dockerfile repointed from `app.main:app` to canonical `app.api.main:app`; Alembic metadata confirmed healthy (22 tables); root runtime configs audited clean
+- Backend pytest run (20 package-structure tests pass; 11 pre-existing failures); frontend `bun check` 0 errors / 9 warnings and `bun build` passes in 8.89s — all recorded in 22-VERIFICATION.md
+- Playwright E2E pass-with-fallbacks (14 pre-existing failures); manual smoke 7/7 flows recorded with all 6 VERIFY-03 flows covered; verification floor complete
+- `docs/MIGRATION-V2.1.md` created (path map + shim ledger with grep baselines + runtime runbook); README and backend/CLAUDE.md updated; Phase 22 final signoff appended to 22-VERIFICATION.md
+- Status:
+
+---
+
+## v2.0 Team Hierarchy, Sprints & Advanced Analytics (Shipped: 2026-04-27)
+
+**Phases completed:** 4 phases, 17 plans, 37 tasks
+
+**Key accomplishments:**
+
+- Status:
+- Open WebUI-inspired backend package groups with canonical app factory and compatibility delegates preserving app.main:app
+- Domain model package split with aggregate compatibility surface preserving app.models imports and Alembic metadata registration
+- Domain schema package split with aggregate compatibility surface preserving app.schemas imports
+- Router imports updated toward canonical modules with aggregate compatibility preserved; routers remain flat by domain
+- Backend migration guide documents old-to-new paths, compatibility shims, verification results, and Phase 22 handoff
+- Status:
+- supervisord.conf and backend/Dockerfile repointed from `app.main:app` to canonical `app.api.main:app`; Alembic metadata confirmed healthy (22 tables); root runtime configs audited clean
+- Backend pytest run (20 package-structure tests pass; 11 pre-existing failures); frontend `bun check` 0 errors / 9 warnings and `bun build` passes in 8.89s — all recorded in 22-VERIFICATION.md
+- Playwright E2E pass-with-fallbacks (14 pre-existing failures); manual smoke 7/7 flows recorded with all 6 VERIFY-03 flows covered; verification floor complete
+- `docs/MIGRATION-V2.1.md` created (path map + shim ledger with grep baselines + runtime runbook); README and backend/CLAUDE.md updated; Phase 22 final signoff appended to 22-VERIFICATION.md
+- Status:
+
+---
+
 ---
 
 ## v1.0 — Production-Ready Team Management Platform

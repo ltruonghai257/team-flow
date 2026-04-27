@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Open WebUI-Style Project Structure Refactor
-status: executing
-last_updated: "2026-04-27T18:10:18.254Z"
+status: completed
+last_updated: "2026-04-27T18:17:03.008Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 17
-  completed_plans: 18
+  completed_plans: 20
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ progress:
 Phase: 20 (backend-package-restructure) — COMPLETE
 Plan: 5 of 5
 Status: Phase 20 complete
-Last activity: 2026-04-28
+Last activity: 2026-04-27
 
 ## Session Notes
 
@@ -68,6 +68,17 @@ Phase 19 complete. Phase 20 (backend restructure) and Phase 21 (frontend restruc
 - Keep backend under `backend/` and frontend under `frontend/` unless a later plan explicitly accepts the runtime/build impact of moving SvelteKit to repo-root `src/`.
 - Preserve API routes, Svelte routes, auth behavior, task workflows, AI task input, WebSocket chat, scheduler behavior, Docker/Azure runtime, and Alembic history.
 - No new dependencies unless an existing import cannot be moved safely without one.
+
+### Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-04-28:
+
+| Category | Item | Status |
+|----------|------|--------|
+| todo | 2026-04-26-status-transition-graph-workflow.md | pending |
+| uat_gap | Phase 02: 02-UAT.md (7 pending scenarios) | testing |
+| uat_gap | Phase 07: 07-UAT.md (12 pending scenarios) | testing |
+| uat_gap | Phase 18: 18-UAT.md (4 pending scenarios) | testing |
 
 ### Pending Todos
 
