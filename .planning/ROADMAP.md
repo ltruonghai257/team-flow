@@ -27,7 +27,7 @@ _Updated: 2026-04-27_
 
 ### Milestone 2.0: Team Hierarchy, Sprints & Advanced Analytics
 
-**Status:** In progress — Phases 17–18 remaining before v2.1 structural refactor begins
+**Status:** In progress — Phase 18 remaining before v2.1 structural refactor begins
 **Phases:** 12-18
 
 | Phase | Name | Status |
@@ -37,7 +37,7 @@ _Updated: 2026-04-27_
 | 14 | Sprint Model | ✅ Done |
 | 15 | Custom Kanban Statuses | ✅ Done |
 | 16 | Advanced KPI Dashboard | ✅ Done |
-| 17 | Sprint & Release Reminders | 🗂 Not started |
+| 17 | Sprint & Release Reminders | ✅ Done |
 | 18 | Status Transition Graph (Workflow Rules) | 📋 Planned |
 
 **Phase 17: Sprint & Release Reminders**
@@ -205,8 +205,8 @@ _Updated: 2026-04-27_
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 16. Advanced KPI Dashboard | 0/5 | Planned | - |
-| 17. Sprint & Release Reminders | 0/5 | Planned | - |
+| 16. Advanced KPI Dashboard | 5/5 | ✅ Done | 2026-04-27 |
+| 17. Sprint & Release Reminders | 5/5 | ✅ Done | 2026-04-28 |
 | 18. Status Transition Graph | 3/4 | In Progress | - |
 | 19. Refactor Map & Safety Baseline | 0/4 | Planned | - |
 | 20. Backend Package Restructure | 0/5 | Planned    |  |
@@ -238,8 +238,8 @@ Phase 20 and Phase 21 can be planned independently after Phase 19, but Phase 22 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REMIND-01 | Phase 17 | Pending |
-| REMIND-02 | Phase 17 | Pending |
+| REMIND-01 | Phase 17 | Complete |
+| REMIND-02 | Phase 17 | Complete |
 | TRANS-01 | Phase 18 | Pending |
 | TRANS-02 | Phase 18 | Complete |
 | TRANS-03 | Phase 18 | Pending |
