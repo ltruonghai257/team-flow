@@ -6,6 +6,7 @@
 		StatusTransition,
 		StatusTransitionPair,
 	} from '$lib/api';
+	import StatusTransitionPreview from './StatusTransitionPreview.svelte';
 
 	export let statusSet: StatusSet | null = null;
 	export let transitions: StatusTransition[] = [];
@@ -191,5 +192,7 @@
 				</tbody>
 			</table>
 		</div>
+
+		<StatusTransitionPreview statuses={activeStatuses} transitions={selectedPairs} />
 	{/if}
 </section>
