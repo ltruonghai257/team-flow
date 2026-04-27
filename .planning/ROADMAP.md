@@ -153,7 +153,16 @@ _Updated: 2026-04-27_
 4. Backend tests import the new package paths and pass.
 5. Temporary compatibility shims, if needed, are documented and limited to migration support.
 
-**Plans:** TBD
+**Plans:** 0/5 plans executed
+- **Wave 1:** `20-01` - Package skeleton, canonical app factory, runtime module groups, and compatibility delegates
+- **Wave 2** *(blocked on Wave 1 completion)*: `20-02` - Domain model package split and Alembic metadata safety
+- **Wave 3** *(blocked on Wave 2 completion)*: `20-03` - Domain schema package split with aggregate exports
+- **Wave 4** *(blocked on Waves 2-3 completion)*: `20-04` - Router import migration and selected helper extraction
+- **Wave 5** *(blocked on Waves 1-4 completion)*: `20-05` - Backend migration guide, shim cleanup, Alembic/runtime smoke, and final verification
+- **Cross-cutting constraints:**
+  - Giant model/schema files may become pure facades or retain hard-to-split leftovers at planner discretion.
+  - Phase 20 completion requires backend tests, Alembic validation, and uvicorn `/health` startup smoke.
+  - Phase 20 smoke covers `/health` plus router registration/import checks; broader user-flow smoke remains Phase 22.
 **UI hint:** no
 
 ### Phase 21: Frontend SvelteKit Structure
@@ -200,7 +209,7 @@ _Updated: 2026-04-27_
 | 17. Sprint & Release Reminders | 0/5 | Planned | - |
 | 18. Status Transition Graph | 3/4 | In Progress | - |
 | 19. Refactor Map & Safety Baseline | 0/4 | Planned | - |
-| 20. Backend Package Restructure | 0/? | Not started | - |
+| 20. Backend Package Restructure | 0/5 | Planned    |  |
 | 21. Frontend SvelteKit Structure | 0/? | Not started | - |
 | 22. Runtime Integration & Regression Verification | 0/? | Not started | - |
 
