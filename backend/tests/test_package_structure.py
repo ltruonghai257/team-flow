@@ -129,3 +129,35 @@ def test_models_metadata_tables():
     tables = set(Base.metadata.tables.keys())
     for expected in ("users", "tasks", "event_notifications"):
         assert expected in tables, f"Table '{expected}' not in metadata"
+
+
+# ── Plan 20-03: Schema Package ────────────────────────────────────────────────
+
+def test_aggregate_schemas_import():
+    from app.schemas import Token, TokenData, UserOut, TaskOut, NotificationOut
+    assert Token is not None
+    assert TaskOut is not None
+
+
+def test_aggregate_schemas_full_required_set():
+    import app.schemas as s
+    required = [
+        "Token", "TokenData", "UserOut", "TaskOut", "MilestoneOut", "SprintOut",
+        "ProjectOut", "ScheduleOut", "NotificationOut", "SubTeamOut", "InviteOut",
+        "ChatMessageOut", "AIConversationOut", "KPIOverviewResponse",
+    ]
+    missing = [name for name in required if not hasattr(s, name)]
+    assert not missing, f"Missing from app.schemas: {missing}"
+
+
+def test_canonical_schema_domain_imports():
+    from app.schemas.auth import Token, TokenData
+    from app.schemas.users import UserOut
+    from app.schemas.work import TaskOut, MilestoneOut, SprintOut
+    from app.schemas.notifications import NotificationOut
+    from app.schemas.communication import ChatMessageOut
+    from app.schemas.ai import AIConversationOut
+    from app.schemas.teams import SubTeamOut
+    from app.schemas.kpi import KPIOverviewResponse
+    assert TaskOut is not None
+    assert KPIOverviewResponse is not None

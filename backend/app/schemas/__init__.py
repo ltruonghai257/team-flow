@@ -1,0 +1,104 @@
+# app.schemas aggregate compatibility surface — Phase 20
+# Re-exports every symbol previously importable from app.schemas.
+# HIGH-RISK: keep through Phase 22 (routers and tests import from app.schemas).
+
+from app.schemas.auth import Token, TokenData  # noqa: F401
+from app.schemas.users import UserCreate, UserOut, UserRoleUpdate, UserUpdate  # noqa: F401
+from app.schemas.work import (  # noqa: F401
+    AiParseRequest,
+    AiParseResponse,
+    BlockedStatusTransitionDetail,
+    CustomStatusCreate,
+    CustomStatusOut,
+    CustomStatusUpdate,
+    DashboardStats,
+    MilestoneCreate,
+    MilestoneOut,
+    MilestoneUpdate,
+    ProjectCreate,
+    ProjectOut,
+    ProjectStatusRevertPayload,
+    ProjectUpdate,
+    ScheduleCreate,
+    ScheduleOut,
+    ScheduleUpdate,
+    SprintBase,
+    SprintClosePayload,
+    SprintCreate,
+    SprintOut,
+    SprintUpdate,
+    StatusDeletePayload,
+    StatusReorderPayload,
+    StatusSetOut,
+    StatusTransitionOut,
+    StatusTransitionPair,
+    StatusTransitionsReplace,
+    TaskCreate,
+    TaskOut,
+    TaskUpdate,
+    TimelineMilestoneOut,
+    TimelineProjectOut,
+    TimelineTaskOut,
+)
+from app.schemas.notifications import (  # noqa: F401
+    NotificationBulkCreate,
+    NotificationCreate,
+    NotificationOut,
+    ReminderSettingsOut,
+    ReminderSettingsProposalCreate,
+    ReminderSettingsProposalOut,
+    ReminderSettingsProposalReview,
+    ReminderSettingsUpdate,
+)
+from app.schemas.communication import (  # noqa: F401
+    ChatChannelOut,
+    ChatConversationOut,
+    ChatMessageOut,
+)
+from app.schemas.ai import (  # noqa: F401
+    AIConversationOut,
+    AIMessageCreate,
+    AIMessageOut,
+    AiBreakdownRequest,
+    AiBreakdownResponse,
+    AiBreakdownSubtask,
+    ProjectSummaryRequest,
+    ProjectSummaryResponse,
+    ProjectSummarySections,
+)
+from app.schemas.performance import (  # noqa: F401
+    PerformanceDashboard,
+    TeamMemberPerformance,
+    TrendDataPoint,
+    UserPerformanceDetail,
+)
+from app.schemas.teams import (  # noqa: F401
+    DirectAddRequest,
+    InviteAcceptRequest,
+    InviteCreate,
+    InviteOut,
+    InviteValidateOut,
+    SubTeamBase,
+    SubTeamCreate,
+    SubTeamOut,
+    SubTeamUpdate,
+)
+from app.schemas.kpi import (  # noqa: F401
+    KPIChartPoint,
+    KPIChartSeries,
+    KPIDrilldownResponse,
+    KPIDrilldownTask,
+    KPIFilterOptions,
+    KPIMemberScorecard,
+    KPIMembersResponse,
+    KPIOverviewResponse,
+    KPIOverviewSummary,
+    KPIQualityResponse,
+    KPIReason,
+    KPIScoreBreakdown,
+    KPISprintResponse,
+    KPIWarningEmailRequest,
+    KPIWarningEmailResponse,
+    KPIWeightSettingsOut,
+    KPIWeightSettingsUpdate,
+)
