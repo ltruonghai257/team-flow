@@ -8,6 +8,7 @@ from app.utils.auth import get_current_user, get_sub_team
 from app.db.database import get_db
 from app.models import Milestone, Project, Sprint, SubTeam, Task, User, SprintStatus
 from app.schemas import SprintCreate, SprintOut, SprintUpdate, SprintClosePayload
+from app.services.reminder_notifications import rebuild_sprint_reminders
 
 router = APIRouter(prefix="/api/sprints", tags=["sprints"])
 
@@ -55,6 +56,11 @@ async def create_sprint(
     db.add(sprint)
     await db.flush()
     await db.refresh(sprint)
+    
+    # Rebuild reminders if sprint has an end date
+    if sprint.end_date is not None:
+        await rebuild_sprint_reminders(db, sprint.id)
+    
     return sprint
 
 
@@ -83,11 +89,19 @@ async def update_sprint(
     if not sprint:
         raise HTTPException(status_code=404, detail="Sprint not found")
     
+    # Track if end_date changed
+    old_end_date = sprint.end_date
+    
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(sprint, field, value)
         
     await db.flush()
     await db.refresh(sprint)
+    
+    # Rebuild reminders if end_date changed
+    if old_end_date != sprint.end_date:
+        await rebuild_sprint_reminders(db, sprint.id)
+    
     return sprint
 
 

@@ -8,6 +8,7 @@ from app.utils.auth import get_current_user
 from app.db.database import get_db
 from app.models import Milestone, User
 from app.schemas import MilestoneCreate, MilestoneOut, MilestoneUpdate
+from app.services.reminder_notifications import rebuild_milestone_reminders
 
 router = APIRouter(prefix="/api/milestones", tags=["milestones"])
 
@@ -36,6 +37,10 @@ async def create_milestone(
     db.add(milestone)
     await db.flush()
     await db.refresh(milestone)
+    
+    # Rebuild reminders for milestone
+    await rebuild_milestone_reminders(db, milestone.id)
+    
     return milestone
 
 
@@ -59,10 +64,19 @@ async def update_milestone(
     milestone = result.scalar_one_or_none()
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
+    
+    # Track if due_date changed
+    old_due_date = milestone.due_date
+    
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(milestone, field, value)
     await db.flush()
     await db.refresh(milestone)
+    
+    # Rebuild reminders if due_date changed
+    if old_due_date != milestone.due_date:
+        await rebuild_milestone_reminders(db, milestone.id)
+    
     return milestone
 
 
