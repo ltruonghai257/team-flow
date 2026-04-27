@@ -124,3 +124,27 @@ Stack: backend on `localhost:8082` (uvicorn `app.api.main:app`, pre-existing pro
 | Frontend check + build (VERIFY-02) | yes | pass (0 errors, 9 warnings matching Phase 21-04 baseline) | 22-02 |
 | Playwright E2E | yes | pass-with-fallbacks (14 pre-existing failures; no Phase 22 regressions; HTML report at `frontend/playwright-report/index.html`) | 22-03 |
 | Manual smoke (VERIFY-03) | yes | pass-with-fallbacks (7 flows recorded; 2 D-11 fallbacks; no secrets leaked) | 22-03 |
+
+---
+
+## Final Signoff
+
+**Phase 22 verified:** 2026-04-27
+
+| Layer | Plan | Status | Evidence |
+|-------|------|--------|----------|
+| Runtime entrypoint update (RUN-01) | 22-01 | pass | `## Plan 22-01 entrypoint audit` |
+| Alembic canonical metadata (BACK-04) | 22-01 | pass | `### Plan 22-01 fallback` (live python import: 22 metadata tables) |
+| Backend pytest (VERIFY-01) | 22-02 | pass-with-fallbacks | `## Backend pytest` (20/20 package-structure tests pass; 11 pre-existing failures) |
+| Frontend check + build (VERIFY-02, RUN-02) | 22-02 | pass | `## Frontend check`, `## Frontend build` |
+| Playwright E2E | 22-03 | pass-with-fallbacks | `## Playwright E2E` (HTML report: `frontend/playwright-report/index.html`) |
+| Manual smoke (VERIFY-03) | 22-03 | pass-with-fallbacks | `## Manual Smoke (Plan 22-03)` |
+| Migration guide (VERIFY-04) | 22-04 | pass | `docs/MIGRATION-V2.1.md` |
+
+**Requirements covered by Phase 22:** RUN-01, RUN-02, RUN-03, VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04.
+
+**No new dependencies introduced (RUN-03):** confirmed — `backend/requirements.txt` unchanged from pre-Phase-22 state; `frontend/package.json` unchanged.
+
+**Shims left in place (CONTEXT D-04/D-05):** see `docs/MIGRATION-V2.1.md` `## Shim Ledger` for baseline counts; cleanup deferred to a future milestone.
+
+**Signoff:** Phase 22 executor.
