@@ -341,11 +341,33 @@ export interface StatusSet {
     statuses: CustomStatus[];
 }
 
+export interface StatusTransition {
+    id: number;
+    status_set_id: number;
+    from_status_id: number;
+    to_status_id: number;
+    created_at: string;
+}
+
+export interface StatusTransitionPair {
+    from_status_id: number;
+    to_status_id: number;
+}
+
 // Status Sets
 export const statusSets = {
     getDefault: () => request('/status-sets/default'),
     getEffective: (projectId?: number) =>
         request(`/status-sets/effective${projectId ? `?project_id=${projectId}` : ''}`),
+    getTransitions: (statusSetId: number, includeArchived = false) =>
+        request<StatusTransition[]>(
+            `/status-sets/${statusSetId}/transitions${includeArchived ? '?include_archived=true' : ''}`
+        ),
+    replaceTransitions: (statusSetId: number, transitions: StatusTransitionPair[]) =>
+        request<StatusTransition[]>(`/status-sets/${statusSetId}/transitions`, {
+            method: 'POST',
+            body: JSON.stringify({ transitions }),
+        }),
     createStatus: (data: object) =>
         request('/status-sets/default/statuses', {
             method: 'POST',
