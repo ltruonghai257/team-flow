@@ -1,6 +1,6 @@
 # Roadmap: TeamFlow
 
-_Updated: 2026-04-26_
+_Updated: 2026-04-27_
 
 ---
 
@@ -126,7 +126,17 @@ _Updated: 2026-04-26_
 4. Protected behavior list exists for API routes, auth/session behavior, Svelte routes, WebSocket chat, scheduler jobs, AI task input, Docker runtime, and Alembic migrations.
 5. Pre-refactor verification commands are run or explicitly documented if blocked by environment.
 
-**Plans:** TBD
+**Plans:**
+  - **Wave 1:** `19-01` - Safety baseline and protected behavior inventory
+  - **Wave 2** *(blocked on Wave 1 completion)*: `19-02` - Backend target structure, file map, coupling notes, and Phase 20 migration slices
+  - **Wave 2** *(blocked on Wave 1 completion)*: `19-03` - Frontend target structure, API/type map, route boundaries, and Phase 21 migration slices
+  - **Wave 3** *(blocked on Waves 1-2 completion)*: `19-04` - Final refactor playbook, traceability, shim policy, and Phase 20/21/22 handoff
+- **Cross-cutting constraints:**
+  - Keep `backend/app` and `frontend/src` as roots; Open WebUI is structural inspiration, not an exact clone.
+  - Phase 19 is documentation-only: no code moves, API behavior changes, UI redesign, dependency additions, or schema changes.
+  - Baseline checks must be run or documented with exact failure reason and next-best fallback.
+  - Protected behavior includes API routes, auth/session, Svelte routes, `/ws/chat`, scheduler/notifications, AI task input, Docker/runtime, and Alembic history.
+  - Any temporary compatibility shim in later phases must be small, documented, owned, and have removal notes.
 **UI hint:** no
 
 ### Phase 20: Backend Package Restructure
@@ -189,7 +199,7 @@ _Updated: 2026-04-26_
 | 16. Advanced KPI Dashboard | 0/5 | Planned | - |
 | 17. Sprint & Release Reminders | 0/5 | Planned | - |
 | 18. Status Transition Graph | 3/4 | In Progress | - |
-| 19. Refactor Map & Safety Baseline | 0/? | Not started | - |
+| 19. Refactor Map & Safety Baseline | 0/4 | Planned | - |
 | 20. Backend Package Restructure | 0/? | Not started | - |
 | 21. Frontend SvelteKit Structure | 0/? | Not started | - |
 | 22. Runtime Integration & Regression Verification | 0/? | Not started | - |
