@@ -225,7 +225,7 @@ async def test_reconcile_generated_reminders_is_idempotent(db_session):
     second = await reconcile_generated_reminders(db_session)
 
     assert first >= 2
-    assert second >= 2
+    assert second == 0
 
     result = await db_session.execute(
         select(EventNotification).where(
