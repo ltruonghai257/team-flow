@@ -20,6 +20,7 @@ from app.routers import (
     invites,
     milestones,
     notifications,
+    knowledge_sessions,
     performance,
     projects,
     schedules,
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     application.include_router(sprints.router)
     application.include_router(tasks.router)
     application.include_router(schedules.router)
+    application.include_router(knowledge_sessions.router)
     application.include_router(updates.router)
     application.include_router(notifications.router)
     application.include_router(ai.router)

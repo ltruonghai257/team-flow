@@ -39,13 +39,16 @@
 		} catch {
 			/* ignore */
 		}
-		switch (n.event_type) {
-			case 'schedule':
-				goto('/schedule');
-				break;
-			case 'task':
-				goto(`/tasks?task_id=${n.event_ref_id}&focus=${focus}`);
-				break;
+			switch (n.event_type) {
+				case 'schedule':
+					goto('/schedule');
+					break;
+				case 'knowledge_session':
+					goto('/schedule');
+					break;
+				case 'task':
+					goto(`/tasks?task_id=${n.event_ref_id}&focus=${focus}`);
+					break;
 			case 'sprint_end':
 				goto(`/tasks?sprint_id=${n.event_ref_id}&focus=${focus}`);
 				break;

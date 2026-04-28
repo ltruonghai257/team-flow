@@ -56,9 +56,17 @@ class NotificationStatus(str, enum.Enum):
 class NotificationEventType(str, enum.Enum):
     schedule = "schedule"
     task = "task"
+    knowledge_session = "knowledge_session"
     sprint_end = "sprint_end"
     milestone_due = "milestone_due"
     reminder_settings_proposal = "reminder_settings_proposal"
+
+
+class KnowledgeSessionType(str, enum.Enum):
+    presentation = "presentation"
+    demo = "demo"
+    workshop = "workshop"
+    qa = "qa"
 
 
 class ReminderProposalStatus(str, enum.Enum):

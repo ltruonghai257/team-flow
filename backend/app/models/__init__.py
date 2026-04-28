@@ -9,6 +9,7 @@
 
 from app.models.enums import (  # noqa: F401
     InviteStatus,
+    KnowledgeSessionType,
     MilestoneStatus,
     NotificationEventType,
     NotificationStatus,
@@ -36,6 +37,7 @@ from app.models.notifications import (  # noqa: F401
     ReminderSettingsProposal,
     SubTeamReminderSettings,
 )
+from app.models.knowledge import KnowledgeSession  # noqa: F401
 from app.models.communication import (  # noqa: F401
     ChatChannel,
     ChatChannelMember,

@@ -5,14 +5,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.auth import get_current_user
+from app.utils.auth import get_current_user, get_sub_team
 from app.db.database import get_db
 from app.models import (
     EventNotification,
+    KnowledgeSession,
     NotificationEventType,
     NotificationStatus,
     Schedule,
     Task,
+    SubTeam,
     User,
 )
 from app.schemas import (
@@ -20,20 +22,24 @@ from app.schemas import (
     NotificationCreate,
     NotificationOut,
 )
+from app.services.knowledge_sessions import visible_knowledge_session_query
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 
 async def _resolve_event(
     db: AsyncSession,
-    user_id: int,
+    current_user: User,
     event_type: NotificationEventType,
     event_ref_id: int,
+    sub_team: SubTeam | None = None,
 ) -> tuple[str, datetime]:
     """Return (title, start_at) for a schedule or task event owned/visible by user."""
     if event_type == NotificationEventType.schedule:
         result = await db.execute(
-            select(Schedule).where(Schedule.id == event_ref_id, Schedule.user_id == user_id)
+            select(Schedule).where(
+                Schedule.id == event_ref_id, Schedule.user_id == current_user.id
+            )
         )
         obj = result.scalar_one_or_none()
         if not obj:
@@ -45,6 +51,15 @@ async def _resolve_event(
         if not obj or not obj.due_date:
             raise HTTPException(status_code=404, detail="Task with due_date not found")
         return obj.title, obj.due_date
+    if event_type == NotificationEventType.knowledge_session:
+        stmt = visible_knowledge_session_query(
+            current_user, sub_team
+        ).where(KnowledgeSession.id == event_ref_id)
+        result = await db.execute(stmt)
+        obj = result.scalar_one_or_none()
+        if not obj:
+            raise HTTPException(status_code=404, detail="Knowledge session not found")
+        return obj.topic, obj.start_time
     raise HTTPException(status_code=400, detail="Unsupported event type")
 
 
@@ -53,9 +68,10 @@ async def create_notification(
     payload: NotificationCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    sub_team: SubTeam | None = Depends(get_sub_team),
 ):
     title, start_at = await _resolve_event(
-        db, current_user.id, payload.event_type, payload.event_ref_id
+        db, current_user, payload.event_type, payload.event_ref_id, sub_team
     )
     remind_at = start_at - timedelta(minutes=payload.offset_minutes)
     status = (
@@ -82,10 +98,11 @@ async def bulk_set_notifications(
     payload: NotificationBulkCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    sub_team: SubTeam | None = Depends(get_sub_team),
 ):
     """Replace all reminders for (event_type, event_ref_id) owned by user with the given offsets."""
     title, start_at = await _resolve_event(
-        db, current_user.id, payload.event_type, payload.event_ref_id
+        db, current_user, payload.event_type, payload.event_ref_id, sub_team
     )
     # Delete existing reminders for this event
     result = await db.execute(
@@ -144,7 +161,9 @@ async def list_by_event(
     event_ref_id: int = Query(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    sub_team: SubTeam | None = Depends(get_sub_team),
 ):
+    await _resolve_event(db, current_user, event_type, event_ref_id, sub_team)
     result = await db.execute(
         select(EventNotification)
         .where(

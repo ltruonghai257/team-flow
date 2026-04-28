@@ -125,9 +125,6 @@ async def _insert_generated_rows(
                 EventNotification.user_id == user_id,
                 EventNotification.event_type == event_type,
                 EventNotification.event_ref_id == event_ref_id,
-                EventNotification.status.in_(
-                    [NotificationStatus.pending, NotificationStatus.sent]
-                ),
             )
         )
         if existing.first() is not None:

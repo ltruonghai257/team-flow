@@ -1,6 +1,6 @@
 """add standup tables
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: e5f6a7b8c9d0
 Revises: d3e4f5a6b7c8
 Create Date: 2026-04-28 12:00:00.000000
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
-revision: str = "a1b2c3d4e5f6"
+revision: str = "e5f6a7b8c9d0"
 down_revision: Union[str, Sequence[str], None] = "d3e4f5a6b7c8"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

@@ -2,7 +2,7 @@ import { request } from './request';
 
 export const notifications = {
     create: (data: {
-        event_type: 'schedule' | 'task';
+        event_type: 'schedule' | 'task' | 'knowledge_session';
         event_ref_id: number;
         offset_minutes: number;
     }) =>
@@ -11,7 +11,7 @@ export const notifications = {
             body: JSON.stringify(data),
         }),
     bulkSet: (data: {
-        event_type: 'schedule' | 'task';
+        event_type: 'schedule' | 'task' | 'knowledge_session';
         event_ref_id: number;
         offset_minutes_list: number[];
     }) =>
@@ -20,7 +20,7 @@ export const notifications = {
             body: JSON.stringify(data),
         }),
     pending: () => request('/notifications/pending'),
-    byEvent: (event_type: 'schedule' | 'task', event_ref_id: number) =>
+    byEvent: (event_type: 'schedule' | 'task' | 'knowledge_session', event_ref_id: number) =>
         request(
             `/notifications/by-event?event_type=${event_type}&event_ref_id=${event_ref_id}`
         ),

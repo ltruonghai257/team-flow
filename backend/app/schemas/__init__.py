@@ -3,6 +3,12 @@
 # HIGH-RISK: keep through Phase 22 (routers and tests import from app.schemas).
 
 from app.schemas.auth import Token, TokenData  # noqa: F401
+from app.schemas.knowledge import (  # noqa: F401
+    KnowledgeSessionCreate,
+    KnowledgeSessionOut,
+    KnowledgeSessionPresenterOut,
+    KnowledgeSessionUpdate,
+)
 from app.schemas.users import UserCreate, UserOut, UserRoleUpdate, UserUpdate  # noqa: F401
 from app.schemas.work import (  # noqa: F401
     AiParseRequest,

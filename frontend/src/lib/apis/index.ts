@@ -5,6 +5,7 @@ export { milestones } from './milestones';
 export { sprints } from './sprints';
 export { tasks } from './tasks';
 export { schedules } from './schedules';
+export { knowledgeSessions } from './knowledge-sessions';
 export { notifications } from './notifications';
 export { ai } from './ai';
 export { chat } from './chat';
