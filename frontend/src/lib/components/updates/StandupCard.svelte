@@ -6,6 +6,8 @@
 	import SnapshotPanel from './SnapshotPanel.svelte';
 	import { toast } from 'svelte-sonner';
 	import { format, parseISO } from 'date-fns';
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
 
 	export let post: StandupPost;
 	export let fieldTypes: Record<string, string> = {};
@@ -14,6 +16,12 @@
 
 	let mode: 'read' | 'editing' | 'deleting' | 'saving' | 'confirming-delete' = 'read';
 	let editValues: Record<string, string> = {};
+
+	function renderMarkdown(text: string): string {
+		if (!text) return '';
+		const html = marked.parse(text, { async: false }) as string;
+		return DOMPurify.sanitize(html);
+	}
 
 	function startEdit() {
 		editValues = { ...post.field_values };
@@ -64,8 +72,9 @@
 				{#if fieldTypes[fieldName] === 'datetime'}
 					<p class="text-sm text-gray-300">{format(parseISO(fieldValue), 'PPp')}</p>
 				{:else if fieldTypes[fieldName] === 'richtext'}
-					<!-- TODO: Render with marked + dompurify for XSS-safe markdown -->
-					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+					<div class="text-sm text-gray-300 prose prose-invert max-w-none">
+						{@html renderMarkdown(fieldValue)}
+					</div>
 				{:else}
 					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
 				{/if}
@@ -97,8 +106,9 @@
 				{#if fieldTypes[fieldName] === 'datetime'}
 					<p class="text-sm text-gray-300">{format(parseISO(fieldValue), 'PPp')}</p>
 				{:else if fieldTypes[fieldName] === 'richtext'}
-					<!-- TODO: Render with marked + dompurify for XSS-safe markdown -->
-					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+					<div class="text-sm text-gray-300 prose prose-invert max-w-none">
+						{@html renderMarkdown(fieldValue)}
+					</div>
 				{:else}
 					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
 				{/if}
@@ -127,8 +137,14 @@
 				{#if fieldTypes[fieldName] === 'datetime'}
 					<input id="edit-{fieldName}" type="datetime-local" class="input" bind:value={editValues[fieldName]} />
 				{:else if fieldTypes[fieldName] === 'richtext'}
-					<textarea id="edit-{fieldName}" class="input resize-none h-20" bind:value={editValues[fieldName]}></textarea>
-					<!-- TODO: Add markdown preview with marked + dompurify -->
+					<div class="space-y-2">
+						<textarea id="edit-{fieldName}" class="input resize-none h-20" bind:value={editValues[fieldName]} placeholder="Write markdown here..."></textarea>
+						{#if editValues[fieldName]}
+							<div class="bg-gray-800 border border-gray-700 rounded p-3 text-sm text-gray-300 prose prose-invert max-w-none">
+								{@html renderMarkdown(editValues[fieldName])}
+							</div>
+						{/if}
+					</div>
 				{:else}
 					<textarea id="edit-{fieldName}" class="input resize-none h-20" bind:value={editValues[fieldName]}></textarea>
 				{/if}

@@ -3,6 +3,8 @@
 	import { ChevronDown, ChevronUp } from 'lucide-svelte';
 	import { updates } from '$lib/apis';
 	import { toast } from 'svelte-sonner';
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
 
 	export let templateFields: string[] = [];
 	export let fieldTypes: Record<string, string> = {};
@@ -16,6 +18,12 @@
 	$: fieldValues = Object.fromEntries(templateFields.map((f) => [f, '']));
 
 	$: allFieldsEmpty = templateFields.every((f) => !(fieldValues[f] ?? '').trim());
+
+	function renderMarkdown(text: string): string {
+		if (!text) return '';
+		const html = marked.parse(text, { async: false }) as string;
+		return DOMPurify.sanitize(html);
+	}
 
 	async function handleSubmit() {
 		submitting = true;
@@ -70,8 +78,12 @@
 						<input id="field-{i}" type="datetime-local" class="input" bind:value={fieldValues[fieldName]} />
 					{:else if fieldTypes[fieldName] === 'richtext'}
 						<div class="space-y-2">
-							<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]}></textarea>
-							<!-- Markdown preview could be added here with marked + dompurify -->
+							<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]} placeholder="Write markdown here..."></textarea>
+							{#if fieldValues[fieldName]}
+								<div class="bg-gray-800 border border-gray-700 rounded p-3 text-sm text-gray-300 prose prose-invert max-w-none">
+									{@html renderMarkdown(fieldValues[fieldName])}
+								</div>
+							{/if}
 						</div>
 					{:else}
 						<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]}></textarea>
