@@ -13,10 +13,13 @@ import {
 	TrendingUp
 } from 'lucide-svelte';
 
+export type UserRole = 'admin' | 'supervisor' | 'member';
+
 export interface NavigationChild {
 	href: string;
 	label: string;
 	icon: ComponentType;
+	roles?: UserRole[]; // If specified, only visible to these roles
 }
 
 export interface NavigationGroup {
@@ -52,7 +55,7 @@ export const navigationGroups: NavigationGroup[] = [
 			{ href: '/team', label: 'Team', icon: Users },
 			{ href: '/updates', label: 'Updates', icon: MessageSquare },
 			{ href: '/board', label: 'Weekly Board', icon: ClipboardList },
-			{ href: '/performance', label: 'Performance', icon: TrendingUp }
+			{ href: '/performance', label: 'Performance', icon: TrendingUp, roles: ['admin', 'supervisor'] }
 		]
 	},
 	{
@@ -85,4 +88,24 @@ export function getActiveNavigationState(pathname: string): NavigationState {
 	}
 
 	return { activeGroup, activeChild };
+}
+
+export function filterNavigationGroups(role: UserRole | null): NavigationGroup[] {
+	return navigationGroups
+		.map((group) => ({
+			...group,
+			children: group.children.filter((child) => {
+				// If child has role restrictions, check if user's role is allowed
+				if (child.roles && role) {
+					return child.roles.includes(role);
+				}
+				// If no role restrictions or no user role, show the child
+				return true;
+			})
+		}))
+		.filter((group) => group.children.length > 0); // Remove groups with no visible children
+}
+
+export function isSupervisorOrAdmin(role: UserRole | null): boolean {
+	return role === 'admin' || role === 'supervisor';
 }
