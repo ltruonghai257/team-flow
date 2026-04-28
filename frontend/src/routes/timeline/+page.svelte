@@ -106,6 +106,11 @@
 		};
 	}
 
+	function handleMilestoneFocus(milestoneId: number) {
+		focusedMilestoneId = milestoneId;
+		focusedTaskId = null;
+	}
+
 	async function handleReschedule() {
 		await loadTimeline();
 	}
@@ -175,10 +180,14 @@
 		{:else}
 			<TimelineGantt
 				{projects}
+				{viewModel}
 				{viewMode}
 				{rangeStart}
 				{rangeEnd}
+				{focusedMilestoneId}
+				{focusedTaskId}
 				ontaskclick={handleTaskClick}
+				onfocusmilestone={handleMilestoneFocus}
 				onreschedule={handleReschedule}
 			/>
 		{/if}
