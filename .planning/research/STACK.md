@@ -1,8 +1,14 @@
-# Technology Stack — Milestone 2 Additions
+# Technology Stack — Milestone v2.2 Additions
 
-**Project:** TeamFlow v2.0
-**Researched:** 2026-04-24
-**Scope:** NEW dependencies only — what the existing FastAPI + SvelteKit 5 + PostgreSQL 16 stack needs to support the six new feature areas.
+**Project:** TeamFlow v2.2 (Team Updates, Knowledge Sharing, Weekly Board)
+**Researched:** 2026-04-28
+**Scope:** NEW dependencies only — what the existing FastAPI + SvelteKit 5 + PostgreSQL 16 + TailwindCSS stack needs for the three new feature areas in v2.2.
+
+---
+
+## Summary
+
+All three v2.2 features (standup posts, knowledge-sharing scheduler, weekly board with AI summary) are achievable with **one new frontend library** (`marked` + `dompurify` as a pair) and **zero new backend packages**. The AI summary pattern, scheduler trigger, and database layer all reuse what is already present.
 
 ---
 
@@ -10,138 +16,120 @@
 
 ### Frontend
 
-| Library | Version | Feature | Why |
+| Library | Version | Purpose | Why |
 |---------|---------|---------|-----|
-| `layerchart` | `next` (already installed) | KPI charts (burndown, velocity, cycle time) | Already in `package.json`; was removed from performance pages in favour of inline SVG but is available. Provides Chart.js-quality composable charts built on top of `d3` with native Svelte 5 rune support. Use it instead of adding a separate charting lib. |
-| `d3-shape` | `^3.2.0` (already installed) | KPI charts | Already in `package.json`; `layerchart` consumes it internally. No separate install. |
-| `svelte-dnd-action` | `^0.9.69` (already installed) | Custom status column reordering | Already in `package.json` and used on the Kanban board. The same library handles horizontal column drag-reorder — no new DnD dependency needed. |
+| `marked` | `^14.x` (verify with `yarn info marked version`) | Parse markdown to HTML in the browser | Lightweight (< 25 kB gzip), no DOM dependency, runs in SvelteKit SSR and CSR modes. Used by Open WebUI (the reference architecture for this project) for the same purpose — chat message and post rendering. Pure-JS, no build-time config needed. |
+| `dompurify` | `^3.x` (verify with `yarn info dompurify version`) | Sanitize HTML produced by `marked` before injecting into the DOM | Required whenever `{@html ...}` is used with user-supplied text. Prevents XSS from crafted markdown. `marked` alone does NOT sanitize. `dompurify` is the standard browser-side sanitizer; it has no runtime dependencies and is < 7 kB gzip. |
+| `@types/dompurify` | matching `dompurify` major | TypeScript types for DOMPurify | DOMPurify ships no bundled types; this package provides them. Dev-only. |
 
-**Net new frontend packages: zero.** All charting and DnD needs are covered by what is already installed.
+**Net new frontend packages: 3** (`marked`, `dompurify`, `@types/dompurify`).
 
-Note on `layerchart` version tag: the `"next"` dist-tag on npm points to layerchart v2 pre-release (the Svelte 5 / runes-compatible major). Confidence: MEDIUM — based on `package.json` presence and the comment in the performance page noting it was temporarily removed. Before using it, verify the installed version with `yarn list layerchart` and consult https://layerchart.com/docs.
+**Install:**
+```bash
+yarn add marked dompurify
+yarn add -D @types/dompurify
+```
+
+**Usage pattern in SvelteKit components:**
+```typescript
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+function renderMarkdown(raw: string): string {
+  return DOMPurify.sanitize(marked.parse(raw) as string);
+}
+```
+Then in template: `{@html renderMarkdown(post.content)}`
+
+**Why not a heavier editor?** The three features need:
+1. Rendering stored markdown (read-only display) — `marked` + `dompurify` is sufficient.
+2. Authoring (standup post, weekly board post) — a plain `<textarea>` with live preview is the right complexity level for a team-internal tool. A full rich-text editor (Tiptap, Milkdown, ProseMirror) adds 200–500 kB and a plugin system for no user benefit over a split-pane textarea + preview.
+
+**Why not `@tailwindcss/typography`?** It is already a natural fit for styling rendered markdown but is a dev/CSS-only addition, not a JS package. It can be added as a Tailwind plugin at implementation time (`yarn add -D @tailwindcss/typography`, one line in `tailwind.config.js`). It is not strictly required — prose styling can be done with existing Tailwind utilities — so it is listed here as an optional convenience, not a required dependency.
 
 ### Backend
 
-| Library | Version | Feature | Why |
+| Library | Version | Purpose | Why |
 |---------|---------|---------|-----|
-| No new packages required | — | All features | `apscheduler` covers sprint reminders; `sqlalchemy` + `alembic` covers all new schema; `pydantic` covers validation for new types. |
+| No new packages required | — | All v2.2 features | `apscheduler`, `litellm`, `sqlalchemy`, `alembic`, and `pydantic` already cover everything. |
 
 **Net new backend packages: zero.**
 
-The only backend concern is Alembic migration files — the schema additions below must be expressed as Alembic revisions, not `create_all`. The project's own docs note that `create_all` is not production-safe; Milestone 2 must fix this.
-
 ---
 
-## Schema Additions
+## Integration Points
 
-All additions go into `backend/app/models.py` and generate Alembic migrations. No new ORM or DB driver is needed.
+### 1. LiteLLM — AI Weekly Summary (Confirmed Pattern)
 
-### 1. Team Hierarchy
+The existing `acompletion` wrapper in `backend/app/utils/ai_client.py` is the correct call point. The pattern used in `routers/ai.py` for project summaries applies directly:
 
-```
-Organization (1)
-  └── Team (N)       -- each Team has 1 supervisor_id FK → users.id
-        └── TeamMember (N)  -- join table: team_id, user_id, joined_at
-```
+```python
+from app.utils.ai_client import acompletion
+from app.core.config import settings
 
-**New tables:**
-
-- `organizations` — `id`, `name`, `created_at`. Single-row in practice (private deployment), but the table enforces the hierarchy cleanly without special-casing.
-- `teams` — `id`, `name`, `organization_id FK`, `supervisor_id FK → users.id`, `created_at`. Replaces the implicit "one global team" assumption.
-- `team_members` — `id`, `team_id FK`, `user_id FK`, `joined_at`. Composite unique on `(team_id, user_id)`.
-
-**Existing model changes:**
-
-- `User` — add optional `team_id FK → teams.id` for fast denormalized lookup of a user's primary team. (A user belongs to exactly one sub-team in this model; the `team_members` table is the authoritative join but `team_id` shortcut avoids joins on common queries.)
-- `Project` — add `team_id FK → teams.id` (nullable for backward compat during migration). Projects belong to a team.
-
-**Pattern rationale:** A flat adjacency list (org → team → user) is sufficient for this depth. Recursive CTEs (for arbitrary depth hierarchies) are unnecessary complexity given the fixed two-level structure.
-
-### 2. Sprint Model
-
-```
-Project (1)
-  └── Milestone (N)
-        └── Sprint (N)    -- time-boxed iteration within a milestone
-              └── Task (N) -- tasks assigned to a sprint
+response = await acompletion(
+    model=settings.AI_MODEL,
+    messages=[
+        {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+        {"role": "user", "content": aggregated_posts_text},
+    ],
+    temperature=0.3,
+)
+summary_text = response.choices[0].message.content
 ```
 
-**New table: `sprints`**
+The weekly summary endpoint:
+- Collects all `WeeklyPost` rows for the current ISO week.
+- Concatenates their content into a single prompt block (same pattern as `_build_summary_context_block`).
+- Calls `acompletion` via the existing wrapper.
+- Stores the result back on a `WeeklyBoardSummary` model row (or a `summary` field on a per-week aggregate record).
+- Returns it from the endpoint and also triggers it from the scheduler job.
 
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | Integer PK | |
-| `name` | String | e.g. "Sprint 3" |
-| `milestone_id` | FK → milestones.id | |
-| `start_date` | DateTime | |
-| `end_date` | DateTime | |
-| `goal` | Text nullable | sprint goal statement |
-| `status` | Enum(`planned`, `active`, `completed`) | |
-| `created_at` | DateTime | |
+No new LiteLLM configuration, no new env vars, no streaming required for this use case.
 
-**Existing model changes:**
+### 2. APScheduler — Weekly Summary Trigger
 
-- `Task` — add `sprint_id FK → sprints.id` (nullable; tasks not in any sprint remain valid).
+The existing `AsyncIOScheduler` in `backend/app/internal/scheduler_jobs.py` is already running. Add one new job:
 
-### 3. Custom Kanban Statuses
+```python
+sched.add_job(
+    generate_weekly_summary_job,
+    trigger="cron",
+    day_of_week="sun",
+    hour=23,
+    minute=0,
+    id="generate_weekly_summary",
+    replace_existing=True,
+)
+```
 
-The existing `TaskStatus` Python enum (`todo/in_progress/review/done/blocked`) is hardcoded. Custom statuses require moving status definitions to the database.
+The job calls the same LiteLLM wrapper used by the on-demand endpoint. No new scheduler library, no Redis, no Celery.
 
-**New table: `kanban_statuses`**
+Confidence: HIGH — the scheduler already uses `AsyncIOScheduler` with `interval` triggers. Adding a `cron` trigger is a supported APScheduler feature on the same scheduler instance (`apscheduler>=3.10.4` is already installed).
 
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | Integer PK | |
-| `name` | String | display label, e.g. "In QA" |
-| `slug` | String unique | URL/API-safe key, e.g. "in_qa" |
-| `color` | String | hex color for board column |
-| `position` | Integer | column order, mutable by drag |
-| `scope` | Enum(`global`, `project`) | global = team default; project = per-project override |
-| `project_id` | FK → projects.id nullable | null when scope=global |
-| `team_id` | FK → teams.id nullable | null when scope=project (inherits from team) |
-| `is_terminal` | Boolean default false | marks "done"-equivalent statuses for KPI calculations |
-| `created_at` | DateTime | |
+### 3. Knowledge Sessions — Existing Calendar Model
 
-**Existing model changes:**
+The existing `Schedule` model in `models/work.py` has `title`, `description`, `start_time`, `end_time`, `location`, and `user_id`. Knowledge sessions need additional fields: `topic`, `session_type` (enum: presentation/demo/workshop/Q&A), `presenter_id` (FK to users), `references` (text), `tags` (array or text), and `duration_minutes`.
 
-- `Task.status` — migrate from `Enum(TaskStatus)` column to `String` column referencing `kanban_statuses.slug`. This is the breaking change. The migration path: add `String` column `status_slug`, backfill from existing enum values, drop old column, rename.
-- The Python `TaskStatus` enum becomes a thin set of sentinel constants for the seed/defaults, not an ORM column type.
+**Two options:**
 
-**Why slug not FK:** Storing the slug string on the task avoids a join on every task read and survives status renaming gracefully (slug stays stable, display name can change). FK enforcement is done at the application layer (validate slug exists before saving).
+**Option A (recommended): New `KnowledgeSession` model.** A separate table avoids polluting `Schedule` with knowledge-specific nullable columns. The calendar frontend filters by event type to show sessions in their own tab. The `KnowledgeSession` rows appear as calendar items by also creating a corresponding `Schedule` row (or by having the calendar query both tables and union them client-side).
 
-### 4. Task Types
+**Option B: Extend `Schedule`.** Add an `event_type` discriminator column and knowledge-specific columns to `schedules`. Simpler migration, but the `Schedule` model grows wide with NULLable columns that only apply to one event type.
 
-Simple enum addition to the `tasks` table.
+Recommendation: Option A. The calendar's existing query filters by `user_id`; the new tab queries `/api/knowledge-sessions` independently. No JOIN required.
 
-**New column on `tasks`:**
+### 4. Standup Posts — New Model
 
-- `task_type` — `Enum('feature', 'bug', 'task', 'improvement')` default `'task'`, not nullable after backfill migration.
+`StandupPost` table: `id`, `user_id FK`, `post_type` (daily/weekly enum), `content TEXT` (markdown), `task_snapshot JSONB` (snapshot of user's tasks at post time), `created_at`, `week_number INT`, `year INT` (for grouping). No existing model to extend.
 
-No new table needed.
+`task_snapshot` stores a lightweight JSON array of `{task_id, title, status}` at the moment of posting. PostgreSQL's `JSONB` type is already used in the project; SQLAlchemy supports it natively with `JSON` column type.
 
-### 5. Advanced KPIs
+### 5. Weekly Board Posts — New Model
 
-KPI metrics (velocity, burndown, cycle time, throughput, defect rate, MTTR) are **computed queries, not stored data**. No new schema tables are required.
+`WeeklyPost` table: `id`, `user_id FK`, `content TEXT` (markdown), `week_number INT`, `year INT`, `created_at`, `updated_at`. Posts are editable by the author until the week ends (or a supervisor locks the board).
 
-The inputs are already present or added above:
-- Velocity: count of `done` tasks per sprint (needs `sprint_id` on tasks + `is_terminal` on status)
-- Burndown: count of open vs closed tasks over time using `tasks.updated_at` + `tasks.completed_at`
-- Cycle time: `tasks.completed_at - tasks.created_at` (or a `started_at` column if needed — see note below)
-- Throughput: tasks completed per time window
-- Defect rate: tasks with `task_type='bug'` / total tasks per sprint
-- MTTR: mean of `completed_at - created_at` for bug-type tasks
-
-**Optional addition:** `tasks.started_at` — timestamp set when status first moves to `in_progress`. Without this, cycle time approximations using `created_at` overcount queue time. Recommended: add as nullable DateTime, set by a backend hook on status transition.
-
-**KPI data delivered via new `/api/analytics` router**, returning pre-aggregated JSON from SQL window functions. No separate analytics DB or time-series store is needed at this scale (< 10K tasks).
-
-### 6. Sprint/Release Reminders
-
-The existing `EventNotification` model and `apscheduler` loop already handle time-based reminder delivery. The only changes needed:
-
-- Add `'sprint'` and `'milestone_release'` to the `NotificationEventType` enum (currently only `schedule` and `task`).
-- The scheduler job `process_due_notifications` already polls on 60s intervals and flips `pending → sent` — no changes to the job itself.
-- Auto-creation of sprint-end reminders: when a sprint is created or its `end_date` changes, create/update an `EventNotification` row with `remind_at = end_date - 24h` for each team supervisor. Done in the sprint router, not a new scheduler job.
+`WeeklyBoardSummary` table: `id`, `week_number INT`, `year INT`, `summary TEXT`, `generated_at`, `generated_by` (enum: `auto`/`manual`). One row per week. The `auto` variant is created by the Sunday cron job; `manual` by a supervisor-triggered endpoint.
 
 ---
 
@@ -149,56 +137,15 @@ The existing `EventNotification` model and `apscheduler` loop already handle tim
 
 | Temptation | Why to Avoid |
 |-----------|--------------|
-| **A separate charting library (Chart.js, Recharts, Visx, etc.)** | `layerchart` is already installed and purpose-built for SvelteKit. Adding Chart.js on top creates two charting systems. |
-| **A dedicated time-series database (InfluxDB, TimescaleDB)** | Overkill for < 10K tasks in a single-org tool. SQL window queries on PostgreSQL are sufficient and already fast. |
-| **GraphQL / Hasura for KPI queries** | Adds an entire query layer when REST endpoints returning JSON aggregates work fine. |
-| **A separate job queue (Celery, Redis, RQ) for reminders** | `apscheduler` with `AsyncIOScheduler` already handles the notification delivery loop. The scheduler is in-process, adequate for this load, and already deployed. Redis would require a new infrastructure dependency for no gain. |
-| **Separate `team_roles` table** | The existing `UserRole` enum (`admin/supervisor/member`) is sufficient. Supervisors are identified by `role = supervisor` scoped to a team via `teams.supervisor_id`. A full role-per-team RBAC table is unnecessary complexity for a two-level hierarchy. |
-| **Recursive CTE / adjacency list for hierarchy** | The hierarchy is exactly two levels (org → team). A self-referencing recursive structure adds query complexity for no benefit. |
-| **Soft-delete framework** | Status fields (`sprint.status`, `kanban_statuses`) already handle logical deletion. A generic soft-delete library is unnecessary abstraction. |
-| **`@dnd-kit/svelte` or other DnD libraries** | `svelte-dnd-action` already handles Kanban column drag-reorder. Do not introduce a second DnD library. |
-
----
-
-## Integration Notes
-
-### Charting (layerchart)
-
-`layerchart` was installed as `"next"` and is present in `node_modules` but is currently bypassed in both performance pages (comments say "layerchart removed — using inline SVG"). Before using it for KPI charts, confirm the installed version is Svelte-5-compatible by checking `node_modules/layerchart/package.json`. If it is the v2 runes-compatible build, use it. If it is the old v1 (Svelte 4), upgrade: `yarn add layerchart@next` again to pull the latest pre-release.
-
-The existing inline SVG bar chart in `/performance` is simple enough to leave as-is. Use `layerchart` only for the new, more complex charts: burndown line chart, velocity bar chart, cycle time histogram.
-
-### Custom Statuses and Existing Kanban DnD
-
-`svelte-dnd-action` currently drives row (task card) DnD. Column reordering uses the same library with a horizontal `flipDurationMs` variant applied to the status columns array. The `position` integer on `kanban_statuses` is the persistence target — on drop, PATCH the updated position values for the affected columns.
-
-### Task Status Migration (Breaking Change)
-
-Changing `tasks.status` from a PostgreSQL enum type to a `VARCHAR` is a multi-step Alembic migration:
-1. Add `status_slug VARCHAR` column.
-2. `UPDATE tasks SET status_slug = status::text`.
-3. `ALTER TABLE tasks DROP COLUMN status`.
-4. `ALTER TABLE tasks RENAME COLUMN status_slug TO status`.
-5. Seed `kanban_statuses` table with the five defaults matching the old enum values.
-
-This migration must run before any code changes that reference `status` as a string. Flag this as the first migration in the milestone.
-
-### Notification System
-
-The `NotificationEventType` Python enum must be extended with `sprint` and `milestone_release` values. Because this is a PostgreSQL `ENUM` column, the Alembic migration must use `ALTER TYPE` to add the new values before the application code references them.
-
-```sql
-ALTER TYPE notificationeventtype ADD VALUE IF NOT EXISTS 'sprint';
-ALTER TYPE notificationeventtype ADD VALUE IF NOT EXISTS 'milestone_release';
-```
-
-### RBAC Scoping
-
-The existing `get_current_user` dependency enforces `role`-based access. New endpoints for sprint management, status configuration, and KPI analytics should add team-scoped checks: the requesting user's `team_id` must match the resource's `team_id`. This is application-layer logic, not a new library.
-
-### Alembic Migration Requirement
-
-The existing codebase uses `create_all` for schema setup (documented in ARCHITECTURE.md as "not production-safe"). Milestone 2 adds schema that cannot be expressed safely with `create_all` (enum extensions, column type changes). **The first phase of this milestone must convert the project to Alembic-driven migrations** before any schema additions land.
+| **Tiptap / ProseMirror / Milkdown / Quill** | Full rich-text editors are 200–500 kB with complex plugin APIs. A textarea + `marked` preview covers all three v2.2 authoring needs without the weight or the maintenance surface. |
+| **`svelte-markdown` or `svelte-remarkable`** | These are thin Svelte wrappers around the same underlying parsers (marked/remarkable). They add an abstraction layer for no benefit when you can call `marked.parse()` directly in a helper function. Both have lower maintenance activity than `marked` itself. |
+| **`highlight.js` or `prismjs`** | Syntax highlighting for code blocks is not needed in standup posts or weekly updates. Do not add a syntax highlighter unless a future milestone explicitly requires it in knowledge-sharing references. |
+| **`remark` / `rehype` / `unified`** | The unified/remark ecosystem is excellent but is a pipeline of composable plugins — appropriate when you need custom AST transforms, MDX, or server-side rendering to static HTML. For browser-side "convert markdown to safe HTML", `marked` + `dompurify` is materially simpler. |
+| **Redis / Celery / RQ** | The weekly summary cron is a single APScheduler `cron` job. No external broker is needed for one scheduled task. |
+| **`pg_cron` / database-level scheduling** | APScheduler is already deployed and tested. Moving scheduling into the database adds operational complexity for zero benefit. |
+| **A separate "feed" or activity-stream library** | Standup posts and weekly board posts are simple timestamped rows. A dedicated activity-stream library (e.g., Stream.io) is overkill for < 15 users. |
+| **Server-Sent Events or a second WebSocket channel for live board updates** | The weekly board does not require real-time collaboration. HTTP polling (or a page reload after posting) is sufficient. Do not extend the WebSocket infrastructure for this feature. |
+| **`@tailwindcss/typography` as a required install** | Markdown prose styling is achievable with existing Tailwind utilities. Add only if the team wants it as a convenience — it is a zero-JS dev dependency and can be added in one line at implementation time. |
 
 ---
 
@@ -206,8 +153,9 @@ The existing codebase uses `create_all` for schema setup (documented in ARCHITEC
 
 | Area | Confidence | Basis |
 |------|------------|-------|
-| Frontend — no new packages needed | HIGH | Verified against `package.json`; `layerchart` and `svelte-dnd-action` confirmed present |
-| Backend — no new packages needed | HIGH | Verified against `requirements.txt`; `apscheduler` and `sqlalchemy` cover all needs |
-| Schema design (hierarchy, sprints, statuses) | HIGH | Derived from reading actual `models.py`; patterns are standard SQL |
-| layerchart v2 Svelte 5 compatibility | MEDIUM | Package installed as `"next"` tag; code comments suggest it was tried and bypassed; needs verification at implementation time |
-| KPI query complexity (SQL only) | MEDIUM | Standard window functions; verified the task table has `completed_at` and `updated_at`; `started_at` addition is recommended but optional |
+| `marked` + `dompurify` recommendation | HIGH | Industry-standard pair, used by Open WebUI (project reference), verified against `package.json` (not yet installed — confirmed no conflict). |
+| LiteLLM usage pattern | HIGH | Read actual source of `ai_client.py` and `routers/ai.py`; pattern is clear and directly transferable. |
+| APScheduler cron trigger | HIGH | `apscheduler>=3.10.4` installed; `cron` trigger is a core APScheduler feature, same scheduler instance used. |
+| Zero new backend packages | HIGH | All dependencies (`apscheduler`, `litellm`, `sqlalchemy`, `alembic`, `pydantic`) verified present in `requirements.txt`. |
+| `marked` current version (^14.x) | MEDIUM | Based on training data (knowledge cutoff Aug 2025); verify exact version at implementation time with `yarn info marked version`. |
+| `dompurify` current version (^3.x) | MEDIUM | Same caveat — verify at implementation time. |

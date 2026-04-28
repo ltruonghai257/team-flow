@@ -1,10 +1,14 @@
-# Feature Landscape: TeamFlow v2.0
+# Feature Landscape: TeamFlow v2.0 + v2.2
 
-**Domain:** Multi-team task management with sprint-driven project management and analytics
-**Researched:** 2026-04-24
-**Confidence:** HIGH — analysis grounded in existing codebase (models.py, performance.py, scheduler_jobs.py, AgileView.svelte) plus well-established patterns from Jira/Linear/Trello/Asana ecosystems
+**Domain:** Multi-team task management with sprint-driven project management, analytics, standup flows, knowledge sharing, and team communication boards
+**Researched:** 2026-04-28 (v2.2 sections added)
+**Confidence:** HIGH for standup and weekly board patterns (well-established in Geekbot, Standuply, Range, Notion, Confluence); MEDIUM for knowledge sharing scheduler patterns (less standardized across tools)
 
 ---
+
+<!-- ====================================================================== -->
+<!-- v2.0 FEATURES (existing — do not re-implement)                         -->
+<!-- ====================================================================== -->
 
 ## 1. Multi-Team Hierarchy
 
@@ -288,7 +292,202 @@
 
 ---
 
-## Feature Dependency Map
+<!-- ====================================================================== -->
+<!-- v2.2 FEATURES (new — Milestone 2.2)                                    -->
+<!-- ====================================================================== -->
+
+## 7. Member Standup / Daily Updates
+
+**Context:** Tools like Geekbot, Standuply, Range, and Status Hero have standardized this space. The model below reflects what teams expect from a standup feature embedded in a task management app rather than a standalone bot.
+
+**Confidence:** HIGH — based on well-established standup tool patterns documented through training cutoff.
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Three-field freeform post: "What I did", "What I'm working on", "Blockers" | This is the canonical standup format (Scrum daily standup). Teams arriving from any other tool know this structure immediately. | Low | Three text fields, all optional in practice but prompted |
+| Automatic task status snapshot attached to each post | The reason to embed standups in a task tool is this link — post should show the member's tasks and their current statuses at post time, no manual copy/paste | Medium | Snapshot = array of `{task_id, title, status}` captured at submit time; stored as JSON or a related table |
+| Visible to all team members | Standups are a team-visibility mechanism by definition; hiding them from teammates defeats the purpose | Low | Query filters by `team_id`; all team members and supervisor can read |
+| Visible to supervisor | Supervisor uses the feed for asynchronous stand-up review | Low | Already covered by team visibility; supervisor RBAC reads all |
+| Post timestamp and author shown | Without author + time, the feed is unreadable | Low | `created_at`, `author_id` FK to users |
+| Team feed: most recent post per member, reverse-chronological | Range and Geekbot both default to "latest update per person" — teams scan who has posted today | Low | Query: latest post per `author_id` within a date window |
+| Historical posts accessible | Teams review yesterday's blockers, supervisors audit | Low | Paginated list endpoint with date-range filter |
+| Post frequency is freeform (daily or weekly) | Forcing a daily cadence creates compliance anxiety; let members decide | Low | No scheduling enforcement; `post_type` field: `daily` or `weekly` for display label |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Post includes only the member's own tasks (filtered snapshot) | In a 5–15 person team spanning multiple projects, members want their slice, not every project's tasks | Low | Snapshot queries `tasks WHERE assignee_id = current_user.id` at post time |
+| Blocked tasks highlighted in the post UI | Blockers field is text, but the snapshot can flag tasks currently in `blocked` status visually without the member needing to retype | Low | In frontend render: highlight snapshot entries where `status == blocked` |
+| Supervisor sees the full team feed grouped by member | Geekbot's "digest" view — not one long stream, but one card per member with their latest update | Medium | Group-by-member layout in frontend; one API call, client-side grouping |
+| In-app notification to supervisor when a post contains a blocker | Passive visibility fails when blockers get buried; a notification surfaces them | Medium | On post submit: if `blockers` field is non-empty or snapshot has blocked tasks, create a notification for the supervisor |
+
+### Anti-Features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Scheduled bot reminder ("It's standup time!") | Adds scheduler complexity, notification fatigue, and is the primary reason teams disable Geekbot bots; in-app tools don't need this | Members post when they're ready; no scheduled prompts |
+| Mandatory post before accessing the app | Hard gate is hostile UX; kills adoption in the first week | Post is opt-in; the feed simply shows who has posted |
+| Editing a submitted post | Range allows edits; this adds versioning complexity and undermines the "snapshot in time" integrity of the task status snapshot | Posts are immutable once submitted; correct by posting a new one |
+| Per-question commenting / reactions | Turns standup into a chat thread; the existing WebSocket chat already handles discussion | Link from a standup post to the relevant chat channel for follow-up |
+| Video/audio standup | Out of scope for a browser-based internal tool | Text only |
+| Multiple posts per day shown equally | Two posts on the same day from the same person creates confusion in the feed | Display latest post per member per day as "today's update"; older same-day posts collapsed |
+
+### Complexity Notes
+
+- Backend: new `StandupPost` table + task snapshot (JSON column or related table). `POST /api/standups`, `GET /api/standups` with filters. Medium complexity.
+- Frontend: post form (3 fields + task list preview) + team feed page. Medium complexity.
+- Key integration: task snapshot requires reading current user's tasks at submit time — this is a read-only query against the existing task system, no schema changes to tasks.
+
+### Dependencies on Existing Features
+
+- Task model (existing): snapshot queries `tasks WHERE assignee_id = current_user.id`
+- User/RBAC (existing): post visibility scoped by team, supervisor role can read all
+- Notification system (existing): optional blocker alert reuses the existing notification pattern
+
+---
+
+## 8. Knowledge Sharing Scheduler
+
+**Context:** Knowledge sharing session scheduling is less standardized than standups. The closest reference tools are calendar-embedded event types (Google Calendar, Outlook), learning management integrations (Confluence's "Learning" space), and engineering team practices (team tech talks). This feature is a lightweight specialized event type layered on top of the existing calendar.
+
+**Confidence:** MEDIUM — knowledge sharing schedulers are domain-specific; patterns inferred from calendar tool conventions and LMS-lite features.
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Session fields: topic, description, presenter, session type, duration, tags | These are the minimum fields to describe a knowledge session meaningfully. Topic and presenter are required; others optional. | Low | New `KnowledgeSession` model; session types: `presentation`, `demo`, `workshop`, `Q&A` |
+| References/resources field | Knowledge sessions link to external docs, code, articles — storing the reference alongside the session is the point | Low | Text or structured array; `references: JSONB` (array of `{label, url}`) or plain text |
+| Appears as a dedicated tab within the existing Calendar view | Calendar integration is explicitly required; teams expect "all scheduling in one place" | Medium | New tab/section in `CalendarView`; sessions appear as events using existing calendar rendering but with a distinct visual type |
+| All team members can view upcoming sessions | Knowledge sharing is team-wide; visibility is universal | Low | No permission restriction on reads; all team members see all sessions |
+| Only manager/supervisor can create/edit/cancel sessions | Scheduling is a management function to prevent calendar noise | Low | RBAC check: `supervisor` or `admin` role required on write endpoints |
+| Session date and time (inherits calendar event semantics) | It's a scheduled event; needs start datetime | Low | Reuse existing `ScheduledEvent` pattern or FK into it |
+| Tags for categorization | Teams want to browse "all Python sessions" or "all architecture sessions" | Low | Array of string tags; stored as JSONB or a tags relation |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Presenter is a team member (assignee FK) | Ties session to the person responsible; shows on their calendar; creates accountability | Low | `presenter_id` FK to `users`; presenter sees it in their own calendar events |
+| Session type badge in the calendar view | At a glance, "workshop" vs "Q&A" requires different prep; visual type label on the calendar event improves scanability | Low | Color-coded or icon-coded badge per session type on the calendar card |
+| In-app notification to all team members when a session is scheduled | Without notification, members miss new sessions; scheduling a session should announce it | Medium | On session create, fan out a notification to all team members (reuse existing notification pattern) |
+| Reminder notification before the session | Members forget; a 30-min or 1-hour reminder is high value | Medium | Reuse existing `EventNotification` scheduler pattern; auto-create on session save |
+| References shown on session detail view | Resource links should be clickable and prominently displayed on the session page, not buried in a description textarea | Low | Render `references` array as a list of anchor links |
+
+### Anti-Features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Members can propose sessions (with approval flow) | Approval workflows add state machine complexity; this is an internal tool where the supervisor directs knowledge sharing | Members propose sessions informally via chat; supervisor creates the formal session |
+| Video conferencing embed or meeting link auto-generation | Zoom/Teams integration is significant scope; sessions are in-person or handled externally | Provide a plain text "location/link" field the supervisor fills manually |
+| Attendance tracking (RSVP/present/absent) | Surveillance feature that creates anxiety; knowledge sharing should be low-pressure | No attendance tracking; focus on the content, not the headcount |
+| Recurring session series (weekly tech talk that repeats) | Recurrence rules add significant scheduler complexity | Create sessions individually; copy-paste is acceptable for a small team |
+| Rating or feedback form after sessions | Turns a lightweight calendar entry into a mini-LMS; out of scope | Use chat for follow-up discussion |
+| Full LMS features (quizzes, certificates, progress tracking) | Massive scope creep; this is a calendar event type, not a course platform | Keep it as a specialized event with references |
+
+### Complexity Notes
+
+- Backend: new `KnowledgeSession` model (or specialized `ScheduledEvent` subtype). Decide: extend existing `ScheduledEvent` with a `session_type` discriminator column, or create a separate table. Recommendation: separate `knowledge_sessions` table to avoid polluting the existing scheduler schema with optional fields. Relationships: `presenter_id` → users, calendar events cross-linked. Medium complexity.
+- Frontend: new tab component inside the existing Calendar view. Session list + session detail card. Session create/edit form (supervisor only). Low-medium complexity — the calendar rendering infrastructure already exists.
+- Key risk: how sessions appear on the existing calendar. If the calendar currently renders only `ScheduledEvent` rows, either sessions must also create a `ScheduledEvent` row (for notification/reminder purposes) or the calendar query must be extended to union-join `knowledge_sessions`. The simpler path: create a `ScheduledEvent` row as a "backing event" when a session is created, so the notification/reminder scheduler works without changes.
+
+### Dependencies on Existing Features
+
+- Existing calendar/scheduler (existing): sessions either extend or create backing `ScheduledEvent` rows for reminder triggers
+- Existing `EventNotification` + scheduler (existing): reuse for session reminders and creation announcements
+- User/RBAC (existing): read open to all team members; write restricted to supervisor/admin
+- WebSocket chat (existing): link from session to a chat channel for follow-up discussion (optional differentiator)
+
+---
+
+## 9. Team Weekly Board with AI Summary
+
+**Context:** Tools like Notion's team updates page, Confluence's team space, and GitLab's "Weekly updates" pattern are the reference points. The AI summary layer is the differentiator — it requires the existing LiteLLM integration. Range.io also has a "goals + weekly updates" board.
+
+**Confidence:** HIGH for the board feature pattern; HIGH for the AI summary integration given LiteLLM is already in the stack.
+
+### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Any team member can post a weekly markdown update | The feature is explicitly a team-wide markdown board; universal posting rights are the stated requirement | Low | `POST /api/weekly-board/posts`; no role restriction on create |
+| Posts are visible to all team members and supervisor | Team boards are shared by definition | Low | Read access: all team members; no supervisor-only filtering |
+| Markdown rendering on post display | If the input is markdown, the display must render it — plain text display of markdown is unacceptable UX | Low | Use existing markdown rendering (likely already present for task descriptions); `marked` or `svelte-markdown` |
+| Post includes author and timestamp | Context for readers — "who said this, when" | Low | `author_id` FK to users, `created_at`, `week_label` (ISO week string e.g. "2026-W17") |
+| Posts grouped or filterable by week | The board is a "weekly" board; users read it week by week | Low | Query param `?week=2026-W17`; default to current week |
+| On-demand AI summary of all posts for a given week | Explicitly required; member or supervisor clicks "Summarize this week" | Medium | POST to LiteLLM with all posts for the week as context; response stored or streamed |
+| End-of-week automatic AI summary generation | Explicitly required; runs on a schedule (Friday evening or start of Monday) | Medium | Scheduler job (extend existing `scheduler_jobs.py`); stores summary in `weekly_summaries` table |
+| AI summary visible alongside posts | The summary should appear at the top or bottom of the week view, not on a separate page | Low | Render `WeeklySummary` row if it exists for the current week |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| AI summary regeneration (re-run after new posts are added) | If posts come in after the auto-summary ran, the summary is stale; a "regenerate" button keeps it current | Low | Same endpoint as on-demand; overwrites the existing summary for the week |
+| Summary scoped to a team (not cross-team) | In a multi-team deployment, each team's board should summarize only their own posts | Low | `team_id` scoping on posts and summaries; already a pattern from other features |
+| Post edit within the same week | Authors should be able to fix typos before the summary runs | Low | `PATCH /api/weekly-board/posts/{id}`; restrict to `author_id = current_user.id` and `week_label = current_week` |
+| Pinning a post or marking it as a highlight | Supervisor can surface key updates in the week view | Medium | Boolean `is_pinned` on post; pinned posts appear first in the week view |
+
+### Anti-Features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Post comments / threaded discussion | This turns the board into a second chat; the existing WebSocket chat already covers discussion | Link from a post to the relevant chat channel |
+| Per-post AI analysis ("Summarize just this post") | A single-post summary adds no value over reading the post; the value is cross-post synthesis | AI summary is week-scoped only |
+| Forcing a structured template for posts | Range uses goal-linked templates; Notion uses free pages; for a small team, freeform markdown is lower friction and more expressive | Provide a placeholder hint in the textarea, not a mandatory structure |
+| Versioned post history | Edit history for weekly updates is over-engineering for a 5–15 person tool | Allow one edit per post per week; no version trail |
+| Cross-week AI summary ("summarize the last 4 weeks") | Interesting but not requested; LLM context window and cost grow with scope | Defer; per-week summary covers 90% of the use case |
+| Email digest of weekly board | Out of scope in PROJECT.md (no email notifications) | In-app only |
+| Voting or reactions on posts | Slack-style reactions create gamification dynamics unsuited to a serious work update board | No reactions; the board is informational |
+
+### Complexity Notes
+
+- Backend: new `WeeklyPost` table + `WeeklySummary` table. Three endpoints: post CRUD, summary on-demand, summary auto-trigger. LiteLLM call is a single prompt with all week posts concatenated. Medium complexity.
+- Frontend: one new route/page (`/board` or `/updates`). Week selector, post list (markdown-rendered), post form, summary panel. Low-medium complexity.
+- AI integration: prompt design is the main risk — collecting all posts for a week, formatting them clearly for the model, and generating a meaningful narrative summary. The existing AI pattern (LiteLLM with `LITELLM_MODEL` env var) applies directly; no new infrastructure needed.
+- Scheduler: auto-summary job runs at end of week. Extend `scheduler_jobs.py` with a weekly cron. Trigger time: Friday at 18:00 local (or configurable). Creates a `WeeklySummary` row only if posts exist for that week.
+
+### Dependencies on Existing Features
+
+- LiteLLM integration (existing): AI summary uses the same `litellm.completion()` call pattern already established
+- Scheduler / `scheduler_jobs.py` (existing): end-of-week auto-summary extends the existing scheduler
+- User/RBAC (existing): all team members can post and read; supervisor has no special write access beyond the team
+- Markdown rendering (likely existing for task descriptions): reuse the same renderer for posts
+
+---
+
+## v2.2 Feature Dependency Map
+
+```
+Member Standup Posts (7)
+    └── reads: Task model (existing) — snapshot at post time
+    └── uses: Notification system (existing) — blocker alert to supervisor
+    └── no new dependencies on v2.2 features
+
+Knowledge Sharing Scheduler (8)
+    └── extends: Calendar/ScheduledEvent (existing) — backing event or tab
+    └── uses: EventNotification + scheduler (existing) — reminders
+    └── no dependency on Feature 7 or 9
+
+Team Weekly Board + AI Summary (9)
+    └── uses: LiteLLM (existing) — AI summary call
+    └── extends: scheduler_jobs.py (existing) — weekly cron
+    └── no dependency on Feature 7 or 8
+```
+
+**All three v2.2 features are independent of each other. Each can be phased without blocking the others.**
+
+**Recommended build order within v2.2:**
+1. Member Standup Posts — lowest risk, no scheduler changes, direct read of existing task data
+2. Knowledge Sharing Scheduler — medium risk (calendar integration), no AI involved
+3. Team Weekly Board + AI Summary — medium risk, AI prompt design requires iteration
+
+---
+
+## v2.0 Feature Dependency Map
 
 ```
 Task Types (4)
@@ -312,7 +511,7 @@ KPIs (5) depends on: 1 + 2 + 3 + 4 all being complete
 Sprint Reminders (6) depends on: 1 + 2 being complete
 ```
 
-**Recommended build order:**
+**Recommended build order for v2.0:**
 1. Task types — isolated, zero breaking changes, unblocks KPI enrichment immediately
 2. Multi-team hierarchy — foundational; gates visibility and sprint reminders
 3. Sprint model — requires team hierarchy for scoping; story_points field added here
@@ -322,16 +521,18 @@ Sprint Reminders (6) depends on: 1 + 2 being complete
 
 ---
 
-## MVP Recommendation for a 5–15 Person Dev Team
+## MVP Recommendation for v2.2
 
-**Build all six features** — for a dev team, sprints, task types, and burndown are daily-use features, not nice-to-haves.
+**Build all three features.** They are independent, the scope is bounded, and all build on existing infrastructure.
 
-**Prioritize correctness on these edge cases specifically:**
-- Custom status migration (enum → string) done once, done right, with seeded defaults
-- Sprint burndown fallback to task count when `story_points` is null
-- Sprint reminder auto-creation on activation with deduplication
+**Priority order:**
+1. Member Standup Posts — highest daily-use value for a supervisor who needs async team visibility
+2. Team Weekly Board + AI Summary — the AI differentiator gives the product a capability none of the raw task tools have
+3. Knowledge Sharing Scheduler — lower daily frequency but high team development value
 
-**Defer these until validated by real use:**
-- Defect escape rate (complex, low daily value until the team has shipping cadence)
-- Per-project Kanban status override (team-wide default covers 90% of teams; add override only if requested)
-- Velocity trend visualization (simple to add after velocity per sprint works)
+**Do not defer any of them** — they are small enough individually that deferral buys little while leaving the milestone incomplete.
+
+**Be conservative on these specifically:**
+- Standup task snapshot: store as a JSON column at submit time, not a live query on render — preserves historical accuracy when tasks change after the post
+- Weekly board AI summary: design the prompt with a token budget in mind; 15 posts of ~200 words each = ~3,000 tokens; well within standard model context limits
+- Calendar integration for Knowledge Sessions: validate the existing calendar data model before deciding whether to create backing `ScheduledEvent` rows or extend the calendar query — wrong choice here causes a rewrite
