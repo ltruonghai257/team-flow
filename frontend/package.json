@@ -27,6 +27,9 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "@cartamd/plugin-code": "^4.2.0",
+    "@cartamd/plugin-emoji": "^4.3.0",
+    "@cartamd/plugin-slash": "^4.2.0",
     "carta-md": "^4.11.2",
     "d3-shape": "^3.2.0",
     "date-fns": "^3.6.0",

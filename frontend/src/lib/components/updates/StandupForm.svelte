@@ -4,15 +4,20 @@
 	import { updates } from '$lib/apis';
 	import { toast } from 'svelte-sonner';
 	import { Carta, MarkdownEditor } from 'carta-md';
+	import { code } from '@cartamd/plugin-code';
+	import { emoji } from '@cartamd/plugin-emoji';
+	import { slash } from '@cartamd/plugin-slash';
 	import DOMPurify from 'dompurify';
 	import 'carta-md/default.css';
+	import '@cartamd/plugin-code/default.css';
+	import '@cartamd/plugin-emoji/default.css';
 
 	export let templateFields: string[] = [];
 	export let fieldTypes: Record<string, string> = {};
 
-	// Create Carta instance with DOMPurify sanitizer
+	// Create Carta instance with plugins and DOMPurify sanitizer
 	const carta = new Carta({
-		extensions: [],
+		extensions: [code(), emoji(), slash()],
 		sanitizer: (html) => DOMPurify.sanitize(html)
 	});
 
