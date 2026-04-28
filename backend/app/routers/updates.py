@@ -171,8 +171,15 @@ async def list_posts(
     posts = rows[:PAGE_SIZE]
     next_cursor = posts[-1].id if has_more and posts else None
 
+    # Load author relationships for all posts
+    for post in posts:
+        await db.refresh(post, attribute_names=["author"])
+
+    # Convert SQLAlchemy models to Pydantic schemas for serialization
+    post_schemas = [StandupPostOut.model_validate(post) for post in posts]
+
     return {
-        "posts": posts,
+        "posts": post_schemas,
         "next_cursor": next_cursor,
     }
 
