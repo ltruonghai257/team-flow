@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Team Updates, Knowledge Sharing & Weekly Board
-status: in_progress
-last_updated: "2026-04-28T00:00:00.000Z"
-last_activity: 2026-04-28
+status: planning
+last_updated: "2026-04-28T06:50:55.182Z"
+last_activity: 2026-04-28 — Roadmap v2.2 created (Phases 23-25)
 progress:
   total_phases: 3
   completed_phases: 0
