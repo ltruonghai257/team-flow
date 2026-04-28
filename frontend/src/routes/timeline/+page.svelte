@@ -4,6 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import TimelineToolbar from '$lib/components/timeline/TimelineToolbar.svelte';
 	import TimelineGantt from '$lib/components/timeline/TimelineGantt.svelte';
+	import { buildTimelineViewModel } from '$lib/components/timeline/timeline-view-model';
 	import { format } from 'date-fns';
 	import { X, Save } from 'lucide-svelte';
 
@@ -22,14 +23,25 @@
 
 	// Modal state
 	let selectedTask = $state<any>(null);
+	let focusedMilestoneId = $state<number | null>(null);
+	let focusedTaskId = $state<number | null>(null);
 	let editForm = $state({ title: '', status: 'todo' as TaskStatus, priority: 'medium' as TaskPriority, due_date: '', description: '' });
 	let saving = $state(false);
+	let viewModel = $derived(buildTimelineViewModel(projects));
 
 	async function loadTimeline() {
 		loading = true;
 		error = '';
 		try {
-			projects = await timeline.get();
+			const nextProjects = await timeline.get();
+			const nextViewModel = buildTimelineViewModel(nextProjects);
+			projects = nextProjects;
+			if (focusedTaskId && !nextViewModel.taskToMilestone.has(focusedTaskId)) {
+				focusedTaskId = null;
+			}
+			if (focusedMilestoneId && !nextViewModel.tasksByMilestone.has(focusedMilestoneId)) {
+				focusedMilestoneId = null;
+			}
 			fitToData();
 		} catch (e: any) {
 			error = e.message || 'Failed to load timeline';
@@ -82,6 +94,8 @@
 	}
 
 	function handleTaskClick(task: any) {
+		focusedTaskId = task.id;
+		focusedMilestoneId = task.milestone_id ?? null;
 		selectedTask = task;
 		editForm = {
 			title: task.title,
