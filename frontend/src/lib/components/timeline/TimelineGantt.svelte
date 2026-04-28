@@ -43,6 +43,65 @@
 		taskToMilestone: new Map<number, number>()
 	};
 
+	interface LaneAssignment {
+		taskId: number;
+		laneIndex: number;
+		rowId: string;
+	}
+
+	function assignLanesToTasks(tasks: Array<{ task: TimelineTask; rowId: string }>): Map<number, LaneAssignment> {
+		const assignments = new Map<number, LaneAssignment>();
+		if (tasks.length === 0) return assignments;
+
+		// Sort tasks by start time (created_at)
+		const sorted = [...tasks].sort((a, b) => {
+			const aStart = a.task.created_at ? new Date(a.task.created_at).getTime() : Date.now();
+			const bStart = b.task.created_at ? new Date(b.task.created_at).getTime() : Date.now();
+			return aStart - bStart;
+		});
+
+		// Track occupied time ranges for each lane
+		const lanes: Array<{ start: number; end: number }[]> = [];
+
+		for (const { task, rowId } of sorted) {
+			const taskStart = task.due_date ? new Date(task.created_at).getTime() : Date.now();
+			const taskEnd = task.due_date ? new Date(task.due_date).getTime() : Date.now() + 3 * MS_DAY;
+
+			// Find first available lane
+			let assignedLane = -1;
+			for (let i = 0; i < lanes.length; i++) {
+				const lane = lanes[i];
+				// Check if this lane has space (no overlap with existing tasks in this lane)
+				let hasOverlap = false;
+				for (const range of lane) {
+					if (taskStart < range.end && taskEnd > range.start) {
+						hasOverlap = true;
+						break;
+					}
+				}
+				if (!hasOverlap) {
+					assignedLane = i;
+					break;
+				}
+			}
+
+			// If no lane found, create a new one
+			if (assignedLane === -1) {
+				assignedLane = lanes.length;
+				lanes.push([]);
+			}
+
+			// Add this task's time range to the lane
+			lanes[assignedLane].push({ start: taskStart, end: taskEnd });
+
+			// Create virtual row ID based on lane assignment
+			const virtualRowId = assignedLane === 0 ? rowId : `${rowId}-lane-${assignedLane}`;
+			assignments.set(task.id, { taskId: task.id, laneIndex: assignedLane, rowId: virtualRowId });
+		}
+
+		return assignments;
+	}
+
 	function escapeHtml(value: string) {
 		return value.replace(/[&<>"']/g, (char) => {
 			if (char === '&') return '&amp;';
@@ -145,14 +204,29 @@
 						children: []
 					};
 
+					// Assign lanes for overlapping tasks
+					const tasksForLaneAssignment = milestone.tasks.map(task => ({
+						task,
+						rowId: `mt-${milestone.id}`
+					}));
+					const laneAssignments = assignLanesToTasks(tasksForLaneAssignment);
+
+					// Create unique row IDs for each task based on lane assignment
+					const usedRowIds = new Set<string>();
 					for (const task of milestone.tasks) {
-						const taskRowId = `mt-${task.id}`;
-						milestoneRow.children.push({
-							id: taskRowId,
-							label: task.title,
-							enableDragging: true,
-							classes: 'task-row'
-						});
+						const assignment = laneAssignments.get(task.id);
+						const taskRowId = assignment?.rowId || `mt-${task.id}`;
+						
+						// Only create row if not already created
+						if (!usedRowIds.has(taskRowId)) {
+							milestoneRow.children.push({
+								id: taskRowId,
+								label: task.title,
+								enableDragging: true,
+								classes: 'task-row'
+							});
+							usedRowIds.add(taskRowId);
+						}
 						ganttTasks.push(buildTask(task, taskRowId, project.color));
 					}
 
@@ -167,9 +241,23 @@
 						classes: 'no-milestone-row',
 						children: []
 					};
+					
+					// Assign lanes for unassigned tasks
+					const unassignedForLaneAssignment = project.unassigned_tasks.map(task => ({
+						task,
+						rowId: `nm-${project.id}`
+					}));
+					const unassignedLaneAssignments = assignLanesToTasks(unassignedForLaneAssignment);
+
+					const usedUnassignedRowIds = new Set<string>();
 					for (const task of project.unassigned_tasks) {
-						const taskRowId = `nm-task-${task.id}`;
-						bucketRow.children.push({ id: taskRowId, label: task.title, enableDragging: true });
+						const assignment = unassignedLaneAssignments.get(task.id);
+						const taskRowId = assignment?.rowId || `nm-task-${task.id}`;
+						
+						if (!usedUnassignedRowIds.has(taskRowId)) {
+							bucketRow.children.push({ id: taskRowId, label: task.title, enableDragging: true });
+							usedUnassignedRowIds.add(taskRowId);
+						}
 						ganttTasks.push(buildTask(task, taskRowId, project.color));
 					}
 					projectRow.children.push(bucketRow);
@@ -199,21 +287,44 @@
 
 			const sorted = Array.from(memberMap.entries()).sort((a, b) => a[1].label.localeCompare(b[1].label));
 			for (const [memberId, { label, tasks: memberTasks }] of sorted) {
-				const rowId = `u-${memberId}`;
-				rows.push({ id: rowId, label, enableDragging: false, classes: 'member-row' });
+				const baseRowId = `u-${memberId}`;
+				rows.push({ id: baseRowId, label, enableDragging: false, classes: 'member-row' });
+				
+				// Assign lanes for overlapping tasks per member
+				const tasksForLaneAssignment = memberTasks.map(({ task }) => ({
+					task,
+					rowId: baseRowId
+				}));
+				const laneAssignments = assignLanesToTasks(tasksForLaneAssignment);
+
+				const usedRowIds = new Set<string>();
 				for (const { task, color } of memberTasks) {
+					const assignment = laneAssignments.get(task.id);
+					const taskRowId = assignment?.rowId || baseRowId;
+					
 					const milestoneId = task.milestone_id;
 					const milestone = milestoneId ? milestoneMap.get(milestoneId) : null;
 					const context = milestone ? `<span class="task-context-badge">${escapeHtml(milestone.title)}</span>` : '<span class="task-context-badge">No milestone</span>';
 					const html = `<div class="task-label">${escapeHtml(task.title)} ${context}</div>`;
-					ganttTasks.push(buildTask(task, rowId, color, html));
+					ganttTasks.push(buildTask(task, taskRowId, color, html));
 				}
 			}
 
 			if (unassignedTasks.length > 0) {
-				rows.push({ id: 'u-unassigned', label: 'Unassigned', enableDragging: false, classes: 'member-row' });
+				const baseRowId = 'u-unassigned';
+				rows.push({ id: baseRowId, label: 'Unassigned', enableDragging: false, classes: 'member-row' });
+				
+				// Assign lanes for overlapping unassigned tasks
+				const unassignedForLaneAssignment = unassignedTasks.map(({ task }) => ({
+					task,
+					rowId: baseRowId
+				}));
+				const unassignedLaneAssignments = assignLanesToTasks(unassignedForLaneAssignment);
+
 				for (const { task, color } of unassignedTasks) {
-					ganttTasks.push(buildTask(task, 'u-unassigned', color, `<div class="task-label">${escapeHtml(task.title)} <span class="task-context-badge">No milestone</span></div>`));
+					const assignment = unassignedLaneAssignments.get(task.id);
+					const taskRowId = assignment?.rowId || baseRowId;
+					ganttTasks.push(buildTask(task, taskRowId, color, `<div class="task-label">${escapeHtml(task.title)} <span class="task-context-badge">No milestone</span></div>`));
 				}
 			}
 		}
