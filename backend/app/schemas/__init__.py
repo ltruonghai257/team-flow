@@ -9,6 +9,17 @@ from app.schemas.knowledge import (  # noqa: F401
     KnowledgeSessionPresenterOut,
     KnowledgeSessionUpdate,
 )
+from app.schemas.board import (  # noqa: F401
+    WeeklyBoardSummaryOut,
+    WeeklyBoardWeekOptionOut,
+    WeeklyBoardWeekResponse,
+    WeeklyPostAppendCreate,
+    WeeklyPostAppendOut,
+    WeeklyPostAppendUpdate,
+    WeeklyPostCreate,
+    WeeklyPostOut,
+    WeeklyPostUpdate,
+)
 from app.schemas.users import UserCreate, UserOut, UserRoleUpdate, UserUpdate  # noqa: F401
 from app.schemas.work import (  # noqa: F401
     AiParseRequest,

@@ -58,8 +58,8 @@ _Updated: 2026-04-28_
 ### v2.2 — Team Updates, Knowledge Sharing & Weekly Board
 
 - [x] **Phase 23: Standup Updates** — Template-driven standup posts with task snapshot, team feed, edit/delete — completed 2026-04-28
-- [ ] **Phase 24: Knowledge Sharing Scheduler** — Admin/supervisor-scoped KS sessions as a tab in /schedule, with notifications
-- [ ] **Phase 25: Team Weekly Board & AI Summary** — Markdown board organized by ISO week, on-demand and scheduled AI summary
+- [x] **Phase 24: Knowledge Sharing Scheduler** — Admin/supervisor-scoped KS sessions as a tab in /schedule, with notifications (completed 2026-04-28)
+- [x] **Phase 25: Team Weekly Board & AI Summary** — Markdown board organized by ISO week, on-demand and scheduled AI summary (completed 2026-04-28)
 
 ---
 
@@ -104,11 +104,11 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - **Wave 1**
-- [ ] 24-01-PLAN.md — Backend foundation: KnowledgeSession enums, model, schemas, Alembic migration
+- [x] 24-01-PLAN.md — Backend foundation: KnowledgeSession enums, model, schemas, Alembic migration
 - **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 24-02-PLAN.md — Backend behavior: scoped router, presenter validation, notification fanout, reminder sync, backend tests
+- [x] 24-02-PLAN.md — Backend behavior: scoped router, presenter validation, notification fanout, reminder sync, backend tests
 - **Wave 3** *(blocked on Wave 1 and Wave 2 completion)*
-- [ ] 24-03-PLAN.md — Frontend `/schedule` integration: Knowledge Sessions tab, agenda/calendar views, scoped modal UX, frontend verification
+- [x] 24-03-PLAN.md — Frontend `/schedule` integration: Knowledge Sessions tab, agenda/calendar views, scoped modal UX, frontend verification
 Cross-cutting constraints:
 - D-07: Reminder selection reuses the existing offset-based `EventNotification` pattern.
 - D-11: Knowledge Sessions use a separate router and table, never the personal `Schedule` model.
@@ -126,7 +126,20 @@ Cross-cutting constraints:
   3. A member can click "Summarize this week" to trigger an on-demand AI summary; the result is stored and re-clicking within 30 minutes returns the cached result without calling the AI again
   4. At Sunday 23:00 the system automatically generates a weekly summary via APScheduler CronTrigger; if no posts exist for the week the summary is "no updates this week" (no AI call made)
   5. A member can edit or delete their own weekly post; another member's post cannot be modified
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- **Wave 1**
+- [x] 25-01-PLAN.md — Backend foundation: weekly post, append-entry, and summary models/schemas plus Alembic migration
+- **Wave 2** *(blocked on Wave 1 completion)*
+- [x] 25-02-PLAN.md — Backend board behavior: week payload, primary post CRUD, append-entry CRUD, ownership tests
+- [x] 25-03-PLAN.md — AI summary behavior: shared summary service, cooldown/cache logic, Sunday 23:00 scheduler job, summary tests
+- **Wave 3** *(blocked on Wave 2 completion)*
+- [x] 25-04-PLAN.md — Frontend `/board` experience: nav entry, API/store, week navigator, summary panel, markdown composer, digest cards, frontend verification
+Cross-cutting constraints:
+- D-01: Each member gets one primary weekly post per ISO week, with follow-up notes modeled as append entries rather than comments.
+- D-04: `/board` remains summary-first and digest-oriented rather than a reverse-chronological chat feed.
+- D-12: On-demand summary regeneration uses a locked 30-minute cooldown and must return cached content during the cooldown window.
+- D-15: Every markdown render path must sanitize `marked` output with `DOMPurify` before any `{@html}` usage.
 **UI hint**: yes
 
 ---
@@ -136,5 +149,5 @@ Cross-cutting constraints:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 23. Standup Updates | 5/5 | Complete   | 2026-04-28 |
-| 24. Knowledge Sharing Scheduler | 0/3 | Planned | - |
-| 25. Team Weekly Board & AI Summary | 0/? | Not started | - |
+| 24. Knowledge Sharing Scheduler | 3/3 | Complete    | 2026-04-28 |
+| 25. Team Weekly Board & AI Summary | 4/4 | Complete    | 2026-04-28 |

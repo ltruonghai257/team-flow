@@ -16,6 +16,8 @@ Creates:
       Carol       ~68  Fair
       La Truong Hai ~74  Fair
       Doan Duc Kien ~37  At Risk
+  - Weekly board posts, appends, and summary
+  - Standup template with custom field types and standup posts
   - Schedules, chat channels/messages, DMs, notifications, invite
 
 Run from the backend directory:
@@ -65,6 +67,8 @@ async def main() -> None:
         KnowledgeSession, KnowledgeSessionType,
         Schedule, ChatChannel, ChatChannelMember,
         ChatConversation, ChatMessage, TeamInvite, InviteStatus,
+        WeeklyPost, WeeklyPostAppend, WeeklyBoardSummary,
+        StandupPost, StandupTemplate, StandupSettings,
     )
     from app.auth import hash_password
     from app.services.knowledge_sessions import (
@@ -789,7 +793,6 @@ async def main() -> None:
                     session,
                     kd["recipients"],
                     kd["offsets"],
-                    broadcast_creation=True,
                 )
             else:
                 print(f"  skipped knowledge session (exists): {kd['topic']}")
@@ -980,6 +983,227 @@ async def main() -> None:
             print("  created pending invite: newmember@demo.com")
         else:
             print("  skipped invite (exists)")
+
+        # ------------------------------------------------------------------
+        # Weekly Board Posts
+        # ------------------------------------------------------------------
+        # Calculate current and last week using datetime
+        now = _now()
+        current_week_start = now - timedelta(days=now.weekday())
+        last_week_start = current_week_start - timedelta(days=7)
+        
+        # Get ISO year and week
+        current_iso_year = now.isocalendar()[0]
+        current_iso_week = now.isocalendar()[1]
+        last_week_date = last_week_start
+        last_iso_year = last_week_date.isocalendar()[0]
+        last_iso_week = last_week_date.isocalendar()[1]
+
+        weekly_posts_data = [
+            dict(
+                author=users["alice"],
+                sub_team=sub_team,
+                iso_year=last_iso_year,
+                iso_week=last_iso_week,
+                week_start_date=last_week_start.date(),
+                content="This week I focused on CI/CD pipeline setup and JWT auth middleware. Made good progress on the token refresh logic. Next week I'll tackle the API rate limiting and request logging.",
+            ),
+            dict(
+                author=users["bob"],
+                sub_team=sub_team,
+                iso_year=last_iso_year,
+                iso_week=last_iso_week,
+                week_start_date=last_week_start.date(),
+                content="Worked on API documentation and push notification setup. Completed the role-based route guards. Need to finish the session invalidation logic next week.",
+            ),
+            dict(
+                author=users["carol"],
+                sub_team=sub_team,
+                iso_year=current_iso_year,
+                iso_week=current_iso_week,
+                week_start_date=current_week_start.date(),
+                content="Started performance load testing and accessibility audit. Completed typography tokens and button component library. This week focusing on icon set finalization and spacing system.",
+            ),
+        ]
+
+        weekly_posts: dict[str, WeeklyPost] = {}
+        for wpd in weekly_posts_data:
+            author = wpd.pop("author")
+            sub_team = wpd.pop("sub_team")
+            result = await db.execute(
+                select(WeeklyPost).where(
+                    WeeklyPost.author_id == author.id,
+                    WeeklyPost.iso_year == wpd["iso_year"],
+                    WeeklyPost.iso_week == wpd["iso_week"],
+                )
+            )
+            wp = result.scalar_one_or_none()
+            if not wp:
+                wp = WeeklyPost(
+                    author_id=author.id,
+                    sub_team_id=sub_team.id,
+                    **wpd,
+                )
+                db.add(wp)
+                await db.flush()
+                print(f"  created weekly post for {author.username} (week {wpd['iso_year']}-{wpd['iso_week']})")
+            else:
+                print(f"  skipped weekly post (exists): {author.username} (week {wpd['iso_year']}-{wpd['iso_week']})")
+            weekly_posts[f"{author.username}_{wpd['iso_year']}-{wpd['iso_week']}"] = wp
+
+        # Weekly Post Appends
+        appends_data = [
+            dict(
+                post=weekly_posts[f"alice_{last_iso_year}-{last_iso_week}"],
+                author=users["supervisor"],
+                content="Great progress on the auth system! The token refresh logic is critical for security.",
+            ),
+            dict(
+                post=weekly_posts[f"bob_{last_iso_year}-{last_iso_week}"],
+                author=users["alice"],
+                content="I can help review the session invalidation logic when you're ready.",
+            ),
+        ]
+
+        for ad in appends_data:
+            post = ad.pop("post")
+            author = ad.pop("author")
+            result = await db.execute(
+                select(WeeklyPostAppend).where(
+                    WeeklyPostAppend.post_id == post.id,
+                    WeeklyPostAppend.author_id == author.id,
+                )
+            )
+            append = result.scalar_one_or_none()
+            if not append:
+                append = WeeklyPostAppend(
+                    post_id=post.id,
+                    author_id=author.id,
+                    **ad,
+                )
+                db.add(append)
+                await db.flush()
+                print(f"  created weekly post append by {author.username}")
+            else:
+                print(f"  skipped weekly post append (exists)")
+
+        # Weekly Board Summary
+        result = await db.execute(
+            select(WeeklyBoardSummary).where(
+                WeeklyBoardSummary.sub_team_id == sub_team.id,
+                WeeklyBoardSummary.iso_year == last_iso_year,
+                WeeklyBoardSummary.iso_week == last_iso_week,
+            )
+        )
+        summary = result.scalar_one_or_none()
+        if not summary:
+            summary = WeeklyBoardSummary(
+                sub_team_id=sub_team.id,
+                iso_year=last_iso_year,
+                iso_week=last_iso_week,
+                week_start_date=last_week_start.date(),
+                summary_text="Team made solid progress on authentication system and API infrastructure. CI/CD pipeline setup completed, with JWT auth middleware and token refresh logic implemented. Push notification research underway. Design team completed typography and button components. Blockers: Payment gateway integration blocked on vendor docs.",
+                source_post_count=2,
+                generated_by_mode="manual",
+                generated_at=_now(),
+            )
+            db.add(summary)
+            await db.flush()
+            print(f"  created weekly board summary for week {last_iso_year}-{last_iso_week}")
+        else:
+            print(f"  skipped weekly board summary (exists)")
+
+        # ------------------------------------------------------------------
+        # Standup Posts
+        # ------------------------------------------------------------------
+        # Check if standup template exists for sub-team
+        result = await db.execute(
+            select(StandupTemplate).where(StandupTemplate.sub_team_id == sub_team.id)
+        )
+        standup_template = result.scalar_one_or_none()
+        if not standup_template:
+            # Create template with custom field types
+            standup_template = StandupTemplate(
+                sub_team_id=sub_team.id,
+                fields=["Pending Tasks", "Future Tasks", "Blockers", "Need Help From", "Critical Timeline", "Release Date"],
+                field_types={
+                    "Pending Tasks": "richtext",
+                    "Future Tasks": "richtext",
+                    "Blockers": "text",
+                    "Need Help From": "text",
+                    "Critical Timeline": "datetime",
+                    "Release Date": "datetime",
+                },
+            )
+            db.add(standup_template)
+            await db.flush()
+            print("  created standup template for sub-team")
+        else:
+            print("  skipped standup template (exists)")
+
+        standup_posts_data = [
+            dict(
+                author=users["alice"],
+                sub_team=sub_team,
+                field_values={
+                    "Pending Tasks": "CI/CD pipeline setup, API rate limiting",
+                    "Future Tasks": "Request logging middleware, health check endpoint",
+                    "Blockers": "None",
+                    "Need Help From": "Bob for API documentation review",
+                    "Critical Timeline": (_days(5)).isoformat(),
+                    "Release Date": (_days(14)).isoformat(),
+                },
+                task_snapshot={"active": 3, "completed": 8, "blocked": 0},
+            ),
+            dict(
+                author=users["bob"],
+                sub_team=sub_team,
+                field_values={
+                    "Pending Tasks": "API documentation, push notification setup",
+                    "Future Tasks": "Database backup scripts, error handling middleware",
+                    "Blockers": "Waiting on vendor docs for payment gateway",
+                    "Need Help From": "Alice for auth system review",
+                    "Critical Timeline": (_days(7)).isoformat(),
+                    "Release Date": (_days(18)).isoformat(),
+                },
+                task_snapshot={"active": 7, "completed": 6, "blocked": 1},
+            ),
+            dict(
+                author=users["carol"],
+                sub_team=sub_team,
+                field_values={
+                    "Pending Tasks": "Performance load testing, accessibility audit",
+                    "Future Tasks": "App store listing copy, localization strings",
+                    "Blockers": "None",
+                    "Need Help From": "Alice for color palette review",
+                    "Critical Timeline": (_days(3)).isoformat(),
+                    "Release Date": (_days(10)).isoformat(),
+                },
+                task_snapshot={"active": 9, "completed": 4, "blocked": 0},
+            ),
+        ]
+
+        for spd in standup_posts_data:
+            author = spd.pop("author")
+            sub_team = spd.pop("sub_team")
+            result = await db.execute(
+                select(StandupPost).where(
+                    StandupPost.author_id == author.id,
+                    StandupPost.created_at > _now() - timedelta(days=1),
+                )
+            )
+            sp = result.scalar_one_or_none()
+            if not sp:
+                sp = StandupPost(
+                    author_id=author.id,
+                    sub_team_id=sub_team.id,
+                    **spd,
+                )
+                db.add(sp)
+                await db.flush()
+                print(f"  created standup post for {author.username}")
+            else:
+                print(f"  skipped standup post (exists): {author.username}")
 
         await db.commit()
         print("\nDone. Login with:")

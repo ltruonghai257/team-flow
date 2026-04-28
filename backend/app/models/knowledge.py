@@ -26,7 +26,9 @@ class KnowledgeSession(Base):
     sub_team_id = Column(Integer, ForeignKey("sub_teams.id"), nullable=True, index=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        index=True,
     )
     updated_at = Column(
         DateTime,

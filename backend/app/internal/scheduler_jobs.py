@@ -12,7 +12,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select, update
 
 from app.db.database import AsyncSessionLocal
-from app.models import EventNotification, NotificationStatus
+from app.models import EventNotification, NotificationStatus, SubTeam
+from app.services.weekly_board import generate_weekly_board_summary, current_board_week
 from app.services.reminder_notifications import reconcile_generated_reminders
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,24 @@ async def reconcile_generated_reminders_job() -> int:
         return count
 
 
+async def weekly_board_summary_job() -> int:
+    week = current_board_week()
+    created = 0
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            result = await session.execute(select(SubTeam.id))
+            for (sub_team_id,) in result.all():
+                await generate_weekly_board_summary(
+                    session,
+                    sub_team_id=sub_team_id,
+                    iso_year=week.iso_year,
+                    iso_week=week.iso_week,
+                    generated_by_mode="scheduled",
+                )
+                created += 1
+        return created
+
+
 def start_scheduler() -> AsyncIOScheduler:
     global _scheduler
     if _scheduler is not None:
@@ -65,6 +84,15 @@ def start_scheduler() -> AsyncIOScheduler:
         trigger="interval",
         minutes=5,
         id="reconcile_generated_reminders",
+        replace_existing=True,
+    )
+    sched.add_job(
+        weekly_board_summary_job,
+        trigger="cron",
+        day_of_week="sun",
+        hour=23,
+        minute=0,
+        id="weekly_board_summary_job",
         replace_existing=True,
     )
     sched.start()

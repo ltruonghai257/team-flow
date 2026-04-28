@@ -16,3 +16,4 @@ export { invites } from './invites';
 export { statusSets } from './status-sets';
 export { sub_teams, reminderSettings } from './sub-teams';
 export { updates } from './updates';
+export { board } from './board';

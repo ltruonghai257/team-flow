@@ -26,6 +26,8 @@
 		Menu,
 		X,
 		MessageSquare
+		,
+		ClipboardList
 	} from 'lucide-svelte';
 
 	const navItems = [
@@ -33,6 +35,7 @@
 		{ href: '/projects', label: 'Projects', icon: FolderOpen },
 		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
 		{ href: '/updates', label: 'Updates', icon: MessageSquare },
+		{ href: '/board', label: 'Weekly Board', icon: ClipboardList },
 		{ href: '/milestones', label: 'Milestones', icon: Milestone },
 		{ href: '/timeline', label: 'Timeline', icon: GanttChartSquare },
 		{ href: '/team', label: 'Team', icon: Users },

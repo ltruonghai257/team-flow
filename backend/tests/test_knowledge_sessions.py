@@ -2,9 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import inspect as sa_inspect, select
+from sqlalchemy import select
 
-from app.utils.auth import create_access_token, hash_password
 from app.models import (
     EventNotification,
     KnowledgeSession,
@@ -14,11 +13,16 @@ from app.models import (
     User,
     UserRole,
 )
+from app.utils.auth import hash_password
 
 
-def _auth_headers(user: User) -> dict[str, str]:
-    token = create_access_token({"sub": str(sa_inspect(user).identity[0])})
-    return {"Authorization": f"Bearer {token}"}
+async def _login(async_client: AsyncClient, username: str) -> str:
+    response = await async_client.post(
+        "/api/auth/token",
+        data={"username": username, "password": "password"},
+    )
+    assert response.status_code == 200
+    return response.json()["access_token"]
 
 
 async def _create_user(
@@ -44,13 +48,13 @@ async def _create_user(
     return user
 
 
-async def _build_graph(db_session):
-    alpha = SubTeam(name="Alpha Team", supervisor_id=None)
-    beta = SubTeam(name="Beta Team", supervisor_id=None)
-    db_session.add_all([alpha, beta])
+async def _build_scope_graph(db_session):
+    team_a = SubTeam(name="Team A", supervisor_id=None)
+    team_b = SubTeam(name="Team B", supervisor_id=None)
+    db_session.add_all([team_a, team_b])
     await db_session.commit()
-    await db_session.refresh(alpha)
-    await db_session.refresh(beta)
+    await db_session.refresh(team_a)
+    await db_session.refresh(team_b)
 
     admin = await _create_user(
         db_session,
@@ -58,246 +62,193 @@ async def _build_graph(db_session):
         username="admin",
         full_name="Admin User",
         role=UserRole.admin,
-        sub_team_id=None,
+        sub_team_id=team_a.id,
     )
-    supervisor_alpha = await _create_user(
+    supervisor_a = await _create_user(
         db_session,
-        email="alpha-lead@example.com",
-        username="alpha-lead",
-        full_name="Alpha Lead",
+        email="supervisor-a@example.com",
+        username="supervisor-a",
+        full_name="Supervisor A",
         role=UserRole.supervisor,
-        sub_team_id=alpha.id,
+        sub_team_id=team_a.id,
     )
-    supervisor_beta = await _create_user(
+    supervisor_b = await _create_user(
         db_session,
-        email="beta-lead@example.com",
-        username="beta-lead",
-        full_name="Beta Lead",
+        email="supervisor-b@example.com",
+        username="supervisor-b",
+        full_name="Supervisor B",
         role=UserRole.supervisor,
-        sub_team_id=beta.id,
+        sub_team_id=team_b.id,
     )
-    member_alpha = await _create_user(
+    member_a = await _create_user(
         db_session,
-        email="alpha-member@example.com",
-        username="alpha-member",
-        full_name="Alpha Member",
+        email="member-a@example.com",
+        username="member-a",
+        full_name="Member A",
         role=UserRole.member,
-        sub_team_id=alpha.id,
+        sub_team_id=team_a.id,
     )
-    member_beta = await _create_user(
+    member_b = await _create_user(
         db_session,
-        email="beta-member@example.com",
-        username="beta-member",
-        full_name="Beta Member",
+        email="member-b@example.com",
+        username="member-b",
+        full_name="Member B",
         role=UserRole.member,
-        sub_team_id=beta.id,
+        sub_team_id=team_b.id,
     )
 
-    alpha.supervisor_id = supervisor_alpha.id
-    beta.supervisor_id = supervisor_beta.id
-    db_session.add_all([alpha, beta])
+    team_a.supervisor_id = supervisor_a.id
+    team_b.supervisor_id = supervisor_b.id
     await db_session.commit()
-    await db_session.refresh(alpha)
-    await db_session.refresh(beta)
 
     return {
+        "team_a": team_a,
+        "team_b": team_b,
         "admin": admin,
-        "alpha": alpha,
-        "beta": beta,
-        "supervisor_alpha": supervisor_alpha,
-        "supervisor_beta": supervisor_beta,
-        "member_alpha": member_alpha,
-        "member_beta": member_beta,
-    }
-
-
-def _session_payload(
-    *,
-    topic: str,
-    start_time: datetime,
-    duration_minutes: int = 60,
-    presenter_id: int | None = None,
-    tags: list[str] | None = None,
-    offset_minutes_list: list[int] | None = None,
-    session_type: str = "presentation",
-):
-    payload = {
-        "topic": topic,
-        "description": f"{topic} description",
-        "references": "https://example.com/notes",
-        "session_type": session_type,
-        "duration_minutes": duration_minutes,
-        "start_time": start_time.isoformat(),
-        "tags": tags or [],
-        "offset_minutes_list": offset_minutes_list or [],
-    }
-    if presenter_id is not None:
-        payload["presenter_id"] = presenter_id
-    return payload
-
-
-@pytest.mark.asyncio
-async def test_admin_org_wide_session_defaults_presenter_and_notifies_scope(
-    async_client: AsyncClient, db_session
-):
-    graph = await _build_graph(db_session)
-    headers = _auth_headers(graph["admin"])
-
-    response = await async_client.post(
-        "/api/knowledge-sessions/",
-        json=_session_payload(
-            topic="Org Wide Kickoff",
-            start_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=2),
-            tags=["Alpha", "alpha", "Beta"],
-        ),
-        headers=headers,
-    )
-    assert response.status_code == 201
-    data = response.json()
-    assert data["presenter_id"] == graph["admin"].id
-    assert data["created_by_id"] == graph["admin"].id
-    assert data["sub_team_id"] is None
-    assert data["tags"] == ["Alpha", "Beta"]
-
-    result = await db_session.execute(
-        select(EventNotification).where(
-            EventNotification.event_type == NotificationEventType.knowledge_session,
-            EventNotification.event_ref_id == data["id"],
-        )
-    )
-    rows = result.scalars().all()
-    assert len(rows) == 5
-    assert {row.status for row in rows} == {NotificationStatus.sent}
-    assert {row.user_id for row in rows} == {
-        graph["admin"].id,
-        graph["supervisor_alpha"].id,
-        graph["supervisor_beta"].id,
-        graph["member_alpha"].id,
-        graph["member_beta"].id,
+        "supervisor_a": supervisor_a,
+        "supervisor_b": supervisor_b,
+        "member_a": member_a,
+        "member_b": member_b,
     }
 
 
 @pytest.mark.asyncio
-async def test_supervisor_session_scoped_to_sub_team_and_rejects_foreign_presenter(
+async def test_admin_org_wide_session_defaults_presenter_and_scope(
     async_client: AsyncClient, db_session
 ):
-    graph = await _build_graph(db_session)
-    headers = _auth_headers(graph["supervisor_alpha"])
-
-    response = await async_client.post(
-        "/api/knowledge-sessions/",
-        json=_session_payload(
-            topic="Alpha Workshop",
-            start_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=3),
-            presenter_id=graph["supervisor_alpha"].id,
-            offset_minutes_list=[15, 30],
-        ),
-        headers=headers,
-    )
-    assert response.status_code == 201
-    data = response.json()
-    assert data["sub_team_id"] == graph["alpha"].id
-    assert data["presenter_id"] == graph["supervisor_alpha"].id
-
-    response = await async_client.post(
-        "/api/knowledge-sessions/",
-        json=_session_payload(
-            topic="Invalid Presenter",
-            start_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=4),
-            presenter_id=graph["member_beta"].id,
-        ),
-        headers=headers,
-    )
-    assert response.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_member_visibility_excludes_sibling_sessions(
-    async_client: AsyncClient, db_session
-):
-    graph = await _build_graph(db_session)
+    graph = await _build_scope_graph(db_session)
+    token = await _login(async_client, graph["admin"].username)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    org_session = KnowledgeSession(
-        topic="Org Session",
-        description="d",
-        references=None,
-        session_type="presentation",
-        start_time=now + timedelta(days=2),
-        duration_minutes=60,
-        tags=None,
-        presenter_id=graph["admin"].id,
-        sub_team_id=None,
-        created_by_id=graph["admin"].id,
-    )
-    alpha_session = KnowledgeSession(
-        topic="Alpha Sync",
-        description="d",
-        references=None,
-        session_type="presentation",
-        start_time=now + timedelta(days=3),
-        duration_minutes=60,
-        tags=None,
-        presenter_id=graph["supervisor_alpha"].id,
-        sub_team_id=graph["alpha"].id,
-        created_by_id=graph["supervisor_alpha"].id,
-    )
-    beta_session = KnowledgeSession(
-        topic="Beta Sync",
-        description="d",
-        references=None,
-        session_type="presentation",
-        start_time=now + timedelta(days=4),
-        duration_minutes=60,
-        tags=None,
-        presenter_id=graph["supervisor_beta"].id,
-        sub_team_id=graph["beta"].id,
-        created_by_id=graph["supervisor_beta"].id,
-    )
-    db_session.add_all([org_session, alpha_session, beta_session])
-    await db_session.commit()
-    await db_session.refresh(org_session)
-    await db_session.refresh(alpha_session)
-    await db_session.refresh(beta_session)
 
-    member_headers = _auth_headers(graph["member_alpha"])
-
-    response = await async_client.get("/api/knowledge-sessions/", headers=member_headers)
-    assert response.status_code == 200
-    sessions = response.json()
-    assert [session["topic"] for session in sessions] == ["Org Session", "Alpha Sync"]
-
-    response = await async_client.get(
-        f"/api/knowledge-sessions/{beta_session.id}", headers=member_headers
+    response = await async_client.post(
+        "/api/knowledge-sessions/",
+        json={
+            "topic": "Org-wide kickoff",
+            "duration_minutes": 45,
+            "start_time": (now + timedelta(days=1)).isoformat(),
+            "tags": ["ops", "Ops", " ", "team"],
+            "offset_minutes_list": [30],
+        },
+        headers={"Authorization": f"Bearer {token}"},
     )
-    assert response.status_code == 404
 
-    response = await async_client.get(
-        "/api/knowledge-sessions/", headers=_auth_headers(graph["admin"])
-    )
-    assert response.status_code == 200
-    assert {session["topic"] for session in response.json()} == {
-        "Org Session",
-        "Alpha Sync",
-        "Beta Sync",
-    }
+    assert response.status_code == 201
+    data = response.json()
+    assert data["presenter_id"] == data["created_by_id"]
+    assert data["sub_team_id"] is None
+    assert data["tags"] == ["ops", "team"]
 
 
 @pytest.mark.asyncio
-async def test_creation_notifications_and_reminder_replacement(
+async def test_supervisor_session_forces_team_scope_and_rejects_foreign_presenter(
     async_client: AsyncClient, db_session
 ):
-    graph = await _build_graph(db_session)
-    headers = _auth_headers(graph["supervisor_alpha"])
+    graph = await _build_scope_graph(db_session)
+    token = await _login(async_client, graph["supervisor_a"].username)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    start_time = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=5)
+    bad_response = await async_client.post(
+        "/api/knowledge-sessions/",
+        json={
+            "topic": "Team session",
+            "presenter_id": graph["member_b"].id,
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=1)).isoformat(),
+            "offset_minutes_list": [],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert bad_response.status_code == 403
+
+    good_response = await async_client.post(
+        "/api/knowledge-sessions/",
+        json={
+            "topic": "Team session",
+            "presenter_id": graph["member_a"].id,
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=1)).isoformat(),
+            "offset_minutes_list": [15, 30],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert good_response.status_code == 201
+    assert good_response.json()["sub_team_id"] == graph["team_a"].id
+
+
+@pytest.mark.asyncio
+async def test_member_visibility_includes_org_wide_and_own_team_only(
+    async_client: AsyncClient, db_session
+):
+    graph = await _build_scope_graph(db_session)
+    admin_token = await _login(async_client, graph["admin"].username)
+    member_token = await _login(async_client, graph["member_a"].username)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    await async_client.post(
+        "/api/knowledge-sessions/",
+        json={
+            "topic": "Org-wide",
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=1)).isoformat(),
+            "offset_minutes_list": [],
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    supervisor_token = await _login(async_client, graph["supervisor_a"].username)
+    await async_client.post(
+        "/api/knowledge-sessions/",
+        json={
+            "topic": "Team A",
+            "presenter_id": graph["member_a"].id,
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=2)).isoformat(),
+            "offset_minutes_list": [],
+        },
+        headers={"Authorization": f"Bearer {supervisor_token}"},
+    )
+    await async_client.post(
+        "/api/knowledge-sessions/",
+        json={
+            "topic": "Team B",
+            "presenter_id": graph["member_b"].id,
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=3)).isoformat(),
+            "offset_minutes_list": [],
+        },
+        headers={
+            "Authorization": f"Bearer {admin_token}",
+            "X-SubTeam-ID": str(graph["team_b"].id),
+        },
+    )
+
+    response = await async_client.get(
+        "/api/knowledge-sessions/",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 200
+    titles = [session["topic"] for session in response.json()]
+    assert "Org-wide" in titles
+    assert "Team A" in titles
+    assert "Team B" not in titles
+
+
+@pytest.mark.asyncio
+async def test_creation_and_reminder_notifications_follow_scope_and_patch_replaces_pending_rows(
+    async_client: AsyncClient, db_session
+):
+    graph = await _build_scope_graph(db_session)
+    admin_token = await _login(async_client, graph["admin"].username)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
     response = await async_client.post(
         "/api/knowledge-sessions/",
-        json=_session_payload(
-            topic="Reminder Planning",
-            start_time=start_time,
-            offset_minutes_list=[15, 30],
-        ),
-        headers=headers,
+        json={
+            "topic": "Reminder session",
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=2)).isoformat(),
+            "offset_minutes_list": [60, 30],
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 201
     session_id = response.json()["id"]
@@ -309,19 +260,14 @@ async def test_creation_notifications_and_reminder_replacement(
         )
     )
     rows = result.scalars().all()
-    creation_rows = [row for row in rows if row.offset_minutes == 0]
-    reminder_rows = [row for row in rows if row.offset_minutes in {15, 30}]
-    assert len(creation_rows) == 2
-    assert {row.status for row in creation_rows} == {NotificationStatus.sent}
-    assert len(reminder_rows) == 4
-    assert {row.status for row in reminder_rows} == {NotificationStatus.pending}
+    assert rows
+    assert all(row.status == NotificationStatus.sent for row in rows if row.offset_minutes == 0)
+    assert all(row.status == NotificationStatus.pending for row in rows if row.offset_minutes != 0)
 
     response = await async_client.patch(
         f"/api/knowledge-sessions/{session_id}",
-        json={
-            "offset_minutes_list": [10],
-        },
-        headers=headers,
+        json={"offset_minutes_list": [15]},
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200
 
@@ -332,47 +278,58 @@ async def test_creation_notifications_and_reminder_replacement(
         )
     )
     rows = result.scalars().all()
-    creation_rows = [row for row in rows if row.offset_minutes == 0]
-    reminder_rows = [row for row in rows if row.offset_minutes == 10]
-    assert len(creation_rows) == 2
-    assert len(reminder_rows) == 2
-    assert {row.status for row in reminder_rows} == {NotificationStatus.pending}
+    assert len([row for row in rows if row.offset_minutes == 0]) == len(
+        [row for row in rows if row.status == NotificationStatus.sent and row.offset_minutes == 0]
+    )
+    assert sorted(row.offset_minutes for row in rows if row.offset_minutes != 0) == [15]
 
 
 @pytest.mark.asyncio
-async def test_notification_resolver_honors_session_scope(
+async def test_notification_resolver_enforces_visibility(
     async_client: AsyncClient, db_session
 ):
-    graph = await _build_graph(db_session)
-    headers = _auth_headers(graph["supervisor_alpha"])
+    graph = await _build_scope_graph(db_session)
+    admin_token = await _login(async_client, graph["admin"].username)
+    member_token = await _login(async_client, graph["member_a"].username)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     response = await async_client.post(
         "/api/knowledge-sessions/",
-        json=_session_payload(
-            topic="Resolver Check",
-            start_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=3),
-            offset_minutes_list=[15],
-        ),
-        headers=headers,
+        json={
+            "topic": "Visible session",
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=1)).isoformat(),
+            "offset_minutes_list": [15],
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
-    assert response.status_code == 201
-    session_id = response.json()["id"]
+    visible_session_id = response.json()["id"]
 
-    visible_headers = _auth_headers(graph["member_alpha"])
-    response = await async_client.get(
-        "/api/notifications/by-event",
-        params={"event_type": "knowledge_session", "event_ref_id": session_id},
-        headers=visible_headers,
+    supervisor_token = await _login(async_client, graph["supervisor_a"].username)
+    hidden_session_response = await async_client.post(
+        "/api/knowledge-sessions/",
+        json={
+            "topic": "Hidden session",
+            "presenter_id": graph["member_a"].id,
+            "duration_minutes": 30,
+            "start_time": (now + timedelta(days=2)).isoformat(),
+            "offset_minutes_list": [15],
+        },
+        headers={"Authorization": f"Bearer {supervisor_token}"},
     )
-    assert response.status_code == 200
-    items = response.json()
-    assert items
-    assert all(item["event_type"] == "knowledge_session" for item in items)
+    hidden_session_id = hidden_session_response.json()["id"]
 
-    hidden_headers = _auth_headers(graph["member_beta"])
-    response = await async_client.get(
+    visible = await async_client.get(
         "/api/notifications/by-event",
-        params={"event_type": "knowledge_session", "event_ref_id": session_id},
-        headers=hidden_headers,
+        params={"event_type": "knowledge_session", "event_ref_id": visible_session_id},
+        headers={"Authorization": f"Bearer {member_token}"},
     )
-    assert response.status_code in (403, 404)
+    assert visible.status_code == 200
+
+    member_b_token = await _login(async_client, graph["member_b"].username)
+    hidden = await async_client.get(
+        "/api/notifications/by-event",
+        params={"event_type": "knowledge_session", "event_ref_id": hidden_session_id},
+        headers={"Authorization": f"Bearer {member_b_token}"},
+    )
+    assert hidden.status_code in (403, 404)

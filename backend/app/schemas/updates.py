@@ -85,3 +85,15 @@ class StandupPostOut(BaseModel):
     updated_at: datetime
     author: Optional[AuthorOut] = None
     model_config = {"from_attributes": True}
+
+    @field_validator("task_snapshot", mode="before")
+    @classmethod
+    def normalize_task_snapshot(cls, v: Any) -> List[Dict[str, Any]]:
+        """Handle both old dict format (counts) and new list format (task details)."""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, dict):
+            # Old format: convert dict of counts to a list format for compatibility
+            # This preserves the data while matching the expected schema
+            return [{"summary": v}]
+        return []

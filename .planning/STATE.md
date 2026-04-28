@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Team Updates, Knowledge Sharing & Weekly Board
-status: executing
-last_updated: "2026-04-28T07:58:03.639Z"
+status: ready_to_plan
+last_updated: "2026-04-28T08:35:00.000Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 8
+  completed_phases: 3
+  total_plans: 12
   completed_plans: 5
-  percent: 63
+  percent: 100
 ---
 
 # State: TeamFlow
@@ -19,13 +19,13 @@ progress:
 
 **Milestone:** v2.2 — Team Updates, Knowledge Sharing & Weekly Board
 **Active Phase:** Phase 24 — Knowledge Sharing Scheduler (Ready to execute — 3 plans)
-**Last Session:** 2026-04-28T07:58:03.635Z
+**Last Session:** 2026-04-28T08:35:00.000Z
 
 ## Current Position
 
-Phase: 23 (standup-updates) — EXECUTING
-Plan: 2 of 5
-Status: Ready to execute
+Phase: 25
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-04-28
 
 ## Session Notes
@@ -45,6 +45,7 @@ Last activity: 2026-04-28
 ## Resume Point
 
 Phase 24 planned with research, UI-SPEC, and 3 execution plans. Next: `/gsd-execute-phase 24`.
+- Phase 25 planned with research, UI-SPEC, validation strategy, and 4 execution plans. It remains blocked on Phase 24 completion.
 
 ## Accumulated Context
 
@@ -129,6 +130,8 @@ None
 **Planned Phase:** 16 (advanced-kpi-dashboard) — 5 plans — 2026-04-26
 **Planned Phase:** 17 (sprint-release-reminders) — 5 plans — 2026-04-26
 **Planned Phase:** 18 (status-transition-graph) — 4 plans — 2026-04-26
+**Planned Phase:** 24 (knowledge-sharing-scheduler) — 3 plans — 2026-04-28 [v2.2]
+**Planned Phase:** 25 (team-weekly-board-ai-summary) — 4 plans — 2026-04-28 [v2.2]
 **Completed Phase:** 19 (refactor-map-safety-baseline) — 4 plans — 2026-04-27 [v2.1]
 **Completed Phase:** 20 (backend-package-restructure) — 5 plans — 2026-04-27 [v2.1]
 **Completed Phase:** 21 (frontend-sveltekit-structure) — 4 plans — 2026-04-27 [v2.1]

@@ -38,6 +38,7 @@ from app.models.notifications import (  # noqa: F401
     SubTeamReminderSettings,
 )
 from app.models.knowledge import KnowledgeSession  # noqa: F401
+from app.models.board import WeeklyBoardSummary, WeeklyPost, WeeklyPostAppend  # noqa: F401
 from app.models.communication import (  # noqa: F401
     ChatChannel,
     ChatChannelMember,

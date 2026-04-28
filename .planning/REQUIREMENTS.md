@@ -21,23 +21,23 @@
 
 ### Knowledge Sharing (KS)
 
-- [ ] **KS-01**: Manager (admin) can create a KS session scoped to all team members, with fields: topic, description, references, presenter (user), session type (presentation/demo/workshop/Q&A), duration, date/time, tags
-- [ ] **KS-02**: Supervisor can create a KS session scoped to their sub-team only (same fields as KS-01)
-- [ ] **KS-03**: Knowledge Sessions appear as a dedicated tab inside the existing /schedule page (no new top-level route)
-- [ ] **KS-04**: Members see only KS sessions in their scope (org-wide sessions + their sub-team's sessions)
-- [ ] **KS-05**: Team members receive an in-app reminder before a session they are scoped to
-- [ ] **KS-06**: Team members receive an in-app notification when a new session in their scope is created
+- [x] **KS-01**: Manager (admin) can create a KS session scoped to all team members, with fields: topic, description, references, presenter (user), session type (presentation/demo/workshop/Q&A), duration, date/time, tags
+- [x] **KS-02**: Supervisor can create a KS session scoped to their sub-team only (same fields as KS-01)
+- [x] **KS-03**: Knowledge Sessions appear as a dedicated tab inside the existing /schedule page (no new top-level route)
+- [x] **KS-04**: Members see only KS sessions in their scope (org-wide sessions + their sub-team's sessions)
+- [x] **KS-05**: Team members receive an in-app reminder before a session they are scoped to
+- [x] **KS-06**: Team members receive an in-app notification when a new session in their scope is created
 
 ### Weekly Board (BOARD)
 
-- [ ] **BOARD-01**: Any team member can post a weekly markdown update to the Team Weekly Board
-- [ ] **BOARD-02**: Board organizes posts by ISO week; members can navigate to past weeks
-- [ ] **BOARD-03**: Markdown content is rendered safely (marked + DOMPurify — XSS protection required)
-- [ ] **BOARD-04**: Any member can trigger an on-demand AI summary for the current week
-- [ ] **BOARD-05**: AI weekly summary is generated automatically at end of week (Sunday 23:00 via APScheduler CronTrigger)
-- [ ] **BOARD-06**: AI summary is stored/cached; re-generation overwrites the stored result for that week (30-min cooldown on on-demand trigger)
-- [ ] **BOARD-07**: Member can edit their own weekly post
-- [ ] **BOARD-08**: Member can delete their own weekly post
+- [x] **BOARD-01**: Any team member can post a weekly markdown update to the Team Weekly Board
+- [x] **BOARD-02**: Board organizes posts by ISO week; members can navigate to past weeks
+- [x] **BOARD-03**: Markdown content is rendered safely (marked + DOMPurify — XSS protection required)
+- [x] **BOARD-04**: Any member can trigger an on-demand AI summary for the current week
+- [x] **BOARD-05**: AI weekly summary is generated automatically at end of week (Sunday 23:00 via APScheduler CronTrigger)
+- [x] **BOARD-06**: AI summary is stored/cached; re-generation overwrites the stored result for that week (30-min cooldown on on-demand trigger)
+- [x] **BOARD-07**: Member can edit their own weekly post
+- [x] **BOARD-08**: Member can delete their own weekly post
 
 ---
 

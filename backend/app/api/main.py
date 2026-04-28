@@ -19,6 +19,7 @@ from app.routers import (
     dashboard,
     invites,
     milestones,
+    board,
     notifications,
     knowledge_sessions,
     performance,
@@ -84,6 +85,7 @@ def create_app() -> FastAPI:
     application.include_router(projects.router)
     application.include_router(statuses.router)
     application.include_router(milestones.router)
+    application.include_router(board.router)
     application.include_router(sprints.router)
     application.include_router(tasks.router)
     application.include_router(schedules.router)
