@@ -5,9 +5,10 @@
 	import type { StandupPost } from '$lib/stores/updates';
 	import SnapshotPanel from './SnapshotPanel.svelte';
 	import { toast } from 'svelte-sonner';
-	import { format } from 'date-fns';
+	import { format, parseISO } from 'date-fns';
 
 	export let post: StandupPost;
+	export let fieldTypes: Record<string, string> = {};
 
 	const dispatch = createEventDispatcher();
 
@@ -60,7 +61,14 @@
 		{#each Object.entries(post.field_values).filter(([, v]) => v.trim()) as [fieldName, fieldValue]}
 			<div class="space-y-1 mt-3">
 				<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{fieldName}</p>
-				<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+				{#if fieldTypes[fieldName] === 'datetime'}
+					<p class="text-sm text-gray-300">{format(parseISO(fieldValue), 'PPp')}</p>
+				{:else if fieldTypes[fieldName] === 'richtext'}
+					<!-- TODO: Render with marked + dompurify for XSS-safe markdown -->
+					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+				{:else}
+					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+				{/if}
 			</div>
 		{/each}
 
@@ -86,7 +94,14 @@
 		{#each Object.entries(post.field_values).filter(([, v]) => v.trim()) as [fieldName, fieldValue]}
 			<div class="space-y-1 mt-3">
 				<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{fieldName}</p>
-				<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+				{#if fieldTypes[fieldName] === 'datetime'}
+					<p class="text-sm text-gray-300">{format(parseISO(fieldValue), 'PPp')}</p>
+				{:else if fieldTypes[fieldName] === 'richtext'}
+					<!-- TODO: Render with marked + dompurify for XSS-safe markdown -->
+					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+				{:else}
+					<p class="text-sm text-gray-300 whitespace-pre-wrap">{fieldValue}</p>
+				{/if}
 			</div>
 		{/each}
 
@@ -108,8 +123,15 @@
 
 		{#each Object.keys(post.field_values) as fieldName}
 			<div class="space-y-1 mt-3">
-				<label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{fieldName}</label>
-				<textarea class="input resize-none h-20" bind:value={editValues[fieldName]}></textarea>
+				<label class="text-xs font-semibold text-gray-500 uppercase tracking-wide" for="edit-{fieldName}">{fieldName}</label>
+				{#if fieldTypes[fieldName] === 'datetime'}
+					<input id="edit-{fieldName}" type="datetime-local" class="input" bind:value={editValues[fieldName]} />
+				{:else if fieldTypes[fieldName] === 'richtext'}
+					<textarea id="edit-{fieldName}" class="input resize-none h-20" bind:value={editValues[fieldName]}></textarea>
+					<!-- TODO: Add markdown preview with marked + dompurify -->
+				{:else}
+					<textarea id="edit-{fieldName}" class="input resize-none h-20" bind:value={editValues[fieldName]}></textarea>
+				{/if}
 			</div>
 		{/each}
 
