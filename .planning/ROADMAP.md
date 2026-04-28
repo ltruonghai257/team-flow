@@ -65,7 +65,7 @@ _Updated: 2026-04-29_
 ### v2.3 — Timeline Clarity, Navigation IA & Scoped Visibility
 
 - [x] **Phase 26: Navigation Information Architecture** — Reorganize the sidebar and mobile navigation into workflow-based groups with nested items and role-aware visibility (completed 2026-04-28)
-- [ ] **Phase 27: Timeline & Gantt Clarity** — Make `/timeline` milestone-first, clearer to scan, and richer in planning and decision signal
+- [x] **Phase 27: Timeline & Gantt Clarity** — Make `/timeline` milestone-first, clearer to scan, and richer in planning and decision signal (completed 2026-04-28)
 - [ ] **Phase 28: Milestone Planning & Decisions** — Improve `/milestones` so planning state, decisions, and related tasks are visible together
 - [ ] **Phase 29: Scoped Team Visibility & Leadership RBAC** — Enforce the new member / supervisor / assistant manager / manager visibility rules across the product
 
@@ -120,7 +120,7 @@ Plans:
 - [x] 27-02-PLAN.md — Rebuild `/timeline` as a milestone-first gantt with expandable milestone rows, focus continuity, and member-view context cues
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 27-03-PLAN.md — Add targeted timeline regression coverage and final release verification
+- [x] 27-03-PLAN.md — Add targeted timeline regression coverage and final release verification
 **Cross-cutting constraints:**
 - Existing `/timeline` route URL, task edit modal, and task drag-to-reschedule behavior stay intact.
 - Risk and decision signals are derived from existing milestone/task/custom-status data; no new persistence is introduced in Phase 27.
@@ -159,6 +159,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
-| 27. Timeline & Gantt Clarity | 2/3 | In Progress|  |
+| 27. Timeline & Gantt Clarity | 3/3 | Complete   | 2026-04-28 |
 | 28. Milestone Planning & Decisions | 0/0 | Not started | — |
 | 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |
