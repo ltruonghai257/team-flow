@@ -24,13 +24,15 @@
 		TrendingUp,
 		GanttChartSquare,
 		Menu,
-		X
+		X,
+		MessageSquare
 	} from 'lucide-svelte';
 
 	const navItems = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/projects', label: 'Projects', icon: FolderOpen },
 		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
+		{ href: '/updates', label: 'Updates', icon: MessageSquare },
 		{ href: '/milestones', label: 'Milestones', icon: Milestone },
 		{ href: '/timeline', label: 'Timeline', icon: GanttChartSquare },
 		{ href: '/team', label: 'Team', icon: Users },
