@@ -101,7 +101,19 @@ Plans:
   3. A team member sees only sessions scoped to them (org-wide sessions plus their sub-team's sessions); sessions outside their scope are not visible
   4. A member receives an in-app notification when a new session in their scope is created
   5. A member receives an in-app reminder before a session in their scope begins
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- **Wave 1**
+- [ ] 24-01-PLAN.md — Backend foundation: KnowledgeSession enums, model, schemas, Alembic migration
+- **Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 24-02-PLAN.md — Backend behavior: scoped router, presenter validation, notification fanout, reminder sync, backend tests
+- **Wave 3** *(blocked on Wave 1 and Wave 2 completion)*
+- [ ] 24-03-PLAN.md — Frontend `/schedule` integration: Knowledge Sessions tab, agenda/calendar views, scoped modal UX, frontend verification
+Cross-cutting constraints:
+- D-07: Reminder selection reuses the existing offset-based `EventNotification` pattern.
+- D-11: Knowledge Sessions use a separate router and table, never the personal `Schedule` model.
+- D-12: Visibility always means org-wide sessions plus the user's allowed sub-team sessions only.
+- D-13: The existing notification pipeline remains authoritative; no parallel reminder system is introduced.
 **UI hint**: yes
 
 ### Phase 25: Team Weekly Board & AI Summary
@@ -124,5 +136,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 23. Standup Updates | 4/4 | Done | 2026-04-28 |
-| 24. Knowledge Sharing Scheduler | 0/? | Not started | - |
+| 24. Knowledge Sharing Scheduler | 0/3 | Planned | - |
 | 25. Team Weekly Board & AI Summary | 0/? | Not started | - |
