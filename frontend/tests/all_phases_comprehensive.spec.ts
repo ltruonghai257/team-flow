@@ -11,34 +11,50 @@ test.describe('TeamFlow Comprehensive Scenarios - All Phases 1-18 & 23-25', () =
 	test('Detailed feature testing for all phases (excluding refactor 19-22)', async ({ page }) => {
 		// Helper function to show annotations
 		const showAnnotation = async (text: string, duration = 2000) => {
-			await page.evaluate((msg) => {
-				const annotation = document.createElement('div');
-				annotation.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: white; padding: 20px 40px; border-radius: 12px; font-size: 28px; font-weight: bold; z-index: 10000; font-family: Arial, sans-serif; box-shadow: 0 8px 32px rgba(0,0,0,0.3);';
-				annotation.textContent = msg;
-				annotation.id = 'demo-annotation';
-				document.body.appendChild(annotation);
-			}, text);
-			await page.waitForTimeout(duration);
-			await page.evaluate(() => {
-				const el = document.getElementById('demo-annotation');
-				if (el) el.remove();
-			});
+			try {
+				await page.evaluate((msg) => {
+					const annotation = document.createElement('div');
+					annotation.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: white; padding: 20px 40px; border-radius: 12px; font-size: 28px; font-weight: bold; z-index: 10000; font-family: Arial, sans-serif; box-shadow: 0 8px 32px rgba(0,0,0,0.3);';
+					annotation.textContent = msg;
+					annotation.id = 'demo-annotation';
+					document.body.appendChild(annotation);
+				}, text);
+				await page.waitForTimeout(duration);
+				try {
+					await page.evaluate(() => {
+						const el = document.getElementById('demo-annotation');
+						if (el) el.remove();
+					});
+				} catch (e) {
+					// Ignore if context was destroyed during navigation
+				}
+			} catch (e) {
+				// Ignore if context was destroyed
+			}
 		};
 
 		// Helper function to show success annotation
 		const showSuccess = async (text: string, duration = 2000) => {
-			await page.evaluate((msg) => {
-				const annotation = document.createElement('div');
-				annotation.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,128,0,0.95); color: white; padding: 20px 40px; border-radius: 12px; font-size: 28px; font-weight: bold; z-index: 10000; font-family: Arial, sans-serif; box-shadow: 0 8px 32px rgba(0,0,0,0.3);';
-				annotation.textContent = msg;
-				annotation.id = 'demo-annotation';
-				document.body.appendChild(annotation);
-			}, text);
-			await page.waitForTimeout(duration);
-			await page.evaluate(() => {
-				const el = document.getElementById('demo-annotation');
-				if (el) el.remove();
-			});
+			try {
+				await page.evaluate((msg) => {
+					const annotation = document.createElement('div');
+					annotation.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,128,0,0.95); color: white; padding: 20px 40px; border-radius: 12px; font-size: 28px; font-weight: bold; z-index: 10000; font-family: Arial, sans-serif; box-shadow: 0 8px 32px rgba(0,0,0,0.3);';
+					annotation.textContent = msg;
+					annotation.id = 'demo-annotation';
+					document.body.appendChild(annotation);
+				}, text);
+				await page.waitForTimeout(duration);
+				try {
+					await page.evaluate(() => {
+						const el = document.getElementById('demo-annotation');
+						if (el) el.remove();
+					});
+				} catch (e) {
+					// Ignore if context was destroyed during navigation
+				}
+			} catch (e) {
+				// Ignore if context was destroyed
+			}
 		};
 
 		// ========== INTRO ==========

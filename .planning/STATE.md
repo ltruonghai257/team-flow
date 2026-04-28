@@ -1,32 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Team Updates, Knowledge Sharing & Weekly Board
-status: ready_to_plan
-last_updated: "2026-04-28T08:35:00.000Z"
+milestone: v2.3
+milestone_name: Timeline Clarity, Navigation IA & Scoped Visibility
+status: planning
+last_updated: "2026-04-28T17:40:44.292Z"
 last_activity: 2026-04-28
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 12
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # State: TeamFlow
 
 ## Current Status
 
-**Milestone:** v2.2 — Team Updates, Knowledge Sharing & Weekly Board
-**Active Phase:** Phase 24 — Knowledge Sharing Scheduler (Ready to execute — 3 plans)
-**Last Session:** 2026-04-28T08:35:00.000Z
+**Milestone:** v2.3 — Timeline Clarity, Navigation IA & Scoped Visibility
+**Previous Milestone:** v2.2 shipped on 2026-04-29
+**Active Phase:** Not started
+**Last Session:** 2026-04-29T00:38:54+0700
 
 ## Current Position
 
-Phase: 25
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-04-28
+Phase: Not started (defining v2.3)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-29
 
 ## Session Notes
 
@@ -35,17 +36,17 @@ Last activity: 2026-04-28
 - Milestone v2.1 started 2026-04-26: refactor backend/frontend structure to follow Open WebUI-inspired organization before continuing feature expansion.
 - Reference repo: https://github.com/open-webui/open-webui
 - v2.1 phase sequence: Phase 19 refactor map, Phase 20 backend restructure, Phase 21 frontend restructure, Phase 22 runtime/regression verification.
+- Milestone v2.2 shipped 2026-04-29: roadmap and requirements archived; verification artifacts created for Phases 23-25.
 - User preference: Project uses Bun for frontend operations.
 - SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
 - Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
 - Zero new npm or Python packages unless a moved import cannot be resolved without one.
 - All schema changes via Alembic migrations only; v2.1 should avoid schema changes unless required for runtime correctness.
-- Milestone v2.2 roadmap created 2026-04-28: 3 phases, 22 requirements, 100% coverage.
+- Milestone v2.3 planning started 2026-04-28: timeline clarity, navigation IA, and scoped visibility.
 
 ## Resume Point
 
-Phase 24 planned with research, UI-SPEC, and 3 execution plans. Next: `/gsd-execute-phase 24`.
-- Phase 25 planned with research, UI-SPEC, validation strategy, and 4 execution plans. It remains blocked on Phase 24 completion.
+Start the v2.3 discuss/planning workflow when ready.
 
 ## Accumulated Context
 

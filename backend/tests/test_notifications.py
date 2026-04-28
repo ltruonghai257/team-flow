@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.utils.auth import hash_password
+from app.utils.auth import create_access_token, hash_password
 from app.models import (
     EventNotification,
     Milestone,
@@ -274,11 +274,7 @@ async def test_notification_bulk_multi_offset_still_works_for_schedule_reminders
     await db_session.commit()
     await db_session.refresh(schedule)
 
-    response = await async_client.post(
-        "/api/auth/token",
-        data={"username": user.username, "password": "password"},
-    )
-    token = response.json()["access_token"]
+    token = create_access_token({"sub": str(user.id)})
 
     response = await async_client.post(
         "/api/notifications/bulk",

@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.database import get_db
 from app.models import KnowledgeSession, SubTeam, User, UserRole
@@ -38,7 +39,7 @@ async def _visible_session_or_404(
 ) -> KnowledgeSession:
     stmt = visible_knowledge_session_query(current_user, sub_team).where(
         KnowledgeSession.id == session_id
-    )
+    ).options(selectinload(KnowledgeSession.presenter))
     result = await db.execute(stmt)
     session = result.scalar_one_or_none()
     if session is None:
@@ -69,7 +70,7 @@ def _to_out(session: KnowledgeSession) -> KnowledgeSessionOut:
         created_by_id=session.created_by_id,
         created_at=session.created_at,
         updated_at=session.updated_at,
-        presenter=None,
+        presenter=session.presenter,
     )
 
 
@@ -81,7 +82,9 @@ async def list_knowledge_sessions(
     current_user: User = Depends(get_current_user),
     sub_team: SubTeam | None = Depends(get_sub_team),
 ):
-    query = visible_knowledge_session_query(current_user, sub_team)
+    query = visible_knowledge_session_query(current_user, sub_team).options(
+        selectinload(KnowledgeSession.presenter)
+    )
     if start is not None:
         query = query.where(KnowledgeSession.start_time >= start)
     if end is not None:

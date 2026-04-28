@@ -13,16 +13,13 @@ from app.models import (
     User,
     UserRole,
 )
-from app.utils.auth import hash_password
+from app.utils.auth import create_access_token, hash_password
 
 
-async def _login(async_client: AsyncClient, username: str) -> str:
-    response = await async_client.post(
-        "/api/auth/token",
-        data={"username": username, "password": "password"},
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
+async def _login(db_session, username: str) -> str:
+    result = await db_session.execute(select(User).where(User.username == username))
+    user = result.scalar_one()
+    return create_access_token({"sub": str(user.id)})
 
 
 async def _create_user(
@@ -103,12 +100,24 @@ async def _build_scope_graph(db_session):
 
     return {
         "team_a": team_a,
+        "team_a_id": team_a.id,
         "team_b": team_b,
+        "team_b_id": team_b.id,
         "admin": admin,
+        "admin_id": admin.id,
+        "admin_username": admin.username,
         "supervisor_a": supervisor_a,
+        "supervisor_a_id": supervisor_a.id,
+        "supervisor_a_username": supervisor_a.username,
         "supervisor_b": supervisor_b,
+        "supervisor_b_id": supervisor_b.id,
+        "supervisor_b_username": supervisor_b.username,
         "member_a": member_a,
+        "member_a_id": member_a.id,
+        "member_a_username": member_a.username,
         "member_b": member_b,
+        "member_b_id": member_b.id,
+        "member_b_username": member_b.username,
     }
 
 
@@ -117,7 +126,7 @@ async def test_admin_org_wide_session_defaults_presenter_and_scope(
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    token = await _login(async_client, graph["admin"].username)
+    token = await _login(db_session, graph["admin_username"])
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     response = await async_client.post(
@@ -144,14 +153,18 @@ async def test_supervisor_session_forces_team_scope_and_rejects_foreign_presente
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    token = await _login(async_client, graph["supervisor_a"].username)
+    supervisor_username = graph["supervisor_a_username"]
+    member_a_id = graph["member_a_id"]
+    member_b_id = graph["member_b_id"]
+    team_a_id = graph["team_a_id"]
+    token = await _login(db_session, supervisor_username)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     bad_response = await async_client.post(
         "/api/knowledge-sessions/",
         json={
             "topic": "Team session",
-            "presenter_id": graph["member_b"].id,
+            "presenter_id": member_b_id,
             "duration_minutes": 30,
             "start_time": (now + timedelta(days=1)).isoformat(),
             "offset_minutes_list": [],
@@ -164,7 +177,7 @@ async def test_supervisor_session_forces_team_scope_and_rejects_foreign_presente
         "/api/knowledge-sessions/",
         json={
             "topic": "Team session",
-            "presenter_id": graph["member_a"].id,
+            "presenter_id": member_a_id,
             "duration_minutes": 30,
             "start_time": (now + timedelta(days=1)).isoformat(),
             "offset_minutes_list": [15, 30],
@@ -172,7 +185,7 @@ async def test_supervisor_session_forces_team_scope_and_rejects_foreign_presente
         headers={"Authorization": f"Bearer {token}"},
     )
     assert good_response.status_code == 201
-    assert good_response.json()["sub_team_id"] == graph["team_a"].id
+    assert good_response.json()["sub_team_id"] == team_a_id
 
 
 @pytest.mark.asyncio
@@ -180,8 +193,14 @@ async def test_member_visibility_includes_org_wide_and_own_team_only(
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    admin_token = await _login(async_client, graph["admin"].username)
-    member_token = await _login(async_client, graph["member_a"].username)
+    admin_username = graph["admin_username"]
+    member_username = graph["member_a_username"]
+    supervisor_username = graph["supervisor_a_username"]
+    team_b_id = graph["team_b_id"]
+    member_a_id = graph["member_a_id"]
+    member_b_id = graph["member_b_id"]
+    admin_token = await _login(db_session, admin_username)
+    member_token = await _login(db_session, member_username)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     await async_client.post(
@@ -194,12 +213,12 @@ async def test_member_visibility_includes_org_wide_and_own_team_only(
         },
         headers={"Authorization": f"Bearer {admin_token}"},
     )
-    supervisor_token = await _login(async_client, graph["supervisor_a"].username)
+    supervisor_token = await _login(db_session, supervisor_username)
     await async_client.post(
         "/api/knowledge-sessions/",
         json={
             "topic": "Team A",
-            "presenter_id": graph["member_a"].id,
+            "presenter_id": member_a_id,
             "duration_minutes": 30,
             "start_time": (now + timedelta(days=2)).isoformat(),
             "offset_minutes_list": [],
@@ -210,14 +229,14 @@ async def test_member_visibility_includes_org_wide_and_own_team_only(
         "/api/knowledge-sessions/",
         json={
             "topic": "Team B",
-            "presenter_id": graph["member_b"].id,
+            "presenter_id": member_b_id,
             "duration_minutes": 30,
             "start_time": (now + timedelta(days=3)).isoformat(),
             "offset_minutes_list": [],
         },
         headers={
             "Authorization": f"Bearer {admin_token}",
-            "X-SubTeam-ID": str(graph["team_b"].id),
+            "X-SubTeam-ID": str(team_b_id),
         },
     )
 
@@ -237,7 +256,15 @@ async def test_creation_and_reminder_notifications_follow_scope_and_patch_replac
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    admin_token = await _login(async_client, graph["admin"].username)
+    admin_username = graph["admin_username"]
+    admin_token = await _login(db_session, admin_username)
+    admin_id = graph["admin_id"]
+    team_a_id = graph["team_a_id"]
+    team_b_id = graph["team_b_id"]
+    supervisor_a_id = graph["supervisor_a_id"]
+    supervisor_b_id = graph["supervisor_b_id"]
+    member_a_id = graph["member_a_id"]
+    member_b_id = graph["member_b_id"]
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     response = await async_client.post(
@@ -281,7 +308,17 @@ async def test_creation_and_reminder_notifications_follow_scope_and_patch_replac
     assert len([row for row in rows if row.offset_minutes == 0]) == len(
         [row for row in rows if row.status == NotificationStatus.sent and row.offset_minutes == 0]
     )
-    assert sorted(row.offset_minutes for row in rows if row.offset_minutes != 0) == [15]
+    nonzero_rows = [row for row in rows if row.offset_minutes != 0]
+    assert {row.offset_minutes for row in nonzero_rows} == {15}
+    assert len(nonzero_rows) == len(
+        {
+            admin_id,
+            supervisor_a_id,
+            supervisor_b_id,
+            member_a_id,
+            member_b_id,
+        }
+    )
 
 
 @pytest.mark.asyncio
@@ -289,8 +326,14 @@ async def test_notification_resolver_enforces_visibility(
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    admin_token = await _login(async_client, graph["admin"].username)
-    member_token = await _login(async_client, graph["member_a"].username)
+    admin_username = graph["admin_username"]
+    member_username = graph["member_a_username"]
+    supervisor_username = graph["supervisor_a_username"]
+    member_b_username = graph["member_b_username"]
+    member_a_id = graph["member_a_id"]
+    member_b_id = graph["member_b_id"]
+    admin_token = await _login(db_session, admin_username)
+    member_token = await _login(db_session, member_username)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     response = await async_client.post(
@@ -303,20 +346,22 @@ async def test_notification_resolver_enforces_visibility(
         },
         headers={"Authorization": f"Bearer {admin_token}"},
     )
+    assert response.status_code == 201, response.text
     visible_session_id = response.json()["id"]
 
-    supervisor_token = await _login(async_client, graph["supervisor_a"].username)
+    supervisor_token = await _login(db_session, supervisor_username)
     hidden_session_response = await async_client.post(
         "/api/knowledge-sessions/",
         json={
             "topic": "Hidden session",
-            "presenter_id": graph["member_a"].id,
+            "presenter_id": member_a_id,
             "duration_minutes": 30,
             "start_time": (now + timedelta(days=2)).isoformat(),
             "offset_minutes_list": [15],
         },
         headers={"Authorization": f"Bearer {supervisor_token}"},
     )
+    assert hidden_session_response.status_code == 201, hidden_session_response.text
     hidden_session_id = hidden_session_response.json()["id"]
 
     visible = await async_client.get(
@@ -326,7 +371,7 @@ async def test_notification_resolver_enforces_visibility(
     )
     assert visible.status_code == 200
 
-    member_b_token = await _login(async_client, graph["member_b"].username)
+    member_b_token = await _login(db_session, member_b_username)
     hidden = await async_client.get(
         "/api/notifications/by-event",
         params={"event_type": "knowledge_session", "event_ref_id": hidden_session_id},

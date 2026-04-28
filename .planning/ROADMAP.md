@@ -9,7 +9,7 @@ _Updated: 2026-04-28_
 - ✅ **v1.0** — Production-Ready Team Management Platform (Phases 1-11) — shipped 2026-04-24
 - ✅ **v2.0** — Team Hierarchy, Sprints & Advanced Analytics (Phases 12-18) — shipped 2026-04-28
 - ✅ **v2.1** — Open WebUI-Style Project Structure Refactor (Phases 19-22) — shipped 2026-04-28
-- 🔄 **v2.2** — Team Updates, Knowledge Sharing & Weekly Board (Phases 23-25) — in progress
+- ✅ **v2.2** — Team Updates, Knowledge Sharing & Weekly Board (Phases 23-25) — shipped 2026-04-28; archived at [.planning/milestones/v2.2-ROADMAP.md](./milestones/v2.2-ROADMAP.md)
 
 ---
 
@@ -57,97 +57,14 @@ _Updated: 2026-04-28_
 
 ### v2.2 — Team Updates, Knowledge Sharing & Weekly Board
 
-- [x] **Phase 23: Standup Updates** — Template-driven standup posts with task snapshot, team feed, edit/delete — completed 2026-04-28
-- [x] **Phase 24: Knowledge Sharing Scheduler** — Admin/supervisor-scoped KS sessions as a tab in /schedule, with notifications (completed 2026-04-28)
-- [x] **Phase 25: Team Weekly Board & AI Summary** — Markdown board organized by ISO week, on-demand and scheduled AI summary (completed 2026-04-28)
+See archive: [.planning/milestones/v2.2-ROADMAP.md](./milestones/v2.2-ROADMAP.md)
 
----
-
-**Known deferred items at close: 4 (see STATE.md Deferred Items)**
-
----
-
-For detailed phase information, see archived milestone files in `.planning/milestones/`.
-
----
-
-## Phase Details
-
-### Phase 23: Standup Updates
-**Goal**: Members can post structured daily/weekly standups with a frozen task snapshot, and the whole team can browse and filter the feed
-**Depends on**: Phase 22 (v2.1 structure baseline)
-**Requirements**: UPD-01, UPD-02, UPD-03, UPD-04, UPD-05, UPD-06, UPD-07, UPD-08
-**Success Criteria** (what must be TRUE):
-  1. A member can open /updates, fill out the configured template fields, submit a standup post, and see it appear in the team feed immediately
-  2. The submitted post displays a frozen snapshot of the member's tasks at submit time — refreshing the page or changing task statuses later does not alter the snapshot
-  3. The supervisor can add, remove, or rename fields in the standup template and the change is reflected for the next post submission
-  4. Any team member can filter the feed by author or by date to narrow results
-  5. A member can edit or delete their own standup post; they cannot edit or delete another member's post
-**Plans**: 4 plans
-Plans:
-- [x] 23-01-PLAN.md — SQLAlchemy models, Pydantic schemas, Alembic migration (Wave 1) — completed 2026-04-28
-- [x] 23-02-PLAN.md — Frontend packages, updates API module, updates store (Wave 1) — completed 2026-04-28
-- [x] 23-03-PLAN.md — Backend router: all 6 endpoints + main.py registration (Wave 2) — completed 2026-04-28
-- [x] 23-04-PLAN.md — Frontend UI: page, form, card, snapshot panel, nav item (Wave 2) — completed 2026-04-28
-**UI hint**: yes
-
-### Phase 24: Knowledge Sharing Scheduler
-**Goal**: Admins and supervisors can schedule Knowledge Sharing sessions scoped to their team, and members receive notifications for sessions in their scope
-**Depends on**: Phase 23
-**Requirements**: KS-01, KS-02, KS-03, KS-04, KS-05, KS-06
-**Success Criteria** (what must be TRUE):
-  1. An admin can create a KS session (topic, description, references, presenter, session type, duration, date/time, tags) that is visible to all org members; a supervisor can create a session visible only to their sub-team
-  2. The /schedule page shows a "Knowledge Sessions" tab; no new top-level route is added
-  3. A team member sees only sessions scoped to them (org-wide sessions plus their sub-team's sessions); sessions outside their scope are not visible
-  4. A member receives an in-app notification when a new session in their scope is created
-  5. A member receives an in-app reminder before a session in their scope begins
-**Plans**: 3 plans
-Plans:
-- **Wave 1**
-- [x] 24-01-PLAN.md — Backend foundation: KnowledgeSession enums, model, schemas, Alembic migration
-- **Wave 2** *(blocked on Wave 1 completion)*
-- [x] 24-02-PLAN.md — Backend behavior: scoped router, presenter validation, notification fanout, reminder sync, backend tests
-- **Wave 3** *(blocked on Wave 1 and Wave 2 completion)*
-- [x] 24-03-PLAN.md — Frontend `/schedule` integration: Knowledge Sessions tab, agenda/calendar views, scoped modal UX, frontend verification
-Cross-cutting constraints:
-- D-07: Reminder selection reuses the existing offset-based `EventNotification` pattern.
-- D-11: Knowledge Sessions use a separate router and table, never the personal `Schedule` model.
-- D-12: Visibility always means org-wide sessions plus the user's allowed sub-team sessions only.
-- D-13: The existing notification pipeline remains authoritative; no parallel reminder system is introduced.
-**UI hint**: yes
-
-### Phase 25: Team Weekly Board & AI Summary
-**Goal**: Any member can post markdown updates to a shared weekly board, and an AI summary is available both on demand and automatically at end of week
-**Depends on**: Phase 24
-**Requirements**: BOARD-01, BOARD-02, BOARD-03, BOARD-04, BOARD-05, BOARD-06, BOARD-07, BOARD-08
-**Success Criteria** (what must be TRUE):
-  1. Any member can open /board, write a markdown post for the current week, submit it, and see the rendered (XSS-safe) content appear on the board
-  2. The board groups posts by ISO week; members can navigate to any past week and see that week's posts and its stored AI summary
-  3. A member can click "Summarize this week" to trigger an on-demand AI summary; the result is stored and re-clicking within 30 minutes returns the cached result without calling the AI again
-  4. At Sunday 23:00 the system automatically generates a weekly summary via APScheduler CronTrigger; if no posts exist for the week the summary is "no updates this week" (no AI call made)
-  5. A member can edit or delete their own weekly post; another member's post cannot be modified
-**Plans**: 4 plans
-Plans:
-- **Wave 1**
-- [x] 25-01-PLAN.md — Backend foundation: weekly post, append-entry, and summary models/schemas plus Alembic migration
-- **Wave 2** *(blocked on Wave 1 completion)*
-- [x] 25-02-PLAN.md — Backend board behavior: week payload, primary post CRUD, append-entry CRUD, ownership tests
-- [x] 25-03-PLAN.md — AI summary behavior: shared summary service, cooldown/cache logic, Sunday 23:00 scheduler job, summary tests
-- **Wave 3** *(blocked on Wave 2 completion)*
-- [x] 25-04-PLAN.md — Frontend `/board` experience: nav entry, API/store, week navigator, summary panel, markdown composer, digest cards, frontend verification
-Cross-cutting constraints:
-- D-01: Each member gets one primary weekly post per ISO week, with follow-up notes modeled as append entries rather than comments.
-- D-04: `/board` remains summary-first and digest-oriented rather than a reverse-chronological chat feed.
-- D-12: On-demand summary regeneration uses a locked 30-minute cooldown and must return cached content during the cooldown window.
-- D-15: Every markdown render path must sanitize `marked` output with `DOMPurify` before any `{@html}` usage.
-**UI hint**: yes
-
----
-
-## Progress Table
+- [x] Phase 23: Standup Updates — completed 2026-04-28
+- [x] Phase 24: Knowledge Sharing Scheduler — completed 2026-04-28
+- [x] Phase 25: Team Weekly Board & AI Summary — completed 2026-04-28
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 23. Standup Updates | 5/5 | Complete   | 2026-04-28 |
-| 24. Knowledge Sharing Scheduler | 3/3 | Complete    | 2026-04-28 |
-| 25. Team Weekly Board & AI Summary | 4/4 | Complete    | 2026-04-28 |
+| 23. Standup Updates | 5/5 | Complete | 2026-04-28 |
+| 24. Knowledge Sharing Scheduler | 3/3 | Complete | 2026-04-28 |
+| 25. Team Weekly Board & AI Summary | 4/4 | Complete | 2026-04-28 |

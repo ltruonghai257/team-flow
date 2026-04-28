@@ -6,6 +6,16 @@
 
 TeamFlow is a full-stack web application for a supervisor (and their team of 5–15 people) to manage work across multiple parallel projects. It replaces heavy tools like Jira/Trello with something purpose-built: fast task input (including AI), Kanban and Agile sprint views, real-time collaboration via WebSocket chat, and a performance layer that gives the supervisor the data needed to evaluate team members fairly.
 
+## Current State
+
+v2.2 is shipped: standup updates, knowledge sharing scheduler, and weekly board are live and archived in `.planning/milestones/`.
+
+## Next Milestone Goals
+
+- Define fresh v2.3 requirements from scratch
+- Clarify timeline, navigation IA, and scoped visibility behavior
+- Keep the existing task, scheduler, and AI workflows stable while expanding the product
+
 The app is built and partially functional. This milestone focuses on hardening what exists, adding the supervisor performance/analytics layer, and making it production-ready on Azure.
 
 ## Core Value
@@ -23,7 +33,7 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - **Team members (5–15 people)**: Update task status, create tasks via AI input, chat, see their own and teammates' tasks
 - **Visibility model**: Tasks visible to all team. Performance/evaluation metrics visible to supervisor only.
 
-## Current Milestone: v2.2 Team Updates, Knowledge Sharing & Weekly Board
+## Archived Milestone Snapshot: v2.2 Team Updates, Knowledge Sharing & Weekly Board
 
 **Goal:** Empower team members with a daily/weekly standup flow, a knowledge sharing scheduler embedded in the existing calendar, and a team-wide weekly markdown board with AI-generated summaries.
 
@@ -62,16 +72,16 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - ✓ Runtime, Docker, Alembic, test, and development commands work after import/path migration — Phase 22
 - ✓ Refactor verified by backend tests, frontend build, and smoke checks — Phase 22
 
-### Active (Milestone 2.2)
+### Validated (Milestone 2.2)
 
-- [ ] Member can post a daily/weekly standup update (what I did, pending items, blockers)
-- [ ] Standup post includes a snapshot of the member's current task statuses
-- [ ] Standup updates are visible to all team members and the supervisor
-- [ ] Manager can schedule Knowledge Sharing sessions (topic, description, references, presenter, session type, duration, tags)
-- [ ] Knowledge Sessions appear as a dedicated tab/section within the existing Calendar view
-- [ ] Team members can view upcoming Knowledge Sessions
-- [ ] Any team member can post a weekly markdown update to the Team Weekly Board
-- [ ] AI generates a weekly summary of all board posts automatically (end of week) and on demand
+- ✓ Member can post a daily/weekly standup update (what I did, pending items, blockers)
+- ✓ Standup post includes a snapshot of the member's current task statuses
+- ✓ Standup updates are visible to all team members and the supervisor
+- ✓ Manager can schedule Knowledge Sharing sessions (topic, description, references, presenter, session type, duration, tags)
+- ✓ Knowledge Sessions appear as a dedicated tab/section within the existing Calendar view
+- ✓ Team members can view upcoming Knowledge Sessions
+- ✓ Any team member can post a weekly markdown update to the Team Weekly Board
+- ✓ AI generates a weekly summary of all board posts automatically (end of week) and on demand
 
 ### Out of Scope
 
