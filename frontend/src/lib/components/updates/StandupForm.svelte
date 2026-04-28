@@ -5,6 +5,7 @@
 	import { toast } from 'svelte-sonner';
 
 	export let templateFields: string[] = [];
+	export let fieldTypes: Record<string, string> = {};
 
 	const dispatch = createEventDispatcher();
 
@@ -19,7 +20,16 @@
 	async function handleSubmit() {
 		submitting = true;
 		try {
-			const createdPost = await updates.create({ field_values: fieldValues });
+			// Convert datetime fields to ISO format before submission
+			const formattedValues = { ...fieldValues };
+			for (const [fieldName, fieldType] of Object.entries(fieldTypes)) {
+				if (fieldType === 'datetime' && formattedValues[fieldName]) {
+					// datetime-local input gives YYYY-MM-DDTHH:mm format, convert to ISO
+					const date = new Date(formattedValues[fieldName]);
+					formattedValues[fieldName] = date.toISOString();
+				}
+			}
+			const createdPost = await updates.create({ field_values: formattedValues });
 			toast.success('Standup posted');
 			dispatch('submitted', createdPost);
 			fieldValues = Object.fromEntries(templateFields.map((f) => [f, '']));
@@ -56,7 +66,16 @@
 			{#each templateFields as fieldName, i}
 				<div class="space-y-1">
 					<label class="label" for="field-{i}">{fieldName}</label>
-					<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]}></textarea>
+					{#if fieldTypes[fieldName] === 'datetime'}
+						<input id="field-{i}" type="datetime-local" class="input" bind:value={fieldValues[fieldName]} />
+					{:else if fieldTypes[fieldName] === 'richtext'}
+						<div class="space-y-2">
+							<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]}></textarea>
+							<!-- Markdown preview could be added here with marked + dompurify -->
+						</div>
+					{:else}
+						<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]}></textarea>
+					{/if}
 				</div>
 			{/each}
 
