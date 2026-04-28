@@ -45,6 +45,18 @@ async def _get_template_fields(db: AsyncSession, sub_team_id: Optional[int]) -> 
     return ["Pending Tasks", "Future Tasks", "Blockers", "Need Help From", "Critical Timeline", "Release Date"]
 
 
+async def _get_template_field_types(db: AsyncSession, sub_team_id: Optional[int]) -> Dict[str, str]:
+    """Return the effective template field_types mapping: sub-team override or empty dict."""
+    if sub_team_id is not None:
+        result = await db.execute(
+            select(StandupTemplate).where(StandupTemplate.sub_team_id == sub_team_id)
+        )
+        template = result.scalar_one_or_none()
+        if template:
+            return template.field_types or {}
+    return {}
+
+
 async def _build_task_snapshot(db: AsyncSession, user_id: int) -> List[Dict[str, Any]]:
     """Capture all tasks assigned to user_id as a frozen JSON list (D-08, D-09)."""
     result = await db.execute(select(Task).where(Task.assignee_id == user_id))
@@ -73,7 +85,8 @@ async def get_template(
     """Return the effective standup template for the caller's sub-team (UPD-01, UPD-02, per D-01/D-02)."""
     sub_team_id = sub_team.id if sub_team else None
     fields = await _get_template_fields(db, sub_team_id)
-    return {"fields": fields}
+    field_types = await _get_template_field_types(db, sub_team_id)
+    return {"fields": fields, "field_types": field_types}
 
 
 @router.put("/template", response_model=TemplateOut)
@@ -93,17 +106,19 @@ async def update_template(
     template = result.scalar_one_or_none()
     if template:
         template.fields = payload.fields
+        template.field_types = payload.field_types or {}
         template.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     else:
         template = StandupTemplate(
             sub_team_id=sub_team.id,
             fields=payload.fields,
+            field_types=payload.field_types or {},
         )
         db.add(template)
 
     await db.flush()
     await db.refresh(template)
-    return {"fields": template.fields}
+    return {"fields": template.fields, "field_types": template.field_types or {}}
 
 
 # ─── post endpoints ────────────────────────────────────────────────────────────
@@ -177,6 +192,20 @@ async def create_post(
     """
     if sub_team is None:
         raise HTTPException(status_code=400, detail="Sub-team context required to post a standup")
+
+    # Validate datetime fields against template field_types
+    field_types = await _get_template_field_types(db, sub_team.id)
+    for field_name, value in payload.field_values.items():
+        field_type = field_types.get(field_name, "text")  # Default to text if not specified
+        if field_type == "datetime":
+            try:
+                # Validate ISO 8601 format
+                datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Field '{field_name}' is datetime type but value '{value}' is not valid ISO 8601 format"
+                )
 
     snapshot = await _build_task_snapshot(db, current_user.id)
 
