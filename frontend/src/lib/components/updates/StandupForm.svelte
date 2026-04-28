@@ -3,11 +3,18 @@
 	import { ChevronDown, ChevronUp } from 'lucide-svelte';
 	import { updates } from '$lib/apis';
 	import { toast } from 'svelte-sonner';
-	import { marked } from 'marked';
+	import { Carta, MarkdownEditor } from 'carta-md';
 	import DOMPurify from 'dompurify';
+	import 'carta-md/default.css';
 
 	export let templateFields: string[] = [];
 	export let fieldTypes: Record<string, string> = {};
+
+	// Create Carta instance with DOMPurify sanitizer
+	const carta = new Carta({
+		extensions: [],
+		sanitizer: (html) => DOMPurify.sanitize(html)
+	});
 
 	const dispatch = createEventDispatcher();
 
@@ -18,12 +25,6 @@
 	$: fieldValues = Object.fromEntries(templateFields.map((f) => [f, '']));
 
 	$: allFieldsEmpty = templateFields.every((f) => !(fieldValues[f] ?? '').trim());
-
-	function renderMarkdown(text: string): string {
-		if (!text) return '';
-		const html = marked.parse(text, { async: false }) as string;
-		return DOMPurify.sanitize(html);
-	}
 
 	async function handleSubmit() {
 		submitting = true;
@@ -77,13 +78,8 @@
 					{#if fieldTypes[fieldName] === 'datetime'}
 						<input id="field-{i}" type="datetime-local" class="input" bind:value={fieldValues[fieldName]} />
 					{:else if fieldTypes[fieldName] === 'richtext'}
-						<div class="space-y-2">
-							<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]} placeholder="Write markdown here..."></textarea>
-							{#if fieldValues[fieldName]}
-								<div class="bg-gray-800 border border-gray-700 rounded p-3 text-sm text-gray-300 prose prose-invert max-w-none">
-									{@html renderMarkdown(fieldValues[fieldName])}
-								</div>
-							{/if}
+						<div class="min-h-[120px]">
+							<MarkdownEditor bind:value={fieldValues[fieldName]} {carta} />
 						</div>
 					{:else}
 						<textarea id="field-{i}" class="input resize-none h-20" bind:value={fieldValues[fieldName]}></textarea>

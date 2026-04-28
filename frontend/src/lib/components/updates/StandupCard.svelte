@@ -6,11 +6,19 @@
 	import SnapshotPanel from './SnapshotPanel.svelte';
 	import { toast } from 'svelte-sonner';
 	import { format, parseISO } from 'date-fns';
+	import { Carta, MarkdownEditor } from 'carta-md';
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
+	import 'carta-md/default.css';
 
 	export let post: StandupPost;
 	export let fieldTypes: Record<string, string> = {};
+
+	// Create Carta instance with DOMPurify sanitizer
+	const carta = new Carta({
+		extensions: [],
+		sanitizer: (html) => DOMPurify.sanitize(html)
+	});
 
 	const dispatch = createEventDispatcher();
 
@@ -137,13 +145,8 @@
 				{#if fieldTypes[fieldName] === 'datetime'}
 					<input id="edit-{fieldName}" type="datetime-local" class="input" bind:value={editValues[fieldName]} />
 				{:else if fieldTypes[fieldName] === 'richtext'}
-					<div class="space-y-2">
-						<textarea id="edit-{fieldName}" class="input resize-none h-20" bind:value={editValues[fieldName]} placeholder="Write markdown here..."></textarea>
-						{#if editValues[fieldName]}
-							<div class="bg-gray-800 border border-gray-700 rounded p-3 text-sm text-gray-300 prose prose-invert max-w-none">
-								{@html renderMarkdown(editValues[fieldName])}
-							</div>
-						{/if}
+					<div class="min-h-[120px]">
+						<MarkdownEditor bind:value={editValues[fieldName]} {carta} />
 					</div>
 				{:else}
 					<textarea id="edit-{fieldName}" class="input resize-none h-20" bind:value={editValues[fieldName]}></textarea>

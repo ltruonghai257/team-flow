@@ -27,6 +27,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "carta-md": "^4.11.2",
     "d3-shape": "^3.2.0",
     "date-fns": "^3.6.0",
     "dompurify": "^3.4.1",
