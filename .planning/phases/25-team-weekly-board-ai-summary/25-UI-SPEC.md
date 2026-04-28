@@ -42,8 +42,8 @@ Declared values (multiples of 4):
 | 3xl | `py-16` | 64px | Initial loading centering and sparse historical states |
 
 Exceptions:
-- Shared `.card` remains `p-5` (20px) because that is the established page/card padding in `/updates` and `/schedule`.
-- Week navigation controls may use `px-3 py-2` for compact toolbar density.
+- Shared page cards in this phase should use `p-4` or `p-6` only, even when nearby earlier pages used `p-5`.
+- Week navigation controls may use `px-4 py-2` for compact toolbar density.
 - Icon-only controls must remain at least 36x36px hit area.
 
 ---
@@ -170,7 +170,7 @@ Structure:
 - Trailing compact select or popover: historical ISO week jump
 
 Visual rules:
-- Container: `card` or `rounded-xl border border-gray-800 bg-gray-900 p-3`
+- Container: `card` or `rounded-xl border border-gray-800 bg-gray-900 p-4`
 - Active week state uses accent tint
 - Non-active controls stay `btn-secondary`-like with gray emphasis
 
