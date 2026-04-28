@@ -28,6 +28,7 @@ from app.routers import (
     sub_teams,
     tasks,
     timeline,
+    updates,
     users,
     websocket as ws_router,
 )
@@ -85,6 +86,7 @@ def create_app() -> FastAPI:
     application.include_router(sprints.router)
     application.include_router(tasks.router)
     application.include_router(schedules.router)
+    application.include_router(updates.router)
     application.include_router(notifications.router)
     application.include_router(ai.router)
     application.include_router(dashboard.router)
