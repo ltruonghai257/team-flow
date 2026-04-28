@@ -5,6 +5,7 @@
 	import type { TimelineViewModel } from './timeline-view-model';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
+	import { assignLanesToTasks } from './lane-assignment';
 
 	interface Props {
 		projects?: TimelineProject[];
@@ -141,14 +142,29 @@
 					children: []
 				};
 
+				// Assign lanes for overlapping tasks
+				const tasksForLaneAssignment = milestone.tasks.map(task => ({
+					task,
+					rowId: `mt-${milestone.id}`
+				}));
+				const laneAssignments = assignLanesToTasks(tasksForLaneAssignment);
+
+				// Create unique row IDs for each task based on lane assignment
+				const usedRowIds = new Set<string>();
 				for (const task of milestone.tasks) {
-					const taskRowId = `mt-${task.id}`;
-					milestoneRow.children.push({
-						id: taskRowId,
-						label: task.title,
-						enableDragging: true,
-						classes: 'task-row'
-					});
+					const assignment = laneAssignments.get(task.id);
+					const taskRowId = assignment?.rowId || `mt-${task.id}`;
+					
+					// Only create row if not already created
+					if (!usedRowIds.has(taskRowId)) {
+						milestoneRow.children.push({
+							id: taskRowId,
+							label: task.title,
+							enableDragging: true,
+							classes: 'task-row'
+						});
+						usedRowIds.add(taskRowId);
+					}
 					ganttTasks.push(buildTask(task, taskRowId, project.color));
 				}
 
@@ -163,9 +179,23 @@
 					classes: 'no-milestone-row',
 					children: []
 				};
+				
+				// Assign lanes for unassigned tasks
+				const unassignedForLaneAssignment = project.unassigned_tasks.map(task => ({
+					task,
+					rowId: `nm-${project.id}`
+				}));
+				const unassignedLaneAssignments = assignLanesToTasks(unassignedForLaneAssignment);
+
+				const usedUnassignedRowIds = new Set<string>();
 				for (const task of project.unassigned_tasks) {
-					const taskRowId = `nm-task-${task.id}`;
-					bucketRow.children.push({ id: taskRowId, label: task.title, enableDragging: true });
+					const assignment = unassignedLaneAssignments.get(task.id);
+					const taskRowId = assignment?.rowId || `nm-task-${task.id}`;
+					
+					if (!usedUnassignedRowIds.has(taskRowId)) {
+						bucketRow.children.push({ id: taskRowId, label: task.title, enableDragging: true });
+						usedUnassignedRowIds.add(taskRowId);
+					}
 					ganttTasks.push(buildTask(task, taskRowId, project.color));
 				}
 				projectRow.children.push(bucketRow);

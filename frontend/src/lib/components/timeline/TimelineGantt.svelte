@@ -5,6 +5,7 @@
 	import type { TimelineViewModel } from './timeline-view-model';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
+	import { assignLanesToTasks } from './lane-assignment';
 
 	interface Props {
 		projects?: TimelineProject[];
@@ -42,65 +43,6 @@
 		tasksByMilestone: new Map<number, TimelineTask[]>(),
 		taskToMilestone: new Map<number, number>()
 	};
-
-	interface LaneAssignment {
-		taskId: number;
-		laneIndex: number;
-		rowId: string;
-	}
-
-	function assignLanesToTasks(tasks: Array<{ task: TimelineTask; rowId: string }>): Map<number, LaneAssignment> {
-		const assignments = new Map<number, LaneAssignment>();
-		if (tasks.length === 0) return assignments;
-
-		// Sort tasks by start time (created_at)
-		const sorted = [...tasks].sort((a, b) => {
-			const aStart = a.task.created_at ? new Date(a.task.created_at).getTime() : Date.now();
-			const bStart = b.task.created_at ? new Date(b.task.created_at).getTime() : Date.now();
-			return aStart - bStart;
-		});
-
-		// Track occupied time ranges for each lane
-		const lanes: Array<{ start: number; end: number }[]> = [];
-
-		for (const { task, rowId } of sorted) {
-			const taskStart = task.due_date ? new Date(task.created_at).getTime() : Date.now();
-			const taskEnd = task.due_date ? new Date(task.due_date).getTime() : Date.now() + 3 * MS_DAY;
-
-			// Find first available lane
-			let assignedLane = -1;
-			for (let i = 0; i < lanes.length; i++) {
-				const lane = lanes[i];
-				// Check if this lane has space (no overlap with existing tasks in this lane)
-				let hasOverlap = false;
-				for (const range of lane) {
-					if (taskStart < range.end && taskEnd > range.start) {
-						hasOverlap = true;
-						break;
-					}
-				}
-				if (!hasOverlap) {
-					assignedLane = i;
-					break;
-				}
-			}
-
-			// If no lane found, create a new one
-			if (assignedLane === -1) {
-				assignedLane = lanes.length;
-				lanes.push([]);
-			}
-
-			// Add this task's time range to the lane
-			lanes[assignedLane].push({ start: taskStart, end: taskEnd });
-
-			// Create virtual row ID based on lane assignment
-			const virtualRowId = assignedLane === 0 ? rowId : `${rowId}-lane-${assignedLane}`;
-			assignments.set(task.id, { taskId: task.id, laneIndex: assignedLane, rowId: virtualRowId });
-		}
-
-		return assignments;
-	}
 
 	function escapeHtml(value: string) {
 		return value.replace(/[&<>"']/g, (char) => {
@@ -221,7 +163,7 @@
 						if (!usedRowIds.has(taskRowId)) {
 							milestoneRow.children.push({
 								id: taskRowId,
-								label: task.title,
+								label: assignment?.laneIndex === 0 ? task.title : '', // Only show label for first lane
 								enableDragging: true,
 								classes: 'task-row'
 							});
@@ -288,7 +230,14 @@
 			const sorted = Array.from(memberMap.entries()).sort((a, b) => a[1].label.localeCompare(b[1].label));
 			for (const [memberId, { label, tasks: memberTasks }] of sorted) {
 				const baseRowId = `u-${memberId}`;
-				rows.push({ id: baseRowId, label, enableDragging: false, classes: 'member-row' });
+				const memberRow: any = {
+					id: baseRowId,
+					label,
+					enableDragging: false,
+					classes: 'member-row',
+					expanded: true,
+					children: []
+				};
 				
 				// Assign lanes for overlapping tasks per member
 				const tasksForLaneAssignment = memberTasks.map(({ task }) => ({
@@ -302,17 +251,37 @@
 					const assignment = laneAssignments.get(task.id);
 					const taskRowId = assignment?.rowId || baseRowId;
 					
+					// Only create row if not already created
+					if (!usedRowIds.has(taskRowId)) {
+						memberRow.children.push({
+							id: taskRowId,
+							label: task.title,
+							enableDragging: true,
+							classes: 'task-row'
+						});
+						usedRowIds.add(taskRowId);
+					}
+					
 					const milestoneId = task.milestone_id;
 					const milestone = milestoneId ? milestoneMap.get(milestoneId) : null;
 					const context = milestone ? `<span class="task-context-badge">${escapeHtml(milestone.title)}</span>` : '<span class="task-context-badge">No milestone</span>';
 					const html = `<div class="task-label">${escapeHtml(task.title)} ${context}</div>`;
 					ganttTasks.push(buildTask(task, taskRowId, color, html));
 				}
+				
+				rows.push(memberRow);
 			}
 
 			if (unassignedTasks.length > 0) {
 				const baseRowId = 'u-unassigned';
-				rows.push({ id: baseRowId, label: 'Unassigned', enableDragging: false, classes: 'member-row' });
+				const unassignedRow: any = {
+					id: baseRowId,
+					label: 'Unassigned',
+					enableDragging: false,
+					classes: 'member-row',
+					expanded: true,
+					children: []
+				};
 				
 				// Assign lanes for overlapping unassigned tasks
 				const unassignedForLaneAssignment = unassignedTasks.map(({ task }) => ({
@@ -321,11 +290,24 @@
 				}));
 				const unassignedLaneAssignments = assignLanesToTasks(unassignedForLaneAssignment);
 
+				const usedRowIds = new Set<string>();
 				for (const { task, color } of unassignedTasks) {
 					const assignment = unassignedLaneAssignments.get(task.id);
 					const taskRowId = assignment?.rowId || baseRowId;
+					
+					// Only create row if not already created
+					if (!usedRowIds.has(taskRowId)) {
+						unassignedRow.children.push({
+							id: taskRowId,
+							label: task.title,
+							enableDragging: true,
+							classes: 'task-row'
+						});
+						usedRowIds.add(taskRowId);
+					}
 					ganttTasks.push(buildTask(task, taskRowId, color, `<div class="task-label">${escapeHtml(task.title)} <span class="task-context-badge">No milestone</span></div>`));
 				}
+				rows.push(unassignedRow);
 			}
 		}
 
@@ -596,9 +578,10 @@
 
 	.gantt-wrapper :global(.sg-task) {
 		border-radius: 6px !important;
-		border: none !important;
+		border: 1px solid rgba(255, 255, 255, 0.15) !important;
 		cursor: pointer;
 		transition: filter 0.12s, transform 0.12s !important;
+		opacity: 0.85 !important;
 	}
 
 	.gantt-wrapper :global(.sg-task:hover) {
