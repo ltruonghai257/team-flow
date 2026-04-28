@@ -11,41 +11,19 @@
 	import { Toaster, toast } from 'svelte-sonner';
 	import { sub_teams } from '$lib/apis';
 	import {
-		LayoutDashboard,
-		CheckSquare,
-		Users,
-		Milestone,
-		Calendar,
-		Bot,
 		LogOut,
-		FolderOpen,
 		ChevronRight,
 		ChevronDown,
-		TrendingUp,
-		GanttChartSquare,
 		Menu,
-		X,
-		MessageSquare
-		,
-		ClipboardList
+		X
 	} from 'lucide-svelte';
-
-	const navItems = [
-		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
-		{ href: '/projects', label: 'Projects', icon: FolderOpen },
-		{ href: '/tasks', label: 'Tasks', icon: CheckSquare },
-		{ href: '/updates', label: 'Updates', icon: MessageSquare },
-		{ href: '/board', label: 'Weekly Board', icon: ClipboardList },
-		{ href: '/milestones', label: 'Milestones', icon: Milestone },
-		{ href: '/timeline', label: 'Timeline', icon: GanttChartSquare },
-		{ href: '/team', label: 'Team', icon: Users },
-		{ href: '/schedule', label: 'Scheduler', icon: Calendar },
-		{ href: '/ai', label: 'AI Assistant', icon: Bot }
-	];
-
-	$: sidebarItems = $isSupervisor
-		? [...navItems.slice(0, 1), { href: '/performance', label: 'Performance', icon: TrendingUp }, ...navItems.slice(1)]
-		: navItems;
+	import {
+		navigationGroups,
+		filterNavigationGroups,
+		getActiveNavigationState,
+		type UserRole,
+		isSupervisorOrAdmin
+	} from '$lib/navigation/sidebar';
 
 	$: isAdmin = $authStore.user?.role === 'admin';
 
@@ -53,18 +31,23 @@
 	let expanded = false;
 	let selectedSubTeam: any = null;
 
-	onMount(async () => {
-		await authStore.loadMe();
-		const path = String($page.url.pathname);
-		if (!$isLoggedIn && path !== '/login' && path !== '/register' && !path.startsWith('/invite/accept')) {
-			goto('/login');
-		}
-		if (isAdmin) {
-			subTeams = await sub_teams.list();
-		}
-	});
+	// Expansion state for parent groups (session-only, per D-05)
+	let expandedGroups = new Set<string>();
+	let filteredGroups: any[] = [];
+	let activeGroup: string | null = null;
+	let activeChild: any = null;
 
-	subTeamStore.subscribe((v) => selectedSubTeam = v);
+	$: {
+		const userRole = $authStore.user?.role || null;
+		filteredGroups = filterNavigationGroups(userRole);
+		const navState = getActiveNavigationState(String($page.url.pathname));
+		activeGroup = navState.activeGroup;
+		activeChild = navState.activeChild;
+		// Auto-expand active parent on page load (D-04)
+		if (activeGroup) {
+			expandedGroups.add(activeGroup);
+		}
+	}
 
 	function selectSubTeam(subTeam: any) {
 		subTeamStore.set(subTeam);
@@ -76,6 +59,15 @@
 		subTeamStore.set(null);
 		expanded = false;
 		window.location.reload();
+	}
+
+	function toggleGroup(groupLabel: string) {
+		if (expandedGroups.has(groupLabel)) {
+			expandedGroups.delete(groupLabel);
+		} else {
+			expandedGroups.add(groupLabel);
+		}
+		expandedGroups = new Set(expandedGroups); // Trigger reactivity
 	}
 
 	// Start/stop notification polling with auth state.
@@ -170,21 +162,46 @@
 					{/if}
 				</div>
 				{/if}
-				{#each sidebarItems as item}
-					{@const active = $page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/')}
-					<a
-						href={item.href}
-						on:click={closeSidebar}
-						class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group {active
-							? 'bg-primary-600/20 text-primary-400'
-							: 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}"
-					>
-						<svelte:component this={item.icon} class="w-4.5 h-4.5 flex-shrink-0" size={18} />
-						{item.label}
-						{#if active}
-							<ChevronRight class="ml-auto" size={14} />
+				{#each filteredGroups as group}
+					{@const isGroupActive = activeGroup === group.label}
+					{@const isExpanded = expandedGroups.has(group.label)}
+					<div class="mb-1">
+						<!-- Parent row (non-navigating toggle) -->
+						<button
+							on:click={() => toggleGroup(group.label)}
+							class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group {isGroupActive
+								? 'bg-primary-600/10 text-primary-300'
+								: 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}"
+						>
+							{#if isExpanded}
+								<ChevronDown size={14} />
+							{:else}
+								<ChevronRight size={14} />
+							{/if}
+							{group.label}
+						</button>
+						<!-- Child links (shown when expanded) -->
+						{#if isExpanded}
+							<div class="ml-4 mt-1 space-y-1">
+								{#each group.children as child}
+									{@const isChildActive = activeChild?.href === child.href || (child.href !== '/' && String($page.url.pathname).startsWith(child.href + '/'))}
+									<a
+										href={child.href}
+										on:click={closeSidebar}
+										class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group {isChildActive
+											? 'bg-primary-600/20 text-primary-400'
+											: 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}"
+									>
+										<svelte:component this={child.icon} class="w-4.5 h-4.5 flex-shrink-0" size={18} />
+										{child.label}
+										{#if isChildActive}
+											<ChevronRight class="ml-auto" size={14} />
+										{/if}
+									</a>
+								{/each}
+							</div>
 						{/if}
-					</a>
+					</div>
 				{/each}
 			</nav>
 
