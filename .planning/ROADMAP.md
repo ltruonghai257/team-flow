@@ -83,7 +83,12 @@ For detailed phase information, see archived milestone files in `.planning/miles
   3. The supervisor can add, remove, or rename fields in the standup template and the change is reflected for the next post submission
   4. Any team member can filter the feed by author or by date to narrow results
   5. A member can edit or delete their own standup post; they cannot edit or delete another member's post
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 23-01-PLAN.md — SQLAlchemy models, Pydantic schemas, Alembic migration (Wave 1)
+- [ ] 23-02-PLAN.md — Frontend packages, updates API module, updates store (Wave 1)
+- [ ] 23-03-PLAN.md — Backend router: all 6 endpoints + main.py registration (Wave 2)
+- [ ] 23-04-PLAN.md — Frontend UI: page, form, card, snapshot panel, nav item (Wave 2)
 **UI hint**: yes
 
 ### Phase 24: Knowledge Sharing Scheduler
@@ -118,6 +123,6 @@ For detailed phase information, see archived milestone files in `.planning/miles
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 23. Standup Updates | 0/? | Not started | - |
+| 23. Standup Updates | 0/4 | In planning | - |
 | 24. Knowledge Sharing Scheduler | 0/? | Not started | - |
 | 25. Team Weekly Board & AI Summary | 0/? | Not started | - |
