@@ -11,6 +11,7 @@
 	import StandupCard from '$lib/components/updates/StandupCard.svelte';
 
 	let templateFields: string[] = [];
+	let fieldTypes: Record<string, string> = {};
 	let loading = true;
 	let filterAuthorId: number | null = null;
 	let filterDate: string = '';
@@ -25,13 +26,15 @@
 		try {
 			const [tmpl, feedResult] = await Promise.all([updatesApi.getTemplate(), updatesApi.list()]);
 			templateFields = tmpl.fields;
+			fieldTypes = tmpl.field_types || {};
 			updatesStore.set({
 				posts: feedResult.posts,
 				nextCursor: feedResult.next_cursor,
 				loading: false,
 				loadingMore: false,
 				filterAuthorId: null,
-				filterDate: null
+				filterDate: null,
+				fieldTypes: fieldTypes
 			});
 		} catch (e: any) {
 			toast.error(e.message ?? 'Failed to load updates');
@@ -91,26 +94,33 @@
 
 	// Supervisor template editor state
 	let editableFields: string[] = [];
+	let editableFieldTypes: Record<string, string> = {};
 	let newFieldName = '';
 	let savingTemplate = false;
 	$: editableFields = [...templateFields];
+	$: editableFieldTypes = { ...fieldTypes };
 
 	function addField() {
 		if (newFieldName.trim()) {
 			editableFields = [...editableFields, newFieldName.trim()];
+			editableFieldTypes[newFieldName.trim()] = 'text'; // Default to text
 			newFieldName = '';
 		}
 	}
 
 	function removeField(i: number) {
+		const fieldName = editableFields[i];
 		editableFields = editableFields.filter((_, idx) => idx !== i);
+		delete editableFieldTypes[fieldName];
 	}
 
 	async function saveTemplate() {
 		savingTemplate = true;
 		try {
-			await updatesApi.putTemplate({ fields: editableFields });
+			await updatesApi.putTemplate({ fields: editableFields, field_types: editableFieldTypes });
 			templateFields = [...editableFields];
+			fieldTypes = { ...editableFieldTypes };
+			updatesStore.update(s => ({ ...s, fieldTypes: fieldTypes }));
 			toast.success('Template saved');
 		} catch (e: any) {
 			toast.error('Failed to save template. Try again.');
@@ -131,7 +141,7 @@
 
 	<!-- StandupForm panel -->
 	<div class="mb-6">
-		<StandupForm {templateFields} on:submitted={onPostSubmitted} />
+		<StandupForm {templateFields} {fieldTypes} on:submitted={onPostSubmitted} />
 	</div>
 
 	<!-- Supervisor template editor -->
@@ -141,6 +151,11 @@
 			{#each editableFields as field, i}
 				<div class="flex items-center gap-2 mb-2">
 					<input class="input flex-1 text-sm" bind:value={editableFields[i]} />
+					<select class="input w-32 text-sm" bind:value={editableFieldTypes[field]}>
+						<option value="text">Text</option>
+						<option value="datetime">Date/Time</option>
+						<option value="richtext">Rich Text</option>
+					</select>
 					<button class="btn-secondary p-2" on:click={() => removeField(i)} title="Remove field" aria-label="Remove field">
 						<Trash2 size={14} />
 					</button>
@@ -187,7 +202,7 @@
 	{:else}
 		<div class="space-y-4">
 			{#each $updatesStore.posts as post (post.id)}
-				<StandupCard {post} on:updated={onPostUpdated} on:deleted={onPostDeleted} />
+				<StandupCard {post} {fieldTypes} on:updated={onPostUpdated} on:deleted={onPostDeleted} />
 			{/each}
 		</div>
 
