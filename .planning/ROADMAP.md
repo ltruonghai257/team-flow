@@ -64,7 +64,7 @@ _Updated: 2026-04-29_
 
 ### v2.3 — Timeline Clarity, Navigation IA & Scoped Visibility
 
-- [ ] **Phase 26: Navigation Information Architecture** — Reorganize the sidebar and mobile navigation into workflow-based groups with nested items and role-aware visibility
+- [x] **Phase 26: Navigation Information Architecture** — Reorganize the sidebar and mobile navigation into workflow-based groups with nested items and role-aware visibility (completed 2026-04-28)
 - [ ] **Phase 27: Timeline & Gantt Clarity** — Make `/timeline` milestone-first, clearer to scan, and richer in planning and decision signal
 - [ ] **Phase 28: Milestone Planning & Decisions** — Improve `/milestones` so planning state, decisions, and related tasks are visible together
 - [ ] **Phase 29: Scoped Team Visibility & Leadership RBAC** — Enforce the new member / supervisor / assistant manager / manager visibility rules across the product
@@ -93,13 +93,13 @@ For detailed historical milestone information, see archived files in `.planning/
 **Plans**: 3 plans
 Plans:
 **Wave 1**
-- [ ] 26-01-PLAN.md — Define grouped navigation metadata, active-route matching, and role-aware filtering
+- [x] 26-01-PLAN.md — Define grouped navigation metadata, active-route matching, and role-aware filtering
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 26-02-PLAN.md — Refactor the shared desktop/mobile layout to render grouped navigation behavior
+- [x] 26-02-PLAN.md — Refactor the shared desktop/mobile layout to render grouped navigation behavior
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 26-03-PLAN.md — Add grouped-navigation regression coverage and final verification
+- [x] 26-03-PLAN.md — Add grouped-navigation regression coverage and final verification
 **UI hint**: yes
 
 ### Phase 27: Timeline & Gantt Clarity
@@ -145,7 +145,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 26. Navigation Information Architecture | 0/3 | Ready to execute | — |
+| 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
 | 27. Timeline & Gantt Clarity | 0/0 | Not started | — |
 | 28. Milestone Planning & Decisions | 0/0 | Not started | — |
 | 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |

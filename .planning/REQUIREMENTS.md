@@ -10,11 +10,11 @@
 
 ### Navigation Information Architecture (NAV)
 
-- [ ] **NAV-01**: Sidebar groups related pages into parent sections with nested sub-items instead of one flat route list
-- [ ] **NAV-02**: Current route highlight also shows the active parent section so users can tell which feature area they are inside
-- [ ] **NAV-03**: Grouping uses existing page URLs; the redesign does not require changing public routes
-- [ ] **NAV-04**: Desktop sidebar and mobile drawer use the same grouped navigation structure and expand/collapse behavior
-- [ ] **NAV-05**: Navigation visibility respects role and scope so users only see sections they are allowed to open
+- [x] **NAV-01**: Sidebar groups related pages into parent sections with nested sub-items instead of one flat route list
+- [x] **NAV-02**: Current route highlight also shows the active parent section so users can tell which feature area they are inside
+- [x] **NAV-03**: Grouping uses existing page URLs; the redesign does not require changing public routes
+- [x] **NAV-04**: Desktop sidebar and mobile drawer use the same grouped navigation structure and expand/collapse behavior
+- [x] **NAV-05**: Navigation visibility respects role and scope so users only see sections they are allowed to open
 
 ### Timeline & Gantt Clarity (TL)
 
