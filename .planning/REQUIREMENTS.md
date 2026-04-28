@@ -19,10 +19,10 @@
 ### Timeline & Gantt Clarity (TL)
 
 - [ ] **TL-01**: `/timeline` presents milestones as visually distinct planning objects, not only as implied collections of task bars
-- [ ] **TL-02**: Each milestone view in the timeline includes its related tasks so milestone progress can be understood without leaving the screen
-- [ ] **TL-03**: Timeline highlights milestone risk, current planning windows, and explicit decision points
+- [x] **TL-02**: Each milestone view in the timeline includes its related tasks so milestone progress can be understood without leaving the screen
+- [x] **TL-03**: Timeline highlights milestone risk, current planning windows, and explicit decision points
 - [ ] **TL-04**: Users can switch between project-oriented and people-oriented timeline views without losing the selected date range
-- [ ] **TL-05**: Timeline shows milestone progress labels or badges in addition to raw Gantt bars
+- [x] **TL-05**: Timeline shows milestone progress labels or badges in addition to raw Gantt bars
 
 ### Milestone Planning & Decisions (ML)
 
