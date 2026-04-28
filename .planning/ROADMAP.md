@@ -90,7 +90,16 @@ For detailed historical milestone information, see archived files in `.planning/
   2. Opening any child page clearly shows both the active route and the active parent section
   3. Mobile navigation uses the same groups and expansion rules as desktop
   4. Users do not lose access to existing pages or route URLs after the information architecture change
-**Plans**: 0 plans
+**Plans**: 3 plans
+Plans:
+**Wave 1**
+- [ ] 26-01-PLAN.md — Define grouped navigation metadata, active-route matching, and role-aware filtering
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 26-02-PLAN.md — Refactor the shared desktop/mobile layout to render grouped navigation behavior
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 26-03-PLAN.md — Add grouped-navigation regression coverage and final verification
 **UI hint**: yes
 
 ### Phase 27: Timeline & Gantt Clarity
@@ -136,7 +145,7 @@ For detailed historical milestone information, see archived files in `.planning/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 26. Navigation Information Architecture | 0/0 | Not started | — |
+| 26. Navigation Information Architecture | 0/3 | Ready to execute | — |
 | 27. Timeline & Gantt Clarity | 0/0 | Not started | — |
 | 28. Milestone Planning & Decisions | 0/0 | Not started | — |
 | 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |
