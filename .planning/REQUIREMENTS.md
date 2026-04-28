@@ -72,29 +72,27 @@ These were considered but deferred beyond v2.2:
 
 ## Traceability
 
-_Filled by roadmapper when phases are assigned._
-
 | REQ-ID | Phase | Notes |
 |--------|-------|-------|
-| UPD-01 | — | — |
-| UPD-02 | — | — |
-| UPD-03 | — | — |
-| UPD-04 | — | — |
-| UPD-05 | — | — |
-| UPD-06 | — | — |
-| UPD-07 | — | — |
-| UPD-08 | — | — |
-| KS-01  | — | — |
-| KS-02  | — | — |
-| KS-03  | — | — |
-| KS-04  | — | — |
-| KS-05  | — | — |
-| KS-06  | — | — |
-| BOARD-01 | — | — |
-| BOARD-02 | — | — |
-| BOARD-03 | — | — |
-| BOARD-04 | — | — |
-| BOARD-05 | — | — |
-| BOARD-06 | — | — |
-| BOARD-07 | — | — |
-| BOARD-08 | — | — |
+| UPD-01 | Phase 23 | Standup post form with template fields |
+| UPD-02 | Phase 23 | Default template field set |
+| UPD-03 | Phase 23 | Supervisor template customization |
+| UPD-04 | Phase 23 | JSONB task snapshot at submit time |
+| UPD-05 | Phase 23 | Team feed visibility |
+| UPD-06 | Phase 23 | Feed filter by member and date |
+| UPD-07 | Phase 23 | Author edit own post |
+| UPD-08 | Phase 23 | Author delete own post |
+| KS-01  | Phase 24 | Admin creates org-wide KS session |
+| KS-02  | Phase 24 | Supervisor creates sub-team KS session |
+| KS-03  | Phase 24 | KS tab inside /schedule |
+| KS-04  | Phase 24 | Scope-filtered session visibility |
+| KS-05  | Phase 24 | In-app reminder before session |
+| KS-06  | Phase 24 | In-app notification on session creation |
+| BOARD-01 | Phase 25 | Member posts markdown to /board |
+| BOARD-02 | Phase 25 | ISO week navigation |
+| BOARD-03 | Phase 25 | marked + DOMPurify rendering |
+| BOARD-04 | Phase 25 | On-demand AI summary |
+| BOARD-05 | Phase 25 | APScheduler CronTrigger auto-summary Sunday 23:00 |
+| BOARD-06 | Phase 25 | Stored summary with 30-min cooldown |
+| BOARD-07 | Phase 25 | Author edit own post |
+| BOARD-08 | Phase 25 | Author delete own post |

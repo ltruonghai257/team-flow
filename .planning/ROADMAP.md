@@ -9,6 +9,7 @@ _Updated: 2026-04-28_
 - ✅ **v1.0** — Production-Ready Team Management Platform (Phases 1-11) — shipped 2026-04-24
 - ✅ **v2.0** — Team Hierarchy, Sprints & Advanced Analytics (Phases 12-18) — shipped 2026-04-28
 - ✅ **v2.1** — Open WebUI-Style Project Structure Refactor (Phases 19-22) — shipped 2026-04-28
+- 🔄 **v2.2** — Team Updates, Knowledge Sharing & Weekly Board (Phases 23-25) — in progress
 
 ---
 
@@ -54,6 +55,12 @@ _Updated: 2026-04-28_
 
 </details>
 
+### v2.2 — Team Updates, Knowledge Sharing & Weekly Board
+
+- [ ] **Phase 23: Standup Updates** — Template-driven standup posts with task snapshot, team feed, edit/delete
+- [ ] **Phase 24: Knowledge Sharing Scheduler** — Admin/supervisor-scoped KS sessions as a tab in /schedule, with notifications
+- [ ] **Phase 25: Team Weekly Board & AI Summary** — Markdown board organized by ISO week, on-demand and scheduled AI summary
+
 ---
 
 **Known deferred items at close: 4 (see STATE.md Deferred Items)**
@@ -61,3 +68,56 @@ _Updated: 2026-04-28_
 ---
 
 For detailed phase information, see archived milestone files in `.planning/milestones/`.
+
+---
+
+## Phase Details
+
+### Phase 23: Standup Updates
+**Goal**: Members can post structured daily/weekly standups with a frozen task snapshot, and the whole team can browse and filter the feed
+**Depends on**: Phase 22 (v2.1 structure baseline)
+**Requirements**: UPD-01, UPD-02, UPD-03, UPD-04, UPD-05, UPD-06, UPD-07, UPD-08
+**Success Criteria** (what must be TRUE):
+  1. A member can open /updates, fill out the configured template fields, submit a standup post, and see it appear in the team feed immediately
+  2. The submitted post displays a frozen snapshot of the member's tasks at submit time — refreshing the page or changing task statuses later does not alter the snapshot
+  3. The supervisor can add, remove, or rename fields in the standup template and the change is reflected for the next post submission
+  4. Any team member can filter the feed by author or by date to narrow results
+  5. A member can edit or delete their own standup post; they cannot edit or delete another member's post
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 24: Knowledge Sharing Scheduler
+**Goal**: Admins and supervisors can schedule Knowledge Sharing sessions scoped to their team, and members receive notifications for sessions in their scope
+**Depends on**: Phase 23
+**Requirements**: KS-01, KS-02, KS-03, KS-04, KS-05, KS-06
+**Success Criteria** (what must be TRUE):
+  1. An admin can create a KS session (topic, description, references, presenter, session type, duration, date/time, tags) that is visible to all org members; a supervisor can create a session visible only to their sub-team
+  2. The /schedule page shows a "Knowledge Sessions" tab; no new top-level route is added
+  3. A team member sees only sessions scoped to them (org-wide sessions plus their sub-team's sessions); sessions outside their scope are not visible
+  4. A member receives an in-app notification when a new session in their scope is created
+  5. A member receives an in-app reminder before a session in their scope begins
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 25: Team Weekly Board & AI Summary
+**Goal**: Any member can post markdown updates to a shared weekly board, and an AI summary is available both on demand and automatically at end of week
+**Depends on**: Phase 24
+**Requirements**: BOARD-01, BOARD-02, BOARD-03, BOARD-04, BOARD-05, BOARD-06, BOARD-07, BOARD-08
+**Success Criteria** (what must be TRUE):
+  1. Any member can open /board, write a markdown post for the current week, submit it, and see the rendered (XSS-safe) content appear on the board
+  2. The board groups posts by ISO week; members can navigate to any past week and see that week's posts and its stored AI summary
+  3. A member can click "Summarize this week" to trigger an on-demand AI summary; the result is stored and re-clicking within 30 minutes returns the cached result without calling the AI again
+  4. At Sunday 23:00 the system automatically generates a weekly summary via APScheduler CronTrigger; if no posts exist for the week the summary is "no updates this week" (no AI call made)
+  5. A member can edit or delete their own weekly post; another member's post cannot be modified
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
+## Progress Table
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 23. Standup Updates | 0/? | Not started | - |
+| 24. Knowledge Sharing Scheduler | 0/? | Not started | - |
+| 25. Team Weekly Board & AI Summary | 0/? | Not started | - |

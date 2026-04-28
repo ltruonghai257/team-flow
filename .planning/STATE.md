@@ -6,7 +6,7 @@ status: in_progress
 last_updated: "2026-04-28T00:00:00.000Z"
 last_activity: 2026-04-28
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,15 +18,15 @@ progress:
 ## Current Status
 
 **Milestone:** v2.2 — Team Updates, Knowledge Sharing & Weekly Board
-**Active Phase:** Not started (defining requirements)
+**Active Phase:** Phase 23 — Standup Updates (not yet started)
 **Last Session:** 2026-04-28T00:00:00.000Z
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 23 — Standup Updates
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-28 — Milestone v2.2 started
+Status: Roadmap created, ready for planning
+Last activity: 2026-04-28 — Roadmap v2.2 created (Phases 23-25)
 
 ## Session Notes
 
@@ -40,10 +40,11 @@ Last activity: 2026-04-28 — Milestone v2.2 started
 - Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
 - Zero new npm or Python packages unless a moved import cannot be resolved without one.
 - All schema changes via Alembic migrations only; v2.1 should avoid schema changes unless required for runtime correctness.
+- Milestone v2.2 roadmap created 2026-04-28: 3 phases, 22 requirements, 100% coverage.
 
 ## Resume Point
 
-Phase 19 complete. Phase 20 (backend restructure) and Phase 21 (frontend restructure) can now be planned independently. Next: `/gsd-discuss-phase 20` or `/gsd-plan-phase 20`.
+Roadmap v2.2 created. Phase 23 (Standup Updates) is next. Next: `/gsd-plan-phase 23`.
 
 ## Accumulated Context
 
@@ -52,6 +53,7 @@ Phase 19 complete. Phase 20 (backend restructure) and Phase 21 (frontend restruc
 - Milestone 1 (Phases 1-11) complete.
 - Milestone 2.0 (Phases 12-17) roadmap created 2026-04-24 and paused for the structural refactor.
 - Milestone v2.1 (Phases 18-21) roadmap created 2026-04-26 as an independent structural refactor before resuming feature expansion.
+- Milestone v2.2 (Phases 23-25) roadmap created 2026-04-28: standup posts, KS scheduler, weekly board + AI summary.
 
 ### Architecture Decisions (Milestone 2.0)
 
@@ -68,6 +70,20 @@ Phase 19 complete. Phase 20 (backend restructure) and Phase 21 (frontend restruc
 - Keep backend under `backend/` and frontend under `frontend/` unless a later plan explicitly accepts the runtime/build impact of moving SvelteKit to repo-root `src/`.
 - Preserve API routes, Svelte routes, auth behavior, task workflows, AI task input, WebSocket chat, scheduler behavior, Docker/Azure runtime, and Alembic history.
 - No new dependencies unless an existing import cannot be moved safely without one.
+
+### Architecture Decisions (Milestone v2.2)
+
+- New models: StandupPost (models/updates.py), KnowledgeSession (models/knowledge.py), WeeklyPost + WeeklyBoardSummary (models/board.py).
+- StandupPost stores task_snapshot as JSONB (frozen at submit time, server-side — never a live query).
+- NotificationEventType PostgreSQL enum: add `knowledge_session` value via ALTER TYPE migration with execute_as_transaction=False (must be outside a transaction block).
+- KS sessions use a separate KnowledgeSession table (not the existing Schedule model which is user_id-scoped).
+- KS sessions appear as a tab inside /schedule — no new top-level route.
+- New routes: /updates (standup feed + form), /board (weekly board).
+- Frontend markdown rendering: marked + DOMPurify; install both in Phase 23 alongside first {@html} usage. Never use {@html} without DOMPurify.sanitize().
+- AI summary: cached per ISO week in WeeklyBoardSummary; 30-min cooldown on on-demand trigger; short-circuit with "no updates this week" if no posts exist.
+- APScheduler CronTrigger(day_of_week='sun', hour=23) added to internal/scheduler_jobs.py for auto weekly summary.
+- AI generation follows existing routers/ai.py project summary pattern via utils/ai_client.py.
+- Zero new backend packages (apscheduler, litellm, sqlalchemy, alembic, pydantic already installed).
 
 ### Deferred Items
 
@@ -90,6 +106,10 @@ Items acknowledged and deferred at milestone close on 2026-04-28:
 2. Current imports use `from app...`; backend restructuring must update uvicorn targets, tests, Alembic env, scripts, and Docker startup together.
 3. Frontend route URLs must not change during structure moves.
 4. Existing uncommitted frontend changes and phase summaries predate v2.1; do not overwrite or revert them.
+5. ALTER TYPE for NotificationEventType must run outside a transaction block — test against PostgreSQL container (SQLite silently passes).
+6. StandupPost task_snapshot must be JSONB stored server-side at POST time — a live query at render time makes historical standups meaningless.
+7. Always wrap markdown rendering: DOMPurify.sanitize(marked.parse(raw)) — stored XSS risk if sanitization is skipped.
+8. AI summary: short-circuit with "no updates this week" if no posts exist to avoid hallucination on empty input.
 
 ## Flags
 
