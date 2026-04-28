@@ -362,6 +362,8 @@ class ScheduleOut(BaseModel):
 class TimelineTaskOut(BaseModel):
     id: int
     title: str
+    description: Optional[str]
+    tags: Optional[str]
     status: TaskStatus
     priority: TaskPriority
     due_date: Optional[datetime]
@@ -369,6 +371,8 @@ class TimelineTaskOut(BaseModel):
     milestone_id: Optional[int]
     project_id: Optional[int]
     assignee_id: Optional[int]
+    custom_status_id: Optional[int]
+    custom_status: Optional[CustomStatusOut] = None
     assignee: Optional[UserOut] = None
 
     model_config = {"from_attributes": True}
@@ -377,9 +381,11 @@ class TimelineTaskOut(BaseModel):
 class TimelineMilestoneOut(BaseModel):
     id: int
     title: str
+    description: Optional[str]
     status: MilestoneStatus
     start_date: Optional[datetime]
     due_date: datetime
+    completed_at: Optional[datetime]
     tasks: List[TimelineTaskOut] = []
 
     model_config = {"from_attributes": True}

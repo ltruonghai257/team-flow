@@ -23,7 +23,10 @@ async def get_timeline(
     stmt = select(Project).options(
         selectinload(Project.milestones)
         .selectinload(Milestone.tasks)
-        .selectinload(Task.assignee)
+        .selectinload(Task.assignee),
+        selectinload(Project.milestones)
+        .selectinload(Milestone.tasks)
+        .selectinload(Task.custom_status),
     )
 
     # Apply sub-team filter (admin may have None = all teams)
@@ -59,9 +62,11 @@ async def get_timeline(
                 TimelineMilestoneOut(
                     id=milestone.id,
                     title=milestone.title,
+                    description=milestone.description,
                     status=milestone.status,
                     start_date=milestone.start_date,
                     due_date=milestone.due_date,
+                    completed_at=milestone.completed_at,
                     tasks=milestone_tasks,
                 )
             )
@@ -70,7 +75,7 @@ async def get_timeline(
         unassigned_stmt = (
             select(Task)
             .where(Task.project_id == project.id, Task.milestone_id.is_(None))
-            .options(selectinload(Task.assignee))
+            .options(selectinload(Task.assignee), selectinload(Task.custom_status))
         )
         unassigned_result = await db.execute(unassigned_stmt)
         unassigned_tasks = [
