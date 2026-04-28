@@ -35,6 +35,7 @@ class StandupTemplate(Base):
     id = Column(Integer, primary_key=True, index=True)
     sub_team_id = Column(Integer, ForeignKey("sub_teams.id"), nullable=False, unique=True, index=True)
     fields = Column(JSONB, nullable=False)  # ordered list of field-name strings
+    field_types = Column(JSONB, nullable=False, default=lambda: {})  # {"field_name": "text|datetime|richtext", ...}
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
