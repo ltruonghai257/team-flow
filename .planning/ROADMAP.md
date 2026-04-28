@@ -57,7 +57,7 @@ _Updated: 2026-04-28_
 
 ### v2.2 — Team Updates, Knowledge Sharing & Weekly Board
 
-- [ ] **Phase 23: Standup Updates** — Template-driven standup posts with task snapshot, team feed, edit/delete
+- [x] **Phase 23: Standup Updates** — Template-driven standup posts with task snapshot, team feed, edit/delete — completed 2026-04-28
 - [ ] **Phase 24: Knowledge Sharing Scheduler** — Admin/supervisor-scoped KS sessions as a tab in /schedule, with notifications
 - [ ] **Phase 25: Team Weekly Board & AI Summary** — Markdown board organized by ISO week, on-demand and scheduled AI summary
 
@@ -85,10 +85,10 @@ For detailed phase information, see archived milestone files in `.planning/miles
   5. A member can edit or delete their own standup post; they cannot edit or delete another member's post
 **Plans**: 4 plans
 Plans:
-- [ ] 23-01-PLAN.md — SQLAlchemy models, Pydantic schemas, Alembic migration (Wave 1)
-- [ ] 23-02-PLAN.md — Frontend packages, updates API module, updates store (Wave 1)
-- [ ] 23-03-PLAN.md — Backend router: all 6 endpoints + main.py registration (Wave 2)
-- [ ] 23-04-PLAN.md — Frontend UI: page, form, card, snapshot panel, nav item (Wave 2)
+- [x] 23-01-PLAN.md — SQLAlchemy models, Pydantic schemas, Alembic migration (Wave 1) — completed 2026-04-28
+- [x] 23-02-PLAN.md — Frontend packages, updates API module, updates store (Wave 1) — completed 2026-04-28
+- [x] 23-03-PLAN.md — Backend router: all 6 endpoints + main.py registration (Wave 2) — completed 2026-04-28
+- [x] 23-04-PLAN.md — Frontend UI: page, form, card, snapshot panel, nav item (Wave 2) — completed 2026-04-28
 **UI hint**: yes
 
 ### Phase 24: Knowledge Sharing Scheduler
@@ -123,6 +123,6 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 23. Standup Updates | 0/4 | In planning | - |
+| 23. Standup Updates | 4/4 | Done | 2026-04-28 |
 | 24. Knowledge Sharing Scheduler | 0/? | Not started | - |
 | 25. Team Weekly Board & AI Summary | 0/? | Not started | - |
