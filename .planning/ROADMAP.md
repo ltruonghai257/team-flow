@@ -117,7 +117,7 @@ Plans:
 - [x] 27-01-PLAN.md — Expand the timeline API contract and typed frontend timeline models for milestone summaries, risk inputs, and decision markers
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 27-02-PLAN.md — Rebuild `/timeline` as a milestone-first gantt with expandable milestone rows, focus continuity, and member-view context cues
+- [x] 27-02-PLAN.md — Rebuild `/timeline` as a milestone-first gantt with expandable milestone rows, focus continuity, and member-view context cues
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 27-03-PLAN.md — Add targeted timeline regression coverage and final release verification
@@ -159,6 +159,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
-| 27. Timeline & Gantt Clarity | 1/3 | In Progress|  |
+| 27. Timeline & Gantt Clarity | 2/3 | In Progress|  |
 | 28. Milestone Planning & Decisions | 0/0 | Not started | — |
 | 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |
