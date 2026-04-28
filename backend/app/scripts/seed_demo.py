@@ -8,6 +8,7 @@ Creates:
   - 2 projects (scoped to the sub-team)
   - 4 milestones
   - 2 sprints for reminder demo coverage
+  - 3 knowledge sessions with scope-aware reminders
   - reminder settings + generated reminder notifications
   - KPI-targeted tasks per member producing realistic score distribution:
       Alice       ~92  Good
@@ -61,10 +62,15 @@ async def main() -> None:
         Sprint, SprintStatus,
         Task, TaskStatus, TaskPriority, TaskType,
         NotificationStatus, NotificationEventType, EventNotification,
+        KnowledgeSession, KnowledgeSessionType,
         Schedule, ChatChannel, ChatChannelMember,
         ChatConversation, ChatMessage, TeamInvite, InviteStatus,
     )
     from app.auth import hash_password
+    from app.services.knowledge_sessions import (
+        serialize_tags,
+        sync_knowledge_session_notifications,
+    )
     from app.services.reminder_notifications import (
         rebuild_milestone_reminders,
         rebuild_sprint_reminders,
@@ -697,10 +703,106 @@ async def main() -> None:
             schedule_objs.append(s)
 
         # ------------------------------------------------------------------
+        # Knowledge Sessions
+        # ------------------------------------------------------------------
+        knowledge_sessions_data = [
+            dict(
+                topic="Architecture Review & Demo",
+                description="Walk through the new API and data flow with the team.",
+                references="Architecture notes, API contract doc, and demo checklist.",
+                session_type=KnowledgeSessionType.demo,
+                start_time=_days(2).replace(hour=10, minute=0, second=0, microsecond=0),
+                duration_minutes=60,
+                tags=["architecture", "demo"],
+                presenter=users["supervisor"],
+                sub_team_id=None,
+                recipients=[u.id for u in users.values()],
+                offsets=[15, 60],
+            ),
+            dict(
+                topic="Frontend QA Workshop",
+                description="Hands-on workshop to cover QA flows and edge cases.",
+                references="QA checklist, staging URL, and test account list.",
+                session_type=KnowledgeSessionType.workshop,
+                start_time=_days(4).replace(hour=14, minute=0, second=0, microsecond=0),
+                duration_minutes=90,
+                tags=["qa", "frontend"],
+                presenter=users["alice"],
+                sub_team_id=sub_team.id,
+                recipients=[
+                    users["supervisor"].id,
+                    users["alice"].id,
+                    users["bob"].id,
+                    users["carol"].id,
+                    users["latruonghai"].id,
+                    users["doanduckien"].id,
+                ],
+                offsets=[30, 1440],
+            ),
+            dict(
+                topic="Release Q&A Office Hours",
+                description="Open Q&A for release blockers, rollout timing, and support questions.",
+                references="Release checklist, launch notes, and open questions board.",
+                session_type=KnowledgeSessionType.qa,
+                start_time=_days(7).replace(hour=16, minute=30, second=0, microsecond=0),
+                duration_minutes=45,
+                tags=["release", "qa"],
+                presenter=users["bob"],
+                sub_team_id=sub_team.id,
+                recipients=[
+                    users["supervisor"].id,
+                    users["alice"].id,
+                    users["bob"].id,
+                    users["carol"].id,
+                    users["latruonghai"].id,
+                    users["doanduckien"].id,
+                ],
+                offsets=[15, 60],
+            ),
+        ]
+        for kd in knowledge_sessions_data:
+            result = await db.execute(
+                select(KnowledgeSession).where(
+                    KnowledgeSession.topic == kd["topic"],
+                    KnowledgeSession.presenter_id == kd["presenter"].id,
+                )
+            )
+            session = result.scalar_one_or_none()
+            if not session:
+                session = KnowledgeSession(
+                    topic=kd["topic"],
+                    description=kd["description"],
+                    references=kd["references"],
+                    session_type=kd["session_type"],
+                    start_time=kd["start_time"],
+                    duration_minutes=kd["duration_minutes"],
+                    tags=serialize_tags(kd["tags"]),
+                    presenter_id=kd["presenter"].id,
+                    sub_team_id=kd["sub_team_id"],
+                    created_by_id=users["supervisor"].id,
+                )
+                db.add(session)
+                await db.flush()
+                print(f"  created knowledge session: {kd['topic']}")
+                await sync_knowledge_session_notifications(
+                    db,
+                    session,
+                    kd["recipients"],
+                    kd["offsets"],
+                    broadcast_creation=True,
+                )
+            else:
+                print(f"  skipped knowledge session (exists): {kd['topic']}")
+
+        # ------------------------------------------------------------------
         # Event Notifications
         # ------------------------------------------------------------------
         result = await db.execute(
-            select(EventNotification).where(EventNotification.user_id == users["supervisor"].id)
+            select(EventNotification).where(
+                EventNotification.user_id == users["supervisor"].id,
+                EventNotification.event_type == NotificationEventType.schedule,
+                EventNotification.event_ref_id == schedule_objs[0].id,
+            )
         )
         if not result.scalars().first():
             notif_data = [
