@@ -1,10 +1,11 @@
 ---
 phase: 23
 slug: standup-updates
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-04-28
+reviewed_at: 2026-04-28
 ---
 
 # Phase 23 — UI Design Contract: Standup Updates
@@ -39,12 +40,12 @@ Declared values (multiples of 4):
 | lg | `gap-6` / `p-6` | 24px | Section padding, card internal sections |
 | xl | `gap-8` | 32px | Layout gaps between major blocks |
 | 2xl | `py-12` | 48px | Empty state vertical padding |
-| 3xl | `py-20` | 80px | Loading spinner vertical centering |
+| 3xl | `py-16` | 64px | Loading spinner vertical centering |
 
 Exceptions:
 - Card component uses `p-5` (20px) per existing `.card` definition — do not change.
 - Inline delete/edit button row uses `gap-2` (8px) for tightly grouped action buttons.
-- Touch targets: all icon-only buttons must be minimum 36×36px via `p-1.5` on a block element.
+- Touch targets: all icon-only buttons must be minimum 36×36px via `p-2` on a block element.
 
 ---
 
@@ -52,12 +53,13 @@ Exceptions:
 
 | Role | Size | Tailwind Class | Weight | Line Height | Usage |
 |------|------|---------------|--------|-------------|-------|
-| Body | 14px | `text-sm` | 400 (`font-normal`) | 1.5 | Card field values, feed metadata, snapshot task titles |
-| Label | 14px | `text-sm font-medium` | 500 (`font-medium`) | 1.5 | Form field labels, card author name, section headers |
-| Heading | 24px | `text-2xl font-bold` | 700 (`font-bold`) | 1.2 | Page title "Updates" |
+| Meta / Caption | 12px | `text-xs` | 400 | 1.5 | Timestamps, template field labels (uppercase), task row metadata, action button text |
+| Body | 14px | `text-sm font-normal` | 400 (`font-normal`) | 1.5 | Card field values, feed metadata, snapshot task titles |
+| Label | 14px | `text-sm font-semibold` | 600 (`font-semibold`) | 1.5 | Form field labels, card author name, section headers |
+| Heading | 24px | `text-2xl font-semibold` | 600 (`font-semibold`) | 1.2 | Page title "Updates" |
 | Sub-heading | 20px | `text-xl font-semibold` | 600 (`font-semibold`) | 1.2 | Card post date/timestamp (primary identifier on card) |
 
-All text uses `font-sans` (Inter) from the inherited body style. No additional font sizes beyond these four.
+All text uses `font-sans` (Inter) from the inherited body style. Distinct sizes in use: 12, 14, 20, 24 (4 sizes within limit). Exactly 2 weights in use: 400 (normal) and 600 (semibold).
 
 ---
 
@@ -67,10 +69,10 @@ All text uses `font-sans` (Inter) from the inherited body style. No additional f
 |------|---------------|-----|-------|
 | Dominant (60%) | `bg-gray-950` | #030712 | Page background (inherited from layout) |
 | Secondary (30%) | `bg-gray-900 border border-gray-800` | #111827 / #1f2937 | `.card` component — standup post cards, form panel |
-| Accent (10%) | `primary-500` / `primary-600` | #6366f1 / #4f46e5 | Reserved for: Submit button, focus rings, expand-toggle chevron (active), "Load more" button |
+| Accent (10%) | `primary-500` / `primary-600` | #6366f1 / #4f46e5 | Reserved for: Submit button, focus rings, expand-toggle chevron (active) |
 | Destructive | `red-600` hover `red-700` | #dc2626 / #b91c1c | Delete confirmation "Yes" button only |
 
-Accent reserved for: Submit standup button, "Load more" button, focused `.input` ring (`focus:ring-primary-500`), expand/collapse toggle active state chevron color.
+Accent reserved for: Submit standup button, focused `.input` ring (`focus:ring-primary-500`), expand/collapse toggle active state chevron color.
 
 Semantic state colors:
 - Task status "todo": `text-gray-400`
@@ -145,7 +147,7 @@ Page padding: `p-4 md:p-6`, max-width: `max-w-4xl mx-auto`.
 
 States: `collapsed` | `expanded` | `submitting` | `submitted`
 
-- **Collapsed state:** Single row `button` with `ChevronDown` icon + label "Post a standup update". Class: `w-full flex items-center justify-between px-5 py-3.5 bg-gray-900 border border-gray-800 rounded-xl text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors`.
+- **Collapsed state:** Single row `button` with `ChevronDown` icon + label "Post a standup update". Class: `w-full flex items-center justify-between px-5 py-4 bg-gray-900 border border-gray-800 rounded-xl text-sm font-semibold text-gray-300 hover:bg-gray-800 transition-colors`.
 - **Expanded state:** Full form inside `bg-gray-900 border border-gray-800 rounded-xl p-5`. Template fields rendered from API response as `<label class="label">` + `<textarea class="input resize-none h-20">`. Field order matches template order from API.
 - **Submit button:** `<button class="btn-primary">Post Update</button>` — right-aligned at bottom of form.
 - **Submitting state:** Button shows spinner (`w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin`) + text "Posting...". Button `disabled`.
@@ -159,36 +161,36 @@ Card class: `card hover:border-gray-700 transition-colors` (inherits `.card` = `
 
 Card layout:
 ```
-[Avatar placeholder 32×32 rounded-full bg-gray-700]  [Author name text-sm font-medium text-gray-200]
+[Avatar placeholder 32×32 rounded-full bg-gray-700]  [Author name text-sm font-semibold text-gray-200]
                                                        [Timestamp text-xs text-gray-500]
 ─────────────────────────────────────────────────────────────────────────────
-[Template field label text-xs font-medium text-gray-500 uppercase tracking-wide]
+[Template field label text-xs font-semibold text-gray-500 uppercase tracking-wide]
 [Field value text-sm text-gray-300]
 ... (repeat for each field that has a non-empty value)
 ─────────────────────────────────────────────────────────────────────────────
 [SnapshotPanel: "Task snapshot" toggle row]
 ─────────────────────────────────────────────────────────────────────────────
-[Edit button]  [Delete button]          ← visible only when post.author_id === current_user.id
+[Edit post button]  [Delete post button]          ← visible only when post.author_id === current_user.id
 ```
 
 Empty template fields (blank values): omit the field row entirely — do not render label + empty value.
 
-Author avatar: `<div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-300">` with first letter of display name. No real avatar images.
+Author avatar: `<div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold text-gray-300">` with first letter of display name. No real avatar images.
 
 Timestamp format: `"Mon Apr 28, 2026 · 09:41"` using `format(date, 'EEE MMM d, yyyy · HH:mm')` from `date-fns`.
 
-Edit and Delete buttons: `<button class="btn-secondary text-xs px-3 py-1.5">`. Only rendered when `post.author_id === currentUser.id`.
+Edit post and Delete post buttons: `<button class="btn-secondary text-xs px-3 py-2">`. Only rendered when `post.author_id === currentUser.id`.
 
 ### 4. SnapshotPanel — Expand/Collapse
 
-Toggle row class: `flex items-center justify-between w-full text-xs font-medium text-gray-500 hover:text-gray-300 transition-colors py-2 border-t border-gray-800 mt-3`.
+Toggle row class: `flex items-center justify-between w-full text-xs font-semibold text-gray-500 hover:text-gray-300 transition-colors py-2 border-t border-gray-800 mt-3`.
 
 Toggle label: "Task snapshot ({count} tasks)" where count = snapshot array length.
 
 - **Collapsed (default):** `<ChevronDown size={14} />` on right side of toggle row. Snapshot content hidden (`hidden` class or Svelte `{#if}`).
 - **Expanded:** `<ChevronUp size={14} />`. Snapshot content visible.
 
-Snapshot content (when expanded): `<div class="mt-2 space-y-1.5">` containing one row per task:
+Snapshot content (when expanded): `<div class="mt-2 space-y-2">` containing one row per task:
 
 ```
 <div class="flex items-center gap-3 text-xs py-1">
@@ -206,40 +208,40 @@ If snapshot is empty array: render `<p class="text-xs text-gray-600 py-1">No tas
 
 ### 5. StandupCard — Edit Inline (D-10, D-11)
 
-Trigger: user clicks "Edit" button on their own card.
+Trigger: user clicks "Edit post" button on their own card.
 
 The entire card interior (all field text rows) is replaced in-place by the edit form. Card wrapper stays the same (`card`). The task snapshot panel is hidden during edit (snapshot is not re-frozen per D-11).
 
 Edit form layout:
 ```
-[Template field label text-xs font-medium text-gray-500 uppercase tracking-wide]
+[Template field label text-xs font-semibold text-gray-500 uppercase tracking-wide]
 [<textarea class="input resize-none h-20"> — pre-filled with current value]
 ... (one textarea per template field, including empty ones)
 
-[row: <button class="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+[row: <button class="btn-secondary text-xs px-3 py-2">Discard changes</button>
       <button class="btn-primary text-sm">Save changes</button>]
 ```
 
-- **Cancel:** Reverts card to read state. No API call. No confirmation.
+- **Discard changes:** Reverts card to read state. No API call. No confirmation.
 - **Save changes:** `disabled` + spinner while saving. On success: `toast.success('Update saved')`, card switches to read state with new values. On error: `toast.error('Failed to save. Try again.')`, edit form stays open with user's edits preserved.
 
 ### 6. StandupCard — Delete Inline (D-12)
 
-Trigger: user clicks "Delete" button on their own card.
+Trigger: user clicks "Delete post" button on their own card.
 
-The Delete button is replaced in-place by:
+The Delete post button is replaced in-place by:
 ```html
 <div class="flex items-center gap-2">
   <span class="text-xs text-gray-400">Delete this post?</span>
-  <button class="btn-danger text-xs px-3 py-1.5">Yes, delete</button>
-  <button class="btn-secondary text-xs px-3 py-1.5">Cancel</button>
+  <button class="btn-danger text-xs px-3 py-2">Yes, delete</button>
+  <button class="btn-secondary text-xs px-3 py-2">Keep post</button>
 </div>
 ```
 
 No modal. No browser `confirm()`. No overlay. The card remains fully visible.
 
 - **Yes, delete:** Calls DELETE endpoint. On success: card removed from feed with `toast.success('Post deleted')`. On error: `toast.error('Failed to delete. Try again.')`, confirmation row stays visible.
-- **Cancel:** Returns to normal card read state (Delete button reappears).
+- **Keep post:** Returns to normal card read state (Delete post button reappears).
 
 ### 7. Feed Filters (UPD-06)
 
@@ -255,7 +257,7 @@ Filter bar rendered above the post feed, below the StandupForm panel.
   </select>
   <input type="date" class="input w-auto text-sm" bind:value={filterDate} />
   {#if filterAuthorId || filterDate}
-    <button class="btn-secondary text-xs px-3 py-1.5" on:click={clearFilters}>
+    <button class="btn-secondary text-xs px-3 py-2" on:click={clearFilters}>
       Clear filters
     </button>
   {/if}
@@ -287,7 +289,7 @@ New cards appended below existing cards (not prepend). Scroll position preserved
 
 Full-page initial load spinner (matches existing pattern from schedule page):
 ```html
-<div class="flex items-center justify-center py-20">
+<div class="flex items-center justify-center py-16">
   <div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 </div>
 ```
@@ -298,7 +300,7 @@ The supervisor template customization UI (UPD-03) is scoped to a separate settin
 
 Template editor layout:
 ```
-[Section header: "Configure standup template" — text-sm font-medium text-gray-400 — supervisor only]
+[Section header: "Configure standup template" — text-sm font-semibold text-gray-400 — supervisor only]
 [Field list: each field row has text input for field name + Remove button (Trash2 icon, btn-secondary)]
 [Add field row: text input + "Add field" btn-secondary button]
 [Save template: btn-primary "Save template"]
@@ -326,13 +328,13 @@ Template changes take effect for subsequent form renders only — existing posts
 | Submit button (idle) | Post Update |
 | Submit button (submitting) | Posting... |
 | Submit button (disabled — all fields empty) | Post Update (disabled, `opacity-50`) |
-| Edit button | Edit |
-| Delete button | Delete |
+| Edit button | Edit post |
+| Delete button | Delete post |
 | Save edit button | Save changes |
-| Cancel edit button | Cancel |
+| Cancel edit button | Discard changes |
 | Delete confirmation label | Delete this post? |
 | Delete confirm button | Yes, delete |
-| Delete cancel button | Cancel |
+| Delete cancel button | Keep post |
 | Snapshot toggle (collapsed) | Task snapshot ({n} tasks) |
 | Snapshot toggle (expanded) | Task snapshot ({n} tasks) |
 | Snapshot empty | No tasks assigned at time of post. |
@@ -355,7 +357,7 @@ Template changes take effect for subsequent form renders only — existing posts
 | Supervisor template section label | Configure standup template |
 | Add field button | Add field |
 | Save template button | Save template |
-| Remove field button | (icon only: Trash2, `aria-label="Remove field"`) |
+| Remove field button | (icon only: Trash2, `aria-label="Remove field"` `title="Remove field"`) |
 | Nav item label | Updates |
 
 ---
