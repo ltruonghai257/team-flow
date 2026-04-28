@@ -1,106 +1,75 @@
 # Milestones: TeamFlow
 
-## v2.1 Open WebUI-Style Project Structure Refactor (Shipped: 2026-04-27)
+## v2.3 Timeline Clarity, Navigation IA & Scoped Visibility (Started: 2026-04-29)
 
-**Phases completed:** 4 phases, 17 plans, 37 tasks
+**Status:** Planning
 
-**Key accomplishments:**
+### Goals
 
-- Status:
-- Open WebUI-inspired backend package groups with canonical app factory and compatibility delegates preserving app.main:app
-- Domain model package split with aggregate compatibility surface preserving app.models imports and Alembic metadata registration
-- Domain schema package split with aggregate compatibility surface preserving app.schemas imports
-- Router imports updated toward canonical modules with aggregate compatibility preserved; routers remain flat by domain
-- Backend migration guide documents old-to-new paths, compatibility shims, verification results, and Phase 22 handoff
-- Status:
-- supervisord.conf and backend/Dockerfile repointed from `app.main:app` to canonical `app.api.main:app`; Alembic metadata confirmed healthy (22 tables); root runtime configs audited clean
-- Backend pytest run (20 package-structure tests pass; 11 pre-existing failures); frontend `bun check` 0 errors / 9 warnings and `bun build` passes in 8.89s — all recorded in 22-VERIFICATION.md
-- Playwright E2E pass-with-fallbacks (14 pre-existing failures); manual smoke 7/7 flows recorded with all 6 VERIFY-03 flows covered; verification floor complete
-- `docs/MIGRATION-V2.1.md` created (path map + shim ledger with grep baselines + runtime runbook); README and backend/CLAUDE.md updated; Phase 22 final signoff appended to 22-VERIFICATION.md
-- Status:
+- Regroup sidebar pages into clearer feature-based item/sub-item navigation
+- Improve timeline clarity with a stronger Gantt view, milestone emphasis, and planning/decision signal
+- Make milestones show linked tasks, planning state, and decisions more clearly
+- Enforce scoped visibility so members see only their sub-team, supervisors and assistant managers see peer leaders at the same level, and managers can see everyone
 
 ---
 
-## v2.0 Team Hierarchy, Sprints & Advanced Analytics (Shipped: 2026-04-27)
+## v2.2 Team Updates, Knowledge Sharing & Weekly Board (Shipped: 2026-04-28)
 
-**Phases completed:** 4 phases, 17 plans, 37 tasks
-
-**Key accomplishments:**
-
-- Status:
-- Open WebUI-inspired backend package groups with canonical app factory and compatibility delegates preserving app.main:app
-- Domain model package split with aggregate compatibility surface preserving app.models imports and Alembic metadata registration
-- Domain schema package split with aggregate compatibility surface preserving app.schemas imports
-- Router imports updated toward canonical modules with aggregate compatibility preserved; routers remain flat by domain
-- Backend migration guide documents old-to-new paths, compatibility shims, verification results, and Phase 22 handoff
-- Status:
-- supervisord.conf and backend/Dockerfile repointed from `app.main:app` to canonical `app.api.main:app`; Alembic metadata confirmed healthy (22 tables); root runtime configs audited clean
-- Backend pytest run (20 package-structure tests pass; 11 pre-existing failures); frontend `bun check` 0 errors / 9 warnings and `bun build` passes in 8.89s — all recorded in 22-VERIFICATION.md
-- Playwright E2E pass-with-fallbacks (14 pre-existing failures); manual smoke 7/7 flows recorded with all 6 VERIFY-03 flows covered; verification floor complete
-- `docs/MIGRATION-V2.1.md` created (path map + shim ledger with grep baselines + runtime runbook); README and backend/CLAUDE.md updated; Phase 22 final signoff appended to 22-VERIFICATION.md
-- Status:
-
----
-
----
-
-## v1.0 — Production-Ready Team Management Platform
-
-**Status:** Complete ✓
-**Completed:** 2026-04-24
-**Phases:** 11 (8 implementation + 3 verification)
+**Phases completed:** 3 phases (23-25)
 
 ### What Shipped
 
-- Production hardening — Alembic migrations, rate limiting, SECRET_KEY validation, CORS env var
-- RBAC role model — admin/supervisor/member with backend enforcement
-- Supervisor performance dashboard — `/performance` with per-member metrics, workload chart, at-risk panel
-- Team timeline view — Gantt-style `/timeline` with project color-coding and task bars
-- Enhanced AI features — AI task breakdown and AI project status summary
-- Mobile-responsive UI — hamburger nav, touch-friendly Kanban, dvh-aware layouts
-- Azure deployment + GitHub Actions CI/CD — App Service, ACR, deploy scripts, pipeline
-- User invite & team management — email invites with token + 6-digit code, acceptance flow
+- Structured standup updates with frozen task snapshots and a team feed
+- Knowledge Sharing sessions embedded into `/schedule` with scoped visibility and reminders
+- Weekly markdown board with per-week navigation plus on-demand and scheduled AI summaries
 
 ### Exit Criteria Met
 
-- ✓ All 11 phases complete
-- ✓ `/performance` dashboard live with real team data
-- ✓ `/timeline` view operational
-- ✓ AI breakdown and project summary working
-- ✓ App mobile-responsive
-- ✓ Azure deployment scripts and CI/CD pipeline delivered
-- ✓ Manual deploy script documented
+- ✓ `/updates` delivered with template-driven standup posts
+- ✓ `/schedule` includes scoped Knowledge Sessions
+- ✓ `/board` delivered with markdown posts and AI summaries
 
 ---
 
-## v2.0 — Team Hierarchy, Sprints & Advanced Analytics
+## v2.1 Open WebUI-Style Project Structure Refactor (Shipped: 2026-04-27)
 
-**Status:** Paused / superseded for current planning focus
-**Started:** 2026-04-24
+**Status:** Complete
+**Phases completed:** 4 phases (19-22)
 
-### Goals
+### What Shipped
 
-Transform TeamFlow from a single-team tool into a multi-team platform with sprint-driven project management, Trello-style customizable boards, and data-grounded KPI analytics.
-
-### Completed Phases
-
-| Phase | Name | Status | Completed |
-|-------|------|--------|-----------|
-| 15 | Custom Kanban Statuses | ✅ Done | 2026-04-26 |
-
-Phase 15 delivered: DB-backed `StatusSet`/`CustomStatus` models, backend CRUD/reorder/safe-delete/project-override API, frontend API client + 5 reusable status components, Kanban board driven by DB statuses, `is_done` completion semantics, Manage Statuses panel on `/tasks`, Statuses panel on `/projects`.
-
-### Current Note
-
-v2.0 work remains available in prior roadmap and phase artifacts. The active planning focus moved to v2.1 on 2026-04-26 for an independent structural refactor before continuing feature expansion.
+- Open WebUI-inspired backend package groups with compatibility preserved
+- Frontend SvelteKit structure reorganized into cleaner route and lib groups
+- Runtime, Docker, Alembic, tests, and smoke checks verified after the move
 
 ---
 
-## v2.1 — Open WebUI-Style Project Structure Refactor
+## v2.0 Team Hierarchy, Sprints & Advanced Analytics (Shipped: 2026-04-28)
 
-**Status:** Planning
-**Started:** 2026-04-26
+**Status:** Complete
+**Phases completed:** 7 phases (12-18)
 
-### Goals
+### What Shipped
 
-Refactor TeamFlow's FastAPI backend and SvelteKit frontend into a cleaner Open WebUI-inspired repository structure while preserving existing behavior, deployment, and testability.
+- Multi-team hierarchy and timeline visibility
+- Sprint model and sprint reminders
+- Custom Kanban statuses
+- Advanced KPI dashboard
+- Status transition graph and workflow rules
+
+---
+
+## v1.0 Production-Ready Team Management Platform (Shipped: 2026-04-24)
+
+**Status:** Complete
+**Phases completed:** 11 phases (1-11)
+
+### What Shipped
+
+- Production hardening and RBAC baseline
+- Supervisor performance dashboard
+- Timeline view
+- AI task features
+- Mobile responsiveness
+- Azure deployment and CI/CD
+- User invite and team management

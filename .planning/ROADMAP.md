@@ -1,6 +1,6 @@
 # Roadmap: TeamFlow
 
-_Updated: 2026-04-28_
+_Updated: 2026-04-29_
 
 ---
 
@@ -9,7 +9,8 @@ _Updated: 2026-04-28_
 - ✅ **v1.0** — Production-Ready Team Management Platform (Phases 1-11) — shipped 2026-04-24
 - ✅ **v2.0** — Team Hierarchy, Sprints & Advanced Analytics (Phases 12-18) — shipped 2026-04-28
 - ✅ **v2.1** — Open WebUI-Style Project Structure Refactor (Phases 19-22) — shipped 2026-04-28
-- ✅ **v2.2** — Team Updates, Knowledge Sharing & Weekly Board (Phases 23-25) — shipped 2026-04-28; archived at [.planning/milestones/v2.2-ROADMAP.md](./milestones/v2.2-ROADMAP.md)
+- ✅ **v2.2** — Team Updates, Knowledge Sharing & Weekly Board (Phases 23-25) — shipped 2026-04-28
+- 🔄 **v2.3** — Timeline Clarity, Navigation IA & Scoped Visibility (Phases 26-29) — in progress
 
 ---
 
@@ -57,14 +58,85 @@ _Updated: 2026-04-28_
 
 ### v2.2 — Team Updates, Knowledge Sharing & Weekly Board
 
-See archive: [.planning/milestones/v2.2-ROADMAP.md](./milestones/v2.2-ROADMAP.md)
+- [x] **Phase 23: Standup Updates** — Template-driven standup posts with task snapshot, team feed, and author-owned edits — completed 2026-04-28
+- [x] **Phase 24: Knowledge Sharing Scheduler** — Scoped Knowledge Sessions inside `/schedule`, with notifications and reminders — completed 2026-04-28
+- [x] **Phase 25: Team Weekly Board & AI Summary** — Weekly markdown board with on-demand and scheduled AI summaries — completed 2026-04-28
 
-- [x] Phase 23: Standup Updates — completed 2026-04-28
-- [x] Phase 24: Knowledge Sharing Scheduler — completed 2026-04-28
-- [x] Phase 25: Team Weekly Board & AI Summary — completed 2026-04-28
+### v2.3 — Timeline Clarity, Navigation IA & Scoped Visibility
+
+- [ ] **Phase 26: Navigation Information Architecture** — Reorganize the sidebar and mobile navigation into workflow-based groups with nested items and role-aware visibility
+- [ ] **Phase 27: Timeline & Gantt Clarity** — Make `/timeline` milestone-first, clearer to scan, and richer in planning and decision signal
+- [ ] **Phase 28: Milestone Planning & Decisions** — Improve `/milestones` so planning state, decisions, and related tasks are visible together
+- [ ] **Phase 29: Scoped Team Visibility & Leadership RBAC** — Enforce the new member / supervisor / assistant manager / manager visibility rules across the product
+
+---
+
+**Known deferred items at close: 4 (see STATE.md Deferred Items)**
+
+---
+
+For detailed historical milestone information, see archived files in `.planning/milestones/`.
+
+---
+
+## Phase Details
+
+### Phase 26: Navigation Information Architecture
+**Goal**: Make navigation easier to understand by grouping pages into workflow-based parent and child sections across desktop and mobile
+**Depends on**: Phase 25
+**Requirements**: NAV-01, NAV-02, NAV-03, NAV-04, NAV-05
+**Success Criteria** (what must be TRUE):
+  1. The sidebar is grouped into logical parent sections with nested child items rather than a flat list
+  2. Opening any child page clearly shows both the active route and the active parent section
+  3. Mobile navigation uses the same groups and expansion rules as desktop
+  4. Users do not lose access to existing pages or route URLs after the information architecture change
+**Plans**: 0 plans
+**UI hint**: yes
+
+### Phase 27: Timeline & Gantt Clarity
+**Goal**: Turn `/timeline` into a milestone-first planning surface with clearer Gantt signals, linked tasks, and better risk scanning
+**Depends on**: Phase 26
+**Requirements**: TL-01, TL-02, TL-03, TL-04, TL-05
+**Success Criteria** (what must be TRUE):
+  1. A user can open `/timeline` and immediately distinguish milestones from task bars
+  2. Milestone rows or panels expose the tasks that belong to each milestone without forcing a full context switch
+  3. Planning windows, milestone risk, and decision points are visually distinct from normal tasks
+  4. Switching between project and people-oriented views preserves the chosen time range and keeps the view understandable
+**Plans**: 0 plans
+**UI hint**: yes
+
+### Phase 28: Milestone Planning & Decisions
+**Goal**: Make `/milestones` a clearer command view for milestone status, decisions, and linked work
+**Depends on**: Phase 27
+**Requirements**: ML-01, ML-02, ML-03, ML-04
+**Success Criteria** (what must be TRUE):
+  1. A supervisor can scan the milestone page and distinguish planned, committed, active, and completed work
+  2. Milestone detail shows related tasks in context rather than forcing users to mentally join separate screens
+  3. Key milestone decisions are visible on the product surface, not only in planning files
+  4. Any new persistence introduced for decisions or planning state is clearly justified by a gap in the current schema
+**Plans**: 0 plans
+**UI hint**: yes
+
+### Phase 29: Scoped Team Visibility & Leadership RBAC
+**Goal**: Enforce the new visibility model so members, supervisors, assistant managers, and managers each see the right people and data
+**Depends on**: Phase 28
+**Requirements**: VIS-01, VIS-02, VIS-03, VIS-04, VIS-05, VIS-06, VIS-07
+**Success Criteria** (what must be TRUE):
+  1. A member can only see users and team data from their own sub-team across team, timeline, milestones, updates, board, and schedule surfaces
+  2. Supervisors and assistant managers can see same-level leaders in their allowed parent scope plus the members they are meant to oversee
+  3. A manager can see all teams and users across the organization
+  4. Invite and team-management flows support the role and scope data needed by the new visibility rules
+  5. Existing user and sub-team records survive the migration or mapping cleanly
+**Plans**: 0 plans
+**UI hint**: yes
+
+---
+
+## Progress Table
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 23. Standup Updates | 5/5 | Complete | 2026-04-28 |
-| 24. Knowledge Sharing Scheduler | 3/3 | Complete | 2026-04-28 |
-| 25. Team Weekly Board & AI Summary | 4/4 | Complete | 2026-04-28 |
+| 26. Navigation Information Architecture | 0/0 | Not started | — |
+| 27. Timeline & Gantt Clarity | 0/0 | Not started | — |
+| 28. Milestone Planning & Decisions | 0/0 | Not started | — |
+| 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |
