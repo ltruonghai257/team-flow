@@ -71,21 +71,26 @@
 	onMount(loadScheduleData);
 
 	async function loadScheduleData() {
-		const [schedules, taskList] = await Promise.all([schedulesApi.list(), tasksApi.list()]);
-		scheduleList = schedules;
-		taskEvents = (taskList as any[])
-			.filter((t) => !!t.due_date)
-			.map((t) => ({
-				id: t.id,
-				source: 'task' as const,
-				title: t.title,
-				description: t.description,
-				start_time: t.due_date,
-				end_time: t.due_date,
-				color: '#f59e0b',
-				location: undefined,
-				raw: t
-			}));
+		loading = true;
+		try {
+			const [schedules, taskList] = await Promise.all([schedulesApi.list(), tasksApi.list()]);
+			scheduleList = schedules;
+			taskEvents = (taskList as any[])
+				.filter((t) => !!t.due_date)
+				.map((t) => ({
+					id: t.id,
+					source: 'task' as const,
+					title: t.title,
+					description: t.description,
+					start_time: t.due_date,
+					end_time: t.due_date,
+					color: '#f59e0b',
+					location: undefined,
+					raw: t
+				}));
+		} finally {
+			loading = false;
+		}
 	}
 
 

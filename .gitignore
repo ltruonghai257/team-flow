@@ -87,3 +87,5 @@ openspec/
 .gemini/
 .codex/
 .claude/**/*
+
+frontend/test-results/
