@@ -26,6 +26,7 @@ interface UpdatesState {
     loadingMore: boolean;
     filterAuthorId: number | null;
     filterDate: string | null;
+    fieldTypes: Record<string, string>;
 }
 
 export const updatesStore = writable<UpdatesState>({
@@ -35,4 +36,5 @@ export const updatesStore = writable<UpdatesState>({
     loadingMore: false,
     filterAuthorId: null,
     filterDate: null,
+    fieldTypes: {},
 });
