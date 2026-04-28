@@ -281,16 +281,6 @@
 					columnOffset: 1,
 					rowHeight: 52,
 					rowPadding: 6,
-					taskElementHook: (task: any, element: HTMLElement) => {
-						const color = task.model._color || '#6366f1';
-						element.style.setProperty('background', color, 'important');
-						element.style.setProperty('border-radius', '6px', 'important');
-						element.style.setProperty('border', 'none', 'important');
-						element.style.setProperty('box-shadow', `0 0 0 1px ${color}88, 0 2px 6px rgba(0,0,0,0.45)`, 'important');
-						const bg = element.querySelector('.sg-task-background') as HTMLElement;
-						if (bg) bg.style.setProperty('background', 'rgba(0,0,0,0.15)', 'important');
-						element.addEventListener('click', () => handleTaskSelect(task));
-					},
 					modules: [SvelteGanttTable],
 					tableHeaders: [{ title: 'Timeline', property: 'label', width: 340 }],
 					tableWidth: 340

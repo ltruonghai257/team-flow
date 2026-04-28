@@ -45,6 +45,36 @@
 	$: draftChangeCount = Array.from(new Set([...selected, ...savedSelection])).filter(
 		(key) => selected.has(key) !== savedSelection.has(key)
 	).length;
+	// Reactive draft changes array for UI display
+	$: draftChanges = Array.from(new Set([...selected, ...savedSelection]))
+		.filter((key) => selected.has(key) !== savedSelection.has(key))
+		.map((key) => {
+			const [fromId, toId] = key.split(':').map(Number);
+			const isAdded = selected.has(key) && !savedSelection.has(key);
+			return { 
+				fromName: getStatusName(fromId), 
+				toName: getStatusName(toId), 
+				isAdded,
+				key 
+			};
+		});
+	// Reactive edge states map for efficient lookups
+	$: edgeStates = (() => {
+		const states = new Map<string, EdgeState>();
+		for (const fromStatus of activeStatuses) {
+			for (const toStatus of activeStatuses) {
+				if (fromStatus.id === toStatus.id) continue;
+				const key = edgeKey(fromStatus.id, toStatus.id);
+				const current = selected.has(key);
+				const saved = savedSelection.has(key);
+				if (current && saved) states.set(key, 'saved');
+				else if (current) states.set(key, 'draft-added');
+				else if (saved) states.set(key, 'draft-removed');
+				else states.set(key, 'empty');
+			}
+		}
+		return states;
+	})();
 
 	function edgeKey(fromStatusId: number, toStatusId: number) {
 		return `${fromStatusId}:${toStatusId}`;
@@ -65,7 +95,7 @@
 			return `${base} border-gray-700 bg-gray-900 text-gray-400 opacity-70`;
 		}
 		if (state === 'draft-added' || state === 'draft-removed') {
-			return `${base} border-transparent bg-transparent text-orange-100`;
+			return `${base} border-blue-400 bg-blue-400/50 text-blue-100 shadow-[0_0_0_2px_rgba(59,130,246,0.6),inset_0_0_0_1px_rgba(59,130,246,0.4)] ring-2 ring-blue-400/40`;
 		}
 		if (state === 'saved') {
 			return `${base} border-green-500 bg-green-500/15 text-green-200 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.35)]`;
@@ -77,10 +107,10 @@
 		const base =
 			'h-9 min-w-10 border-l p-0 text-center transition-colors duration-150';
 		if (state === 'draft-added') {
-			return `${base} border-orange-400/60 bg-orange-500/20 shadow-[inset_0_0_0_1px_rgba(251,146,60,0.45)]`;
+			return `${base} border-blue-400/60 bg-blue-500/20 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.45)]`;
 		}
 		if (state === 'draft-removed') {
-			return `${base} border-orange-400/50 bg-orange-500/10 shadow-[inset_0_0_0_1px_rgba(251,146,60,0.32)]`;
+			return `${base} border-blue-400/50 bg-blue-500/10 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.32)]`;
 		}
 		return `${base} border-gray-800`;
 	}
@@ -135,15 +165,6 @@
 		return highlighted ? 'bg-green-500/10 text-green-200' : '';
 	}
 
-	function draftSelectionLabel() {
-		if (draftChangeCount === 0) return 'No unsaved transition changes';
-		if (!lastTouchedEdge) return `${draftChangeCount} unsaved transition changes`;
-		const fromName = getStatusName(lastTouchedEdge.fromStatusId);
-		const toName = getStatusName(lastTouchedEdge.toStatusId);
-		const action = lastTouchedEdge.active ? 'Checked' : 'Unchecked';
-		const suffix = draftChangeCount === 1 ? 'change' : 'changes';
-		return `${draftChangeCount} unsaved ${suffix}; last ${action}: ${fromName} -> ${toName}`;
-	}
 
 	function isCheckedState(state: EdgeState) {
 		return state === 'saved' || state === 'draft-added';
@@ -256,7 +277,7 @@
 								</span>
 							</th>
 							{#each activeStatuses as toStatus (toStatus.id)}
-								{@const state = edgeState(fromStatus.id, toStatus.id)}
+								{@const state = edgeStates.get(edgeKey(fromStatus.id, toStatus.id)) || 'empty'}
 								<td class={transitionCellClass(state)}>
 									{#if fromStatus.id === toStatus.id}
 										<span class="m-1 inline-flex h-8 min-w-9 items-center justify-center rounded bg-gray-800/60 text-gray-500">
@@ -280,7 +301,7 @@
 												class={edgeCellClass(state, canManage)}
 											>
 												{#if state === 'draft-added' || state === 'draft-removed'}
-													<Info size={14} strokeWidth={2.5} />
+													•
 												{:else if isCheckedState(state)}
 													✓
 												{/if}
@@ -297,12 +318,22 @@
 
 		{#if draftChangeCount > 0}
 			<div
-				class="flex flex-wrap items-center gap-2 rounded border border-orange-500/30 bg-orange-500/5 px-3 py-2 text-xs text-orange-100"
+				class="flex flex-col gap-2 rounded border border-orange-500/30 bg-orange-500/5 px-3 py-2 text-xs text-orange-100"
 				aria-live="polite"
 				role="status"
 			>
-				<span class="font-semibold uppercase tracking-wide text-orange-300">Draft changes</span>
-				<span>{draftSelectionLabel()}</span>
+				<div class="flex flex-wrap items-center gap-2">
+					<span class="font-semibold uppercase tracking-wide text-orange-300">Draft changes</span>
+					<span>{draftChangeCount} unsaved {draftChangeCount === 1 ? 'change' : 'changes'}</span>
+				</div>
+				<div class="flex flex-col gap-1 pl-1 mt-1">
+					{#each draftChanges as change}
+						<div class="flex items-center gap-2 text-orange-100">
+							<span class="text-orange-400 font-semibold">{change.isAdded ? '+' : '-'}</span>
+							<span>{change.fromName} → {change.toName}</span>
+						</div>
+					{/each}
+				</div>
 			</div>
 		{/if}
 

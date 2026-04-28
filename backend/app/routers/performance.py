@@ -671,7 +671,7 @@ async def get_kpi_sprint(
     if not target_sprint:
         active_r = await db.execute(
             select(Sprint)
-            .where(Sprint.status.in_([SprintStatus.active, SprintStatus.completed]))
+            .where(Sprint.status.in_([SprintStatus.active, SprintStatus.closed]))
             .order_by(desc(Sprint.start_date))
             .limit(1)
         )

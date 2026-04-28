@@ -40,13 +40,14 @@
 	$: {
 		const userRole = $authStore.user?.role || null;
 		filteredGroups = filterNavigationGroups(userRole);
+	}
+	$: {
 		const navState = getActiveNavigationState(String($page.url.pathname));
 		activeGroup = navState.activeGroup;
 		activeChild = navState.activeChild;
-		// Auto-expand active parent on page load (D-04)
-		if (activeGroup) {
-			expandedGroups.add(activeGroup);
-		}
+	}
+	$: if (activeGroup) {
+		expandedGroups.add(activeGroup);
 	}
 
 	function selectSubTeam(subTeam: any) {
@@ -108,6 +109,10 @@
 		await authStore.logout();
 		goto('/login');
 	}
+
+	onMount(async () => {
+		await authStore.loadMe();
+	});
 </script>
 
 <Toaster richColors position="top-right" />

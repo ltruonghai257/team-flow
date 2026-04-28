@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { timeline, tasks as taskApi } from '$lib/apis';
 	import { toast } from 'svelte-sonner';
 	import TimelineToolbar from '$lib/components/timeline/TimelineToolbar.svelte';
-	import TimelineGantt from '$lib/components/timeline/TimelineGantt.svelte';
+	import TimelineByProject from '$lib/components/timeline/TimelineByProject.svelte';
+	import TimelineByMember from '$lib/components/timeline/TimelineByMember.svelte';
 	import { buildTimelineViewModel } from '$lib/components/timeline/timeline-view-model';
 	import { format } from 'date-fns';
 	import { X, Save } from 'lucide-svelte';
@@ -15,8 +18,8 @@
 	let loading = $state(true);
 	let error = $state('');
 
-	// Toolbar state
-	let viewMode = $state<'project' | 'member'>('project');
+	// Toolbar state - viewMode from query param
+	let viewMode = $derived<'project' | 'member'>($page.url.searchParams.get('view') === 'member' ? 'member' : 'project');
 	let rangeType = $state<'week' | 'month' | 'custom'>('month');
 	let rangeStart = $state<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 	let rangeEnd = $state<Date>(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0));
@@ -84,7 +87,9 @@
 	}
 
 	function handleViewChange(mode: 'project' | 'member') {
-		viewMode = mode;
+		const url = new URL($page.url);
+		url.searchParams.set('view', mode);
+		goto(url.href);
 	}
 
 	function handleRangeChange(range: { type: 'week' | 'month' | 'custom'; start: Date; end: Date }) {
@@ -159,7 +164,7 @@
 
 	<!-- Toolbar -->
 	<TimelineToolbar
-		bind:viewMode
+		viewMode={viewMode}
 		bind:rangeType
 		bind:rangeStart
 		bind:rangeEnd
@@ -177,11 +182,22 @@
 			<div class="flex items-center justify-center h-full">
 				<p class="text-red-400 text-sm">{error}</p>
 			</div>
-		{:else}
-			<TimelineGantt
+		{:else if viewMode === 'project'}
+			<TimelineByProject
 				{projects}
 				{viewModel}
-				{viewMode}
+				{rangeStart}
+				{rangeEnd}
+				{focusedMilestoneId}
+				{focusedTaskId}
+				ontaskclick={handleTaskClick}
+				onfocusmilestone={handleMilestoneFocus}
+				onreschedule={handleReschedule}
+			/>
+		{:else}
+			<TimelineByMember
+				{projects}
+				{viewModel}
 				{rangeStart}
 				{rangeEnd}
 				{focusedMilestoneId}
