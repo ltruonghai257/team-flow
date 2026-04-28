@@ -44,3 +44,8 @@ from app.models.communication import (  # noqa: F401
     UserPresence,
 )
 from app.models.ai import AIConversation, AIMessage  # noqa: F401
+from app.models.updates import (  # noqa: F401
+    StandupPost,
+    StandupSettings,
+    StandupTemplate,
+)
