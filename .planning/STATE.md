@@ -1,32 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Open WebUI-Style Project Structure Refactor
-status: completed
-last_updated: "2026-04-27T18:17:03.008Z"
-last_activity: 2026-04-27
+milestone: v2.2
+milestone_name: Team Updates, Knowledge Sharing & Weekly Board
+status: in_progress
+last_updated: "2026-04-28T00:00:00.000Z"
+last_activity: 2026-04-28
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 17
-  completed_plans: 20
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # State: TeamFlow
 
 ## Current Status
 
-**Milestone:** v2.1 — Open WebUI-Style Project Structure Refactor
-**Active Phase:** Phase 22 — Runtime Integration & Regression Verification (COMPLETE)
-**Last Session:** 2026-04-27T17:12:00.000Z
+**Milestone:** v2.2 — Team Updates, Knowledge Sharing & Weekly Board
+**Active Phase:** Not started (defining requirements)
+**Last Session:** 2026-04-28T00:00:00.000Z
 
 ## Current Position
 
-Phase: 20 (backend-package-restructure) — COMPLETE
-Plan: 5 of 5
-Status: Phase 20 complete
-Last activity: 2026-04-27
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-28 — Milestone v2.2 started
 
 ## Session Notes
 

@@ -23,15 +23,14 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - **Team members (5–15 people)**: Update task status, create tasks via AI input, chat, see their own and teammates' tasks
 - **Visibility model**: Tasks visible to all team. Performance/evaluation metrics visible to supervisor only.
 
-## Current Milestone: v2.1 Open WebUI-Style Project Structure Refactor
+## Current Milestone: v2.2 Team Updates, Knowledge Sharing & Weekly Board
 
-**Goal:** Refactor TeamFlow's FastAPI and SvelteKit code organization to follow the proven Open WebUI repository structure while preserving existing behavior.
+**Goal:** Empower team members with a daily/weekly standup flow, a knowledge sharing scheduler embedded in the existing calendar, and a team-wide weekly markdown board with AI-generated summaries.
 
 **Target features:**
-- Backend package structure aligned with Open WebUI: app package, routers, models/domain modules, schemas, migrations, utils, socket/websocket, config, and entrypoint
-- Frontend SvelteKit structure aligned with Open WebUI: `src/lib/apis`, `components`, `stores`, `types`, `utils`, and route organization
-- Import paths, build scripts, Docker/runtime entrypoints, Alembic config, and tests updated to match the new layout
-- Zero behavior regressions: API contracts, auth, task workflows, AI task input, WebSocket chat, scheduler, and current UI routes keep working
+- Member Updates: freeform standup post (what I did, pending, blockers) plus task status snapshot, visible to the whole team and supervisor
+- Knowledge Sharing Scheduler: new "Knowledge Sessions" tab inside the existing Calendar — manager schedules sessions with topic, description, source/references, presenter (assignee), session type (presentation/demo/workshop/Q&A), duration, and tags
+- Team Weekly Board: shared markdown space where any member posts weekly updates; AI generates a summary automatically at end of week and on demand
 
 ## Requirements
 
@@ -56,12 +55,23 @@ The team uses it willingly because it's simpler than Jira — AI helps them crea
 - ✓ Azure deployment + GitHub Actions CI/CD — Phase 7
 - ✓ User invite & team management (email token + code flow) — Phase 8
 
-### Active (Milestone 2.1)
+### Validated (Milestone 2.1)
 
-- [ ] Backend code is organized into an Open WebUI-style FastAPI package without changing API behavior
-- [ ] Frontend code is organized into Open WebUI-style SvelteKit folders without changing UI behavior
-- [ ] Runtime, Docker, Alembic, test, and development commands work after import/path migration
-- [ ] Refactor is verified by backend tests, frontend checks/builds, and targeted smoke checks for critical flows
+- ✓ Backend code organized into Open WebUI-style FastAPI package — Phase 20
+- ✓ Frontend code organized into Open WebUI-style SvelteKit folders — Phase 21
+- ✓ Runtime, Docker, Alembic, test, and development commands work after import/path migration — Phase 22
+- ✓ Refactor verified by backend tests, frontend build, and smoke checks — Phase 22
+
+### Active (Milestone 2.2)
+
+- [ ] Member can post a daily/weekly standup update (what I did, pending items, blockers)
+- [ ] Standup post includes a snapshot of the member's current task statuses
+- [ ] Standup updates are visible to all team members and the supervisor
+- [ ] Manager can schedule Knowledge Sharing sessions (topic, description, references, presenter, session type, duration, tags)
+- [ ] Knowledge Sessions appear as a dedicated tab/section within the existing Calendar view
+- [ ] Team members can view upcoming Knowledge Sessions
+- [ ] Any team member can post a weekly markdown update to the Team Weekly Board
+- [ ] AI generates a weekly summary of all board posts automatically (end of week) and on demand
 
 ### Out of Scope
 
@@ -112,4 +122,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-26 after starting milestone v2.1*
+*Last updated: 2026-04-28 after starting milestone v2.2*
