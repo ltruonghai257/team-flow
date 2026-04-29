@@ -37,7 +37,7 @@
 - [x] **VIS-02**: Supervisors can see members in their allowed scope plus peer leaders at the same level in the relevant parent-team scope
 - [x] **VIS-03**: Assistant managers follow the same peer-visibility model as supervisors unless a later planning phase narrows it
 - [x] **VIS-04**: Managers can see all teams, members, and leadership groups
-- [ ] **VIS-05**: Team, timeline, milestones, updates, board, and schedule views enforce the same visibility rules
+- [x] **VIS-05**: Team, timeline, milestones, updates, board, and schedule views enforce the same visibility rules
 - [x] **VIS-06**: Invite and team-management flows can assign or represent the leadership scopes required by the new visibility model
 - [x] **VIS-07**: Existing `admin` / `supervisor` / `member` data is migrated or mapped safely into the new visibility model without orphaning users or sub-teams
 
