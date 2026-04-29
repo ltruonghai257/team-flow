@@ -51,8 +51,9 @@
 				<label class="label" for="role">Role</label>
 				<select id="role" bind:value={form.role} class="input">
 					<option value="member">Member</option>
-					<option value="admin">Admin</option>
-					<option value="lead">Lead</option>
+					<option value="supervisor">Supervisor</option>
+					<option value="assistant_manager">Assistant Manager</option>
+					<option value="manager">Manager</option>
 				</select>
 			</div>
 			<button type="submit" class="btn-primary w-full justify-center" disabled={loading}>

@@ -23,7 +23,7 @@ export async function request<T = any>(
         'Content-Type': 'application/json',
     };
 
-    // Add X-SubTeam-ID header for admins
+    // Add X-SubTeam-ID header when a manager selects a sub-team scope.
     let selectedSubTeam: SubTeam | null = null;
     const unsubscribe = subTeamStore.subscribe((v: SubTeam | null) => {
         selectedSubTeam = v;

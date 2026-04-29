@@ -79,12 +79,15 @@
 		return eachDayOfInterval({ start, end });
 	})();
 	$: currentUserRole = $currentUser?.role ?? 'member';
-	$: canManageKnowledge = currentUserRole === 'admin' || currentUserRole === 'supervisor';
+	$: canManageKnowledge =
+		currentUserRole === 'manager' ||
+		currentUserRole === 'supervisor' ||
+		currentUserRole === 'assistant_manager';
 	$: knowledgePresenterHint =
-		currentUserRole === 'admin' && !$subTeamStore
+		currentUserRole === 'manager' && !$subTeamStore
 			? 'Org-wide sessions can use any active presenter.'
 			: 'Presenter must belong to your sub-team.';
-	$: knowledgeScopeHint = $subTeamStore?.name ?? (currentUserRole === 'admin' ? 'All teams' : 'Your team');
+	$: knowledgeScopeHint = $subTeamStore?.name ?? (currentUserRole === 'manager' ? 'All teams' : 'Your team');
 
 	function buildKnowledgeGroups(sessions: KnowledgeSession[]) {
 		const groups: { label: string; sessions: KnowledgeSession[] }[] = [];

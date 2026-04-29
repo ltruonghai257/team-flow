@@ -12,7 +12,7 @@
 	} from '$lib/apis';
 	import type { CustomStatus, StatusSet, StatusTransition } from '$lib/types';
 	import StatusSetManager from '$lib/components/statuses/StatusSetManager.svelte';
-	import { isSupervisor } from '$lib/stores/auth';
+	import { isManagerOrLeader } from '$lib/stores/auth';
 	import {
 		formatDate,
 		statusColors,
@@ -729,7 +729,7 @@
 			</select>
 		</div>
 
-		{#if $isSupervisor}
+		{#if $isManagerOrLeader}
 			<button
 				on:click={() => (showStatusManager ? closeStatusManager() : openStatusManager())}
 				class="text-xs text-gray-400 hover:text-white border border-gray-700 rounded px-2 py-1.5 transition-colors"
@@ -767,7 +767,7 @@
 			<StatusSetManager
 				statusSet={statusSetData}
 				scopeLabel={filterProjectId && !isMixedProjectView ? 'Project' : 'Sub-team default'}
-				canManage={$isSupervisor}
+				canManage={$isManagerOrLeader}
 				{isMixedProjectView}
 				activeTab={statusManagerTab}
 				onTabChange={setStatusManagerTab}

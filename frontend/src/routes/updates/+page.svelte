@@ -3,7 +3,7 @@
 	import { updates as updatesApi } from '$lib/apis';
 	import { updatesStore } from '$lib/stores/updates';
 	import type { StandupPost } from '$lib/stores/updates';
-	import { currentUser, isSupervisor } from '$lib/stores/auth';
+	import { currentUser, isManagerOrLeader } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
 	import { MessageSquare, Filter, Trash2 } from 'lucide-svelte';
@@ -144,8 +144,8 @@
 		<StandupForm {templateFields} {fieldTypes} on:submitted={onPostSubmitted} />
 	</div>
 
-	<!-- Supervisor template editor -->
-	{#if $isSupervisor}
+	<!-- Leadership template editor -->
+	{#if $isManagerOrLeader}
 		<div class="card mb-6">
 			<p class="text-sm font-semibold text-gray-400 mb-4">Configure standup template</p>
 			{#each editableFields as field, i}

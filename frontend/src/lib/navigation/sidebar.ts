@@ -13,7 +13,7 @@ import {
 	TrendingUp
 } from 'lucide-svelte';
 
-export type UserRole = 'admin' | 'supervisor' | 'member';
+export type UserRole = 'manager' | 'supervisor' | 'assistant_manager' | 'member';
 
 export interface NavigationChild {
 	href: string;
@@ -55,7 +55,12 @@ export const navigationGroups: NavigationGroup[] = [
 			{ href: '/team', label: 'Team', icon: Users },
 			{ href: '/updates', label: 'Updates', icon: MessageSquare },
 			{ href: '/board', label: 'Weekly Board', icon: ClipboardList },
-			{ href: '/performance', label: 'Performance', icon: TrendingUp, roles: ['admin', 'supervisor'] }
+			{
+				href: '/performance',
+				label: 'Performance',
+				icon: TrendingUp,
+				roles: ['manager', 'supervisor', 'assistant_manager']
+			}
 		]
 	},
 	{
@@ -106,6 +111,6 @@ export function filterNavigationGroups(role: UserRole | null): NavigationGroup[]
 		.filter((group) => group.children.length > 0); // Remove groups with no visible children
 }
 
-export function isSupervisorOrAdmin(role: UserRole | null): boolean {
-	return role === 'admin' || role === 'supervisor';
+export function isManagerOrLeaderRole(role: UserRole | null): boolean {
+	return role === 'manager' || role === 'supervisor' || role === 'assistant_manager';
 }

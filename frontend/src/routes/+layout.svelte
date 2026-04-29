@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { authStore, isLoggedIn, isSupervisor } from '$lib/stores/auth';
+	import { authStore, isLoggedIn, isManager, isManagerOrLeader } from '$lib/stores/auth';
 	import { notificationStore, type NotificationItem } from '$lib/stores/notifications';
 	import { subTeamStore } from '$lib/stores/subTeam';
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
@@ -20,12 +20,8 @@
 	import {
 		navigationGroups,
 		filterNavigationGroups,
-		getActiveNavigationState,
-		type UserRole,
-		isSupervisorOrAdmin
+		getActiveNavigationState
 	} from '$lib/navigation/sidebar';
-
-	$: isAdmin = $authStore.user?.role === 'admin';
 
 	let subTeams: any[] = [];
 	let expanded = false;
@@ -90,9 +86,9 @@
 		goto('/login');
 	}
 
-	$: if (typeof window !== 'undefined' && !$authStore.loading && $isLoggedIn && !$isSupervisor) {
+	$: if (typeof window !== 'undefined' && !$authStore.loading && $isLoggedIn && !$isManagerOrLeader) {
 		const path = String($page.url.pathname);
-		if (path.startsWith('/performance') || path.startsWith('/admin')) {
+		if (path.startsWith('/performance')) {
 			goto('/');
 		}
 	}
@@ -145,7 +141,7 @@
 
 			<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 				<NotificationBell />
-				{#if isAdmin}
+				{#if $isManager}
 				<div class="sub-team-switcher">
 					<button on:click={() => expanded = !expanded} class="switcher-button">
 						{selectedSubTeam ? selectedSubTeam.name : 'All Teams'}

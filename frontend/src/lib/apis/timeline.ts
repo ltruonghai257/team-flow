@@ -5,7 +5,7 @@ export interface TimelineTaskAssignee {
     email: string;
     username: string;
     full_name: string;
-    role: 'admin' | 'supervisor' | 'member';
+    role: 'manager' | 'supervisor' | 'assistant_manager' | 'member';
     avatar_url: string | null;
     is_active: boolean;
     sub_team_id: number | null;
