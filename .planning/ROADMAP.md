@@ -177,7 +177,7 @@ Plans:
 | 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
 | 27. Timeline & Gantt Clarity | 3/3 | Complete   | 2026-04-28 |
 | 28. Milestone Planning & Decisions | 1/4 | In Progress|  |
-| 29. Scoped Team Visibility & Leadership RBAC | 0/4 | Planned    |  |
+| 29. Scoped Team Visibility & Leadership RBAC | 1/4 | In Progress|  |
 | 30. Phase 18 status-transition follow-up hardening | 0/0 | Not started | — |
 
 ### Phase 30: Phase 18 status-transition follow-up hardening
@@ -185,7 +185,7 @@ Plans:
 **Goal:** Harden and verify the shipped Phase 18 status-transition workflow rules after the refactor, with a focus on status-set scoping, workflow feedback, and regression coverage.
 **Requirements**: TBD
 **Depends on:** Phase 29
-**Plans:** 0/4 plans executed
+**Plans:** 1/4 plans executed
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 30 to break down)

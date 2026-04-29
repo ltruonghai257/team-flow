@@ -33,13 +33,13 @@
 
 ### Scoped Team Visibility & RBAC (VIS)
 
-- [ ] **VIS-01**: Members can only see other users and team data inside their own sub-team
-- [ ] **VIS-02**: Supervisors can see members in their allowed scope plus peer leaders at the same level in the relevant parent-team scope
-- [ ] **VIS-03**: Assistant managers follow the same peer-visibility model as supervisors unless a later planning phase narrows it
-- [ ] **VIS-04**: Managers can see all teams, members, and leadership groups
+- [x] **VIS-01**: Members can only see other users and team data inside their own sub-team
+- [x] **VIS-02**: Supervisors can see members in their allowed scope plus peer leaders at the same level in the relevant parent-team scope
+- [x] **VIS-03**: Assistant managers follow the same peer-visibility model as supervisors unless a later planning phase narrows it
+- [x] **VIS-04**: Managers can see all teams, members, and leadership groups
 - [ ] **VIS-05**: Team, timeline, milestones, updates, board, and schedule views enforce the same visibility rules
 - [ ] **VIS-06**: Invite and team-management flows can assign or represent the leadership scopes required by the new visibility model
-- [ ] **VIS-07**: Existing `admin` / `supervisor` / `member` data is migrated or mapped safely into the new visibility model without orphaning users or sub-teams
+- [x] **VIS-07**: Existing `admin` / `supervisor` / `member` data is migrated or mapped safely into the new visibility model without orphaning users or sub-teams
 
 ---
 
