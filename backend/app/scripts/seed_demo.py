@@ -1,9 +1,9 @@
 """Seed demo data for local development.
 
 Creates:
-  - 1 sub-team  (Engineering Team)
-  - 1 supervisor (Sam Supervisor — supervisor of the sub-team)
-  - 5 members   (alice, bob, carol, latruonghai, doanduckien)
+  - 2 sub-teams (Engineering Team, Product Team)
+  - 1 manager, 2 supervisors, 1 assistant manager
+  - members across both sub-teams (alice, bob, carol, latruonghai, doanduckien)
   - 1 StatusSet + 5 CustomStatuses (is_done semantics for KPI)
   - 2 projects (scoped to the sub-team)
   - 4 milestones
@@ -87,7 +87,10 @@ async def main() -> None:
         # Users
         # ------------------------------------------------------------------
         users_data = [
+            dict(email="manager@demo.com",           username="manager",     full_name="Morgan Manager", role=UserRole.manager),
             dict(email="supervisor@demo.com",        username="supervisor",  full_name="Sam Supervisor", role=UserRole.supervisor),
+            dict(email="assistant@demo.com",         username="assistant",   full_name="Avery Assistant", role=UserRole.assistant_manager),
+            dict(email="product.supervisor@demo.com", username="product_supervisor", full_name="Priya Product", role=UserRole.supervisor),
             dict(email="alice@demo.com",             username="alice",       full_name="Alice Chen",     role=UserRole.member),
             dict(email="bob@demo.com",               username="bob",         full_name="Bob Kim",        role=UserRole.member),
             dict(email="carol@demo.com",             username="carol",       full_name="Carol Davis",    role=UserRole.member),
@@ -108,7 +111,7 @@ async def main() -> None:
             users[ud["username"]] = u
 
         # ------------------------------------------------------------------
-        # Sub-team  (supervisor manages all members)
+        # Sub-teams
         # ------------------------------------------------------------------
         result = await db.execute(select(SubTeam).where(SubTeam.name == "Engineering Team"))
         sub_team = result.scalar_one_or_none()
@@ -120,11 +123,25 @@ async def main() -> None:
         else:
             print("  skipped sub-team (exists)")
 
-        # Assign all members (and supervisor) to the sub-team
-        for username in ("supervisor", "alice", "bob", "carol", "latruonghai", "doanduckien"):
+        result = await db.execute(select(SubTeam).where(SubTeam.name == "Product Team"))
+        product_sub_team = result.scalar_one_or_none()
+        if not product_sub_team:
+            product_sub_team = SubTeam(name="Product Team", supervisor_id=users["product_supervisor"].id)
+            db.add(product_sub_team)
+            await db.flush()
+            print("  created sub-team: Product Team")
+        else:
+            print("  skipped sub-team (exists): Product Team")
+
+        # Assign leaders and members to their sub-team scopes. Managers remain org-wide.
+        for username in ("supervisor", "assistant", "alice", "bob", "latruonghai"):
             u = users[username]
             if u.sub_team_id != sub_team.id:
                 u.sub_team_id = sub_team.id
+        for username in ("product_supervisor", "carol", "doanduckien"):
+            u = users[username]
+            if u.sub_team_id != product_sub_team.id:
+                u.sub_team_id = product_sub_team.id
         await db.flush()
 
         # ------------------------------------------------------------------
@@ -1249,12 +1266,15 @@ async def main() -> None:
 
         await db.commit()
         print("\nDone. Login with:")
-        print("  supervisor   / password123  (role: supervisor)")
-        print("  alice        / password123  (role: member,  KPI ~92 Good)")
-        print("  bob          / password123  (role: member,  KPI ~73 Fair)")
-        print("  carol        / password123  (role: member,  KPI ~68 Fair)")
-        print("  latruonghai  / password123  (role: member,  KPI ~74 Fair)")
-        print("  doanduckien  / password123  (role: member,  KPI ~37 At Risk)")
+        print("  manager            / password123  (role: manager, org-wide)")
+        print("  supervisor         / password123  (role: supervisor, Engineering Team)")
+        print("  assistant          / password123  (role: assistant_manager, Engineering Team)")
+        print("  product_supervisor / password123  (role: supervisor, Product Team)")
+        print("  alice              / password123  (role: member, Engineering Team, KPI ~92 Good)")
+        print("  bob                / password123  (role: member, Engineering Team, KPI ~73 Fair)")
+        print("  carol              / password123  (role: member, Product Team, KPI ~68 Fair)")
+        print("  latruonghai        / password123  (role: member, Engineering Team, KPI ~74 Fair)")
+        print("  doanduckien        / password123  (role: member, Product Team, KPI ~37 At Risk)")
 
 
 if __name__ == "__main__":

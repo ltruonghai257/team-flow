@@ -34,6 +34,8 @@ def upgrade() -> None:
 
     op.execute("ALTER TYPE userrole RENAME TO userrole_old")
     new_userrole.create(bind, checkfirst=False)
+    op.execute("ALTER TABLE users ALTER COLUMN role DROP DEFAULT")
+    op.execute("ALTER TABLE team_invites ALTER COLUMN role DROP DEFAULT")
     op.execute(
         """
         ALTER TABLE users
@@ -60,7 +62,7 @@ def upgrade() -> None:
     )
     op.execute("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'member'::userrole")
     op.execute("ALTER TABLE team_invites ALTER COLUMN role SET DEFAULT 'member'::userrole")
-    old_userrole.drop(bind, checkfirst=False)
+    op.execute("DROP TYPE userrole_old")
 
 
 def downgrade() -> None:
@@ -70,6 +72,8 @@ def downgrade() -> None:
 
     op.execute("ALTER TYPE userrole RENAME TO userrole_new")
     old_userrole.create(bind, checkfirst=False)
+    op.execute("ALTER TABLE users ALTER COLUMN role DROP DEFAULT")
+    op.execute("ALTER TABLE team_invites ALTER COLUMN role DROP DEFAULT")
     op.execute(
         """
         ALTER TABLE users
