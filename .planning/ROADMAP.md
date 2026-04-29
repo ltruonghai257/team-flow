@@ -136,7 +136,23 @@ Plans:
   2. Milestone detail shows related tasks in context rather than forcing users to mentally join separate screens
   3. Key milestone decisions are visible on the product surface, not only in planning files
   4. Any new persistence introduced for decisions or planning state is clearly justified by a gap in the current schema
-**Plans**: 0 plans
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+- [ ] 28-01-PLAN.md — Add milestone decision persistence, scoped decision CRUD, and backend coverage
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 28-02-PLAN.md — Add the derived milestone command-view API, summary metrics, and typed frontend contract
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 28-03-PLAN.md — Rebuild `/milestones` into a lane-based command view with linked-task detail and decision CRUD
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 28-04-PLAN.md — Add milestone command-view regression coverage and final release verification
+**Cross-cutting constraints:**
+- Existing `/milestones` route URL and the basic milestone create/edit modal stay intact while the page is upgraded into a richer command view.
+- Planning state is derived from existing milestone and task data; no manual planning-state override is introduced in Phase 28.
+- Structured decision persistence is limited to milestone-owned decision records, and task rows hand off to the existing `/tasks?task_id=` flow instead of adding inline task editing.
 **UI hint**: yes
 
 ### Phase 29: Scoped Team Visibility & Leadership RBAC
@@ -160,7 +176,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
 | 27. Timeline & Gantt Clarity | 3/3 | Complete   | 2026-04-28 |
-| 28. Milestone Planning & Decisions | 0/0 | Not started | — |
+| 28. Milestone Planning & Decisions | 0/4 | Ready to execute | — |
 | 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |
 | 30. Phase 18 status-transition follow-up hardening | 0/0 | Not started | — |
 
