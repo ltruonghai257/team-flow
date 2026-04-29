@@ -149,3 +149,71 @@ async def test_summary_generation_caches_and_short_circuits(async_client: AsyncC
 
     await db_session.execute(select(WeeklyPostAppend).where(WeeklyPostAppend.post_id == post_id))
     await db_session.execute(select(WeeklyPost))
+
+
+@pytest.mark.asyncio
+async def test_week_payload_is_scoped_by_visible_team(async_client: AsyncClient, db_session):
+    team_a = SubTeam(name="Board Team A", supervisor_id=None)
+    team_b = SubTeam(name="Board Team B", supervisor_id=None)
+    db_session.add_all([team_a, team_b])
+    await db_session.commit()
+    await db_session.refresh(team_a)
+    await db_session.refresh(team_b)
+
+    member_a = await _create_user(
+        db_session,
+        email="board-a@example.com",
+        username="board-a",
+        full_name="Board A",
+        role=UserRole.member,
+        sub_team_id=team_a.id,
+    )
+    member_b = await _create_user(
+        db_session,
+        email="board-b@example.com",
+        username="board-b",
+        full_name="Board B",
+        role=UserRole.member,
+        sub_team_id=team_b.id,
+    )
+    manager = await _create_user(
+        db_session,
+        email="board-manager@example.com",
+        username="board-manager",
+        full_name="Board Manager",
+        role=UserRole.manager,
+        sub_team_id=team_a.id,
+    )
+    year, week, week_start = _week()
+    db_session.add_all(
+        [
+            WeeklyPost(
+                author_id=member_a.id,
+                sub_team_id=team_a.id,
+                iso_year=year,
+                iso_week=week,
+                week_start_date=week_start,
+                content="Alpha board item",
+            ),
+            WeeklyPost(
+                author_id=member_b.id,
+                sub_team_id=team_b.id,
+                iso_year=year,
+                iso_week=week,
+                week_start_date=week_start,
+                content="Beta board item",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await async_client.get("/api/board/week", headers=_auth_headers(member_a))
+    assert response.status_code == 200
+    assert [post["content"] for post in response.json()["posts"]] == ["Alpha board item"]
+
+    response = await async_client.get("/api/board/week", headers=_auth_headers(manager))
+    assert response.status_code == 200
+    assert {post["content"] for post in response.json()["posts"]} == {
+        "Alpha board item",
+        "Beta board item",
+    }
