@@ -162,16 +162,14 @@ Plans:
 | 27. Timeline & Gantt Clarity | 3/3 | Complete   | 2026-04-28 |
 | 28. Milestone Planning & Decisions | 0/0 | Not started | — |
 | 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |
+| 30. Phase 18 status-transition follow-up hardening | 0/0 | Not started | — |
 
----
+### Phase 30: Phase 18 status-transition follow-up hardening
 
-## Backlog
-
-### Phase 999.1: Status transition graph / workflow rules (YouTrack-style) (BACKLOG)
-
-**Goal:** Capture follow-up improvements and verification gaps for the shipped Phase 18 status-transition workflow rules.
-**Requirements:** TBD
+**Goal:** Harden and verify the shipped Phase 18 status-transition workflow rules after the refactor, with a focus on status-set scoping, workflow feedback, and regression coverage.
+**Requirements**: TBD
+**Depends on:** Phase 29
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (promote with $gsd-review-backlog when ready)
+- [ ] TBD (run /gsd-plan-phase 30 to break down)

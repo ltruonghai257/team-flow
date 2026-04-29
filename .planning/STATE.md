@@ -55,6 +55,7 @@ Alternative: `/gsd-review --phase 26 --all` to peer review the plans before exec
 - Milestone v2.1 (Phases 19-22) shipped on 2026-04-28 as the structure refactor baseline.
 - Milestone v2.2 (Phases 23-25) shipped on 2026-04-28: standup posts, knowledge-sharing scheduler, weekly board, and AI summary.
 - Milestone v2.3 (Phases 26-29) planned on 2026-04-29: grouped navigation, clearer timeline and milestones, and scoped leadership visibility.
+- Phase 30 added on 2026-04-29: Phase 18 status-transition follow-up hardening.
 
 ### Architecture Decisions (Milestone 2.0)
 
