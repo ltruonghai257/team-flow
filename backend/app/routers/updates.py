@@ -16,7 +16,7 @@ from app.schemas.updates import (
     TemplateOut,
     TemplateUpdate,
 )
-from app.utils.auth import get_current_user, get_sub_team, require_supervisor
+from app.utils.auth import get_current_user, get_sub_team, require_leader_or_manager
 
 router = APIRouter(prefix="/api/updates", tags=["updates"])
 
@@ -93,10 +93,10 @@ async def get_template(
 async def update_template(
     payload: TemplateUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor),
+    current_user: User = Depends(require_leader_or_manager),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    """Supervisor/admin upserts the sub-team template (UPD-03). Returns 403 for members."""
+    """Leader/manager upserts the sub-team template (UPD-03). Returns 403 for members."""
     if sub_team is None:
         raise HTTPException(status_code=400, detail="Sub-team context required to update template")
 
@@ -135,13 +135,13 @@ async def list_posts(
 ):
     """
     Return paginated standup posts newest-first (UPD-05, UPD-06, per D-04/D-06).
-    Sub-team scoped: member/supervisor sees their sub-team; admin with no header sees all.
+    Sub-team scoped: members and leaders see allowed scope; managers with no header see all.
     Query params: cursor (last-seen post id), author_id, date (YYYY-MM-DD).
     Response: {"posts": [...], "next_cursor": int|null}
     """
     query = select(StandupPost)
 
-    # Sub-team scoping (Pitfall 5: sub_team=None for admin → no filter, sees all)
+    # Sub-team scoping: sub_team=None for managers means no filter, sees all.
     if sub_team is not None:
         query = query.where(StandupPost.sub_team_id == sub_team.id)
 

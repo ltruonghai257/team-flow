@@ -14,6 +14,7 @@ from app.models import (
     NotificationStatus,
     Schedule,
     Task,
+    Project,
     SubTeam,
     User,
 )
@@ -23,6 +24,7 @@ from app.schemas import (
     NotificationOut,
 )
 from app.services.knowledge_sessions import visible_knowledge_session_query
+from app.services.visibility import scoped_sub_team_filter, visible_sub_team_ids
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
@@ -46,7 +48,17 @@ async def _resolve_event(
             raise HTTPException(status_code=404, detail="Schedule event not found")
         return obj.title, obj.start_time
     if event_type == NotificationEventType.task:
-        result = await db.execute(select(Task).where(Task.id == event_ref_id))
+        allowed_ids = await visible_sub_team_ids(
+            db, current_user, requested_sub_team_id=sub_team.id if sub_team else None
+        )
+        result = await db.execute(
+            select(Task)
+            .join(Project, Task.project_id == Project.id)
+            .where(
+                Task.id == event_ref_id,
+                scoped_sub_team_filter(Project.sub_team_id, current_user, allowed_ids),
+            )
+        )
         obj = result.scalar_one_or_none()
         if not obj or not obj.due_date:
             raise HTTPException(status_code=404, detail="Task with due_date not found")

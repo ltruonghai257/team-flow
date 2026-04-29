@@ -53,12 +53,12 @@ async def _build_scope_graph(db_session):
     await db_session.refresh(team_a)
     await db_session.refresh(team_b)
 
-    admin = await _create_user(
+    manager = await _create_user(
         db_session,
-        email="admin@example.com",
-        username="admin",
-        full_name="Admin User",
-        role=UserRole.admin,
+        email="manager@example.com",
+        username="manager",
+        full_name="Manager User",
+        role=UserRole.manager,
         sub_team_id=team_a.id,
     )
     supervisor_a = await _create_user(
@@ -103,9 +103,9 @@ async def _build_scope_graph(db_session):
         "team_a_id": team_a.id,
         "team_b": team_b,
         "team_b_id": team_b.id,
-        "admin": admin,
-        "admin_id": admin.id,
-        "admin_username": admin.username,
+        "manager": manager,
+        "manager_id": manager.id,
+        "manager_username": manager.username,
         "supervisor_a": supervisor_a,
         "supervisor_a_id": supervisor_a.id,
         "supervisor_a_username": supervisor_a.username,
@@ -122,11 +122,11 @@ async def _build_scope_graph(db_session):
 
 
 @pytest.mark.asyncio
-async def test_admin_org_wide_session_defaults_presenter_and_scope(
+async def test_manager_org_wide_session_defaults_presenter_and_scope(
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    token = await _login(db_session, graph["admin_username"])
+    token = await _login(db_session, graph["manager_username"])
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     response = await async_client.post(
@@ -193,13 +193,13 @@ async def test_member_visibility_includes_org_wide_and_own_team_only(
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    admin_username = graph["admin_username"]
+    manager_username = graph["manager_username"]
     member_username = graph["member_a_username"]
     supervisor_username = graph["supervisor_a_username"]
     team_b_id = graph["team_b_id"]
     member_a_id = graph["member_a_id"]
     member_b_id = graph["member_b_id"]
-    admin_token = await _login(db_session, admin_username)
+    manager_token = await _login(db_session, manager_username)
     member_token = await _login(db_session, member_username)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -211,7 +211,7 @@ async def test_member_visibility_includes_org_wide_and_own_team_only(
             "start_time": (now + timedelta(days=1)).isoformat(),
             "offset_minutes_list": [],
         },
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {manager_token}"},
     )
     supervisor_token = await _login(db_session, supervisor_username)
     await async_client.post(
@@ -235,7 +235,7 @@ async def test_member_visibility_includes_org_wide_and_own_team_only(
             "offset_minutes_list": [],
         },
         headers={
-            "Authorization": f"Bearer {admin_token}",
+            "Authorization": f"Bearer {manager_token}",
             "X-SubTeam-ID": str(team_b_id),
         },
     )
@@ -256,9 +256,9 @@ async def test_creation_and_reminder_notifications_follow_scope_and_patch_replac
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    admin_username = graph["admin_username"]
-    admin_token = await _login(db_session, admin_username)
-    admin_id = graph["admin_id"]
+    manager_username = graph["manager_username"]
+    manager_token = await _login(db_session, manager_username)
+    manager_id = graph["manager_id"]
     team_a_id = graph["team_a_id"]
     team_b_id = graph["team_b_id"]
     supervisor_a_id = graph["supervisor_a_id"]
@@ -275,7 +275,7 @@ async def test_creation_and_reminder_notifications_follow_scope_and_patch_replac
             "start_time": (now + timedelta(days=2)).isoformat(),
             "offset_minutes_list": [60, 30],
         },
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {manager_token}"},
     )
     assert response.status_code == 201
     session_id = response.json()["id"]
@@ -294,7 +294,7 @@ async def test_creation_and_reminder_notifications_follow_scope_and_patch_replac
     response = await async_client.patch(
         f"/api/knowledge-sessions/{session_id}",
         json={"offset_minutes_list": [15]},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {manager_token}"},
     )
     assert response.status_code == 200
 
@@ -312,7 +312,7 @@ async def test_creation_and_reminder_notifications_follow_scope_and_patch_replac
     assert {row.offset_minutes for row in nonzero_rows} == {15}
     assert len(nonzero_rows) == len(
         {
-            admin_id,
+            manager_id,
             supervisor_a_id,
             supervisor_b_id,
             member_a_id,
@@ -326,13 +326,13 @@ async def test_notification_resolver_enforces_visibility(
     async_client: AsyncClient, db_session
 ):
     graph = await _build_scope_graph(db_session)
-    admin_username = graph["admin_username"]
+    manager_username = graph["manager_username"]
     member_username = graph["member_a_username"]
     supervisor_username = graph["supervisor_a_username"]
     member_b_username = graph["member_b_username"]
     member_a_id = graph["member_a_id"]
     member_b_id = graph["member_b_id"]
-    admin_token = await _login(db_session, admin_username)
+    manager_token = await _login(db_session, manager_username)
     member_token = await _login(db_session, member_username)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -344,7 +344,7 @@ async def test_notification_resolver_enforces_visibility(
             "start_time": (now + timedelta(days=1)).isoformat(),
             "offset_minutes_list": [15],
         },
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers={"Authorization": f"Bearer {manager_token}"},
     )
     assert response.status_code == 201, response.text
     visible_session_id = response.json()["id"]

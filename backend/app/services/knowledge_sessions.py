@@ -13,8 +13,8 @@ from app.models import (
     NotificationStatus,
     SubTeam,
     User,
-    UserRole,
 )
+from app.services.visibility import is_manager, is_leader
 
 
 def _now() -> datetime:
@@ -44,9 +44,9 @@ def deserialize_tags(tags: str | None) -> list[str]:
 
 
 def _scope_sub_team_id(current_user: User, sub_team: SubTeam | None) -> Optional[int]:
-    if current_user.role == UserRole.admin:
+    if is_manager(current_user):
         return sub_team.id if sub_team is not None else None
-    if current_user.role == UserRole.supervisor:
+    if is_leader(current_user):
         return sub_team.id if sub_team is not None else current_user.sub_team_id
     return current_user.sub_team_id
 
@@ -55,14 +55,14 @@ def visible_knowledge_session_query(
     current_user: User, sub_team: SubTeam | None
 ):
     stmt = select(KnowledgeSession)
-    if current_user.role == UserRole.admin and sub_team is None:
+    if is_manager(current_user) and sub_team is None:
         return stmt
-    if current_user.role == UserRole.admin and sub_team is not None:
+    if is_manager(current_user) and sub_team is not None:
         return stmt.where(
             (KnowledgeSession.sub_team_id.is_(None))
             | (KnowledgeSession.sub_team_id == sub_team.id)
         )
-    if current_user.role == UserRole.supervisor:
+    if is_leader(current_user):
         scope_sub_team_id = sub_team.id if sub_team is not None else current_user.sub_team_id
         return stmt.where(
             (KnowledgeSession.sub_team_id.is_(None))
@@ -86,7 +86,7 @@ async def resolve_presenter_scope(
     presenter = result.scalar_one_or_none()
     if presenter is None:
         raise ValueError("presenter_not_found")
-    if current_user.role == UserRole.admin and sub_team is None:
+    if is_manager(current_user) and sub_team is None:
         return presenter
     scope_sub_team_id = _scope_sub_team_id(current_user, sub_team)
     if presenter.sub_team_id != scope_sub_team_id:

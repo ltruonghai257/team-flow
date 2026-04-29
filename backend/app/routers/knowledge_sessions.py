@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.database import get_db
-from app.models import KnowledgeSession, SubTeam, User, UserRole
+from app.models import KnowledgeSession, SubTeam, User
 from app.schemas import (
     KnowledgeSessionCreate,
     KnowledgeSessionOut,
@@ -21,16 +21,17 @@ from app.services.knowledge_sessions import (
     sync_knowledge_session_notifications,
     visible_knowledge_session_query,
 )
-from app.utils.auth import get_current_user, get_sub_team, require_supervisor_or_admin
+from app.services.visibility import is_manager
+from app.utils.auth import get_current_user, get_sub_team, require_leader_or_manager
 
 router = APIRouter(prefix="/api/knowledge-sessions", tags=["knowledge-sessions"])
 
 
 def _scope_sub_team_id(current_user: User, sub_team: SubTeam | None) -> Optional[int]:
-    if current_user.role == UserRole.admin:
+    if is_manager(current_user):
         return sub_team.id if sub_team is not None else None
-    if current_user.role == UserRole.supervisor:
-        return sub_team.id if sub_team is not None else current_user.sub_team_id
+    if sub_team is not None:
+        return sub_team.id
     return current_user.sub_team_id
 
 
@@ -97,7 +98,7 @@ async def list_knowledge_sessions(
 async def create_knowledge_session(
     payload: KnowledgeSessionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
     sub_team: SubTeam | None = Depends(get_sub_team),
 ):
     scope_sub_team_id = _scope_sub_team_id(current_user, sub_team)
@@ -151,7 +152,7 @@ async def update_knowledge_session(
     session_id: int,
     payload: KnowledgeSessionUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
     sub_team: SubTeam | None = Depends(get_sub_team),
 ):
     knowledge_session = await _visible_session_or_404(db, current_user, sub_team, session_id)
@@ -173,10 +174,7 @@ async def update_knowledge_session(
         updates["tags"] = serialize_tags(updates["tags"] or [])
     for field, value in updates.items():
         setattr(knowledge_session, field, value)
-    if current_user.role == UserRole.admin and sub_team is not None:
-        knowledge_session.sub_team_id = scope_sub_team_id
-    elif current_user.role != UserRole.admin:
-        knowledge_session.sub_team_id = scope_sub_team_id
+    knowledge_session.sub_team_id = scope_sub_team_id
     if offset_minutes_list is not None:
         await delete_pending_knowledge_session_notifications(db, knowledge_session.id)
         await sync_knowledge_session_notifications(
@@ -194,7 +192,7 @@ async def update_knowledge_session(
 async def delete_knowledge_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
     sub_team: SubTeam | None = Depends(get_sub_team),
 ):
     knowledge_session = await _visible_session_or_404(db, current_user, sub_team, session_id)

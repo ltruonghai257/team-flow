@@ -34,6 +34,7 @@ from app.schemas import (
     KPIWarningEmailRequest,
     KPIWarningEmailResponse,
 )
+from app.services.visibility import require_visible_user
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
 
@@ -101,8 +102,7 @@ async def send_kpi_warning(
     recipient = result.scalar_one_or_none()
     if not recipient:
         raise HTTPException(status_code=404, detail="User not found")
-    if sub_team and recipient.sub_team_id != sub_team.id:
-        raise HTTPException(status_code=403, detail="You can only warn users in your sub-team")
+    await require_visible_user(db, current_user, recipient)
 
     default_message = (
         "This is a friendly reminder that your KPI score is currently in the Fair range. "
@@ -258,12 +258,13 @@ async def get_team_performance(
 async def get_user_performance_detail(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_supervisor),
+    current_user: User = Depends(require_supervisor),
 ):
     user_result = await db.execute(select(User).where(User.id == user_id))
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    await require_visible_user(db, current_user, user)
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     thirty_days_ago = now - timedelta(days=30)
