@@ -177,7 +177,7 @@ Plans:
 | 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
 | 27. Timeline & Gantt Clarity | 3/3 | Complete   | 2026-04-28 |
 | 28. Milestone Planning & Decisions | 1/4 | In Progress|  |
-| 29. Scoped Team Visibility & Leadership RBAC | 1/4 | In Progress|  |
+| 29. Scoped Team Visibility & Leadership RBAC | 2/4 | In Progress|  |
 | 30. Phase 18 status-transition follow-up hardening | 0/0 | Not started | — |
 
 ### Phase 30: Phase 18 status-transition follow-up hardening
