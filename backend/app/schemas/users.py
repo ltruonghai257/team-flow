@@ -18,7 +18,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[UserRole] = None
     sub_team_id: Optional[int] = None
 
 

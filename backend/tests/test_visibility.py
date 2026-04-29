@@ -4,6 +4,13 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from app.models import SubTeam, User, UserRole
+from app.routers.users import (
+    get_user as get_user_endpoint,
+    list_users,
+    update_user,
+    update_user_role,
+)
+from app.schemas import UserRoleUpdate, UserUpdate
 from app.services.visibility import (
     ACTIVE_ROLES,
     can_see_user,
@@ -287,3 +294,135 @@ async def test_get_sub_team_resolves_member_leader_and_manager_scope(
             x_sub_team_id=visibility_graph["beta"].id,
             db=db_session,
         )
+
+
+@pytest.mark.asyncio
+async def test_user_list_endpoint_uses_phase_29_visibility(db_session, visibility_graph):
+    member_users = await list_users(
+        db=db_session,
+        current_user=visibility_graph["alpha_member"],
+        sub_team=visibility_graph["alpha"],
+    )
+    assistant_users = await list_users(
+        db=db_session,
+        current_user=visibility_graph["alpha_assistant"],
+        sub_team=visibility_graph["alpha"],
+    )
+    manager_users = await list_users(
+        db=db_session,
+        current_user=visibility_graph["manager"],
+        sub_team=None,
+    )
+
+    assert {user.username for user in member_users} == {
+        "alpha_supervisor",
+        "alpha_assistant",
+        "alpha_member",
+    }
+    assert {user.username for user in assistant_users} == {
+        "alpha_supervisor",
+        "alpha_assistant",
+        "alpha_member",
+    }
+    assert {user.username for user in manager_users} == {
+        "manager",
+        "alpha_supervisor",
+        "alpha_assistant",
+        "beta_supervisor",
+        "alpha_member",
+        "beta_member",
+        "unscoped_member",
+    }
+
+
+@pytest.mark.asyncio
+async def test_user_detail_blocks_out_of_scope_records(db_session, visibility_graph):
+    visible = await get_user_endpoint(
+        visibility_graph["alpha_assistant"].id,
+        db=db_session,
+        current_user=visibility_graph["alpha_member"],
+    )
+
+    assert visible.username == "alpha_assistant"
+
+    with pytest.raises(HTTPException) as exc_info:
+        await get_user_endpoint(
+            visibility_graph["beta_member"].id,
+            db=db_session,
+            current_user=visibility_graph["alpha_member"],
+        )
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_manager_only_leadership_role_assignment(db_session, visibility_graph):
+    promoted = await update_user_role(
+        visibility_graph["alpha_member"].id,
+        UserRoleUpdate(role=UserRole.assistant_manager),
+        db=db_session,
+        current_user=visibility_graph["manager"],
+    )
+
+    assert promoted.role == UserRole.assistant_manager
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_user(
+            visibility_graph["beta_member"].id,
+            UserUpdate(role=UserRole.supervisor),
+            db=db_session,
+            current_user=visibility_graph["alpha_supervisor"],
+        )
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_leaders_manage_only_scoped_members(db_session, visibility_graph):
+    updated = await update_user(
+        visibility_graph["alpha_member"].id,
+        UserUpdate(full_name="Updated Alpha Member", role=UserRole.member),
+        db=db_session,
+        current_user=visibility_graph["alpha_assistant"],
+    )
+
+    assert updated.full_name == "Updated Alpha Member"
+
+    with pytest.raises(HTTPException) as peer_exc:
+        await update_user(
+            visibility_graph["alpha_supervisor"].id,
+            UserUpdate(full_name="Peer Update"),
+            db=db_session,
+            current_user=visibility_graph["alpha_assistant"],
+        )
+    assert peer_exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as scope_exc:
+        await update_user(
+            visibility_graph["beta_member"].id,
+            UserUpdate(full_name="Out Of Scope"),
+            db=db_session,
+            current_user=visibility_graph["alpha_assistant"],
+        )
+    assert scope_exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_member_profile_update_cannot_change_role_or_scope(
+    db_session, visibility_graph
+):
+    updated = await update_user(
+        visibility_graph["alpha_member"].id,
+        UserUpdate(full_name="Self Updated"),
+        db=db_session,
+        current_user=visibility_graph["alpha_member"],
+    )
+
+    assert updated.full_name == "Self Updated"
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_user(
+            visibility_graph["alpha_member"].id,
+            UserUpdate(role=UserRole.manager),
+            db=db_session,
+            current_user=visibility_graph["alpha_member"],
+        )
+    assert exc_info.value.status_code == 403
