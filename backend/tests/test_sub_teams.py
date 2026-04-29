@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.utils.auth import hash_password
+from app.utils.auth import create_access_token, hash_password
 from app.models import (
     EventNotification,
     NotificationEventType,
@@ -15,13 +15,8 @@ from app.models import (
 )
 
 
-async def _login(async_client: AsyncClient, username: str, password: str) -> str:
-    response = await async_client.post(
-        "/api/auth/token",
-        data={"username": username, "password": password},
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
+def _token(user: User) -> str:
+    return create_access_token({"sub": str(user.id)})
 
 
 async def _create_user(
@@ -59,7 +54,7 @@ async def test_reminder_settings_current_default_and_member_read_only(
         role=UserRole.member,
         sub_team_id=sub_team.id,
     )
-    token = await _login(async_client, member.username, "password")
+    token = _token(member)
     headers = {"Authorization": f"Bearer {token}"}
 
     response = await async_client.get("/api/sub-teams/reminder-settings/current", headers=headers)
@@ -101,7 +96,7 @@ async def test_supervisor_proposal_creates_pending_notification_and_preserves_se
         role=UserRole.manager,
     )
 
-    token = await _login(async_client, supervisor.username, "password")
+    token = _token(supervisor)
     headers = {"Authorization": f"Bearer {token}"}
 
     response = await async_client.post(
@@ -168,7 +163,7 @@ async def test_manager_can_update_and_approve_reminder_settings(
     db_session.add(sub_team)
     await db_session.commit()
 
-    manager_token = await _login(async_client, manager.username, "password")
+    manager_token = _token(manager)
     manager_headers = {
         "Authorization": f"Bearer {manager_token}",
         "X-SubTeam-ID": str(sub_team.id),
@@ -185,7 +180,7 @@ async def test_manager_can_update_and_approve_reminder_settings(
     assert data["sprint_reminders_enabled"] is False
     assert data["milestone_reminders_enabled"] is True
 
-    supervisor_token = await _login(async_client, supervisor.username, "password")
+    supervisor_token = _token(supervisor)
     supervisor_headers = {"Authorization": f"Bearer {supervisor_token}"}
     response = await async_client.post(
         "/api/sub-teams/reminder-settings/proposals",
@@ -255,7 +250,7 @@ async def test_leaders_list_only_allowed_sub_teams_and_manager_lists_all(
     db_session.add(beta)
     await db_session.commit()
 
-    assistant_token = await _login(async_client, assistant.username, "password")
+    assistant_token = _token(assistant)
     response = await async_client.get(
         "/api/sub-teams/",
         headers={"Authorization": f"Bearer {assistant_token}"},
@@ -263,7 +258,7 @@ async def test_leaders_list_only_allowed_sub_teams_and_manager_lists_all(
     assert response.status_code == 200
     assert [team["name"] for team in response.json()] == ["Alpha"]
 
-    manager_token = await _login(async_client, manager.username, "password")
+    manager_token = _token(manager)
     response = await async_client.get(
         "/api/sub-teams/",
         headers={"Authorization": f"Bearer {manager_token}"},
@@ -291,10 +286,9 @@ async def test_only_manager_can_create_update_and_delete_sub_teams(
         role=UserRole.assistant_manager,
         sub_team_id=sub_team.id,
     )
-    manager_username = manager.username
-    assistant_username = assistant.username
-
-    assistant_token = await _login(async_client, assistant_username, "password")
+    sub_team_id = sub_team.id
+    manager_token = _token(manager)
+    assistant_token = _token(assistant)
     assistant_headers = {"Authorization": f"Bearer {assistant_token}"}
     response = await async_client.post(
         "/api/sub-teams/",
@@ -302,8 +296,18 @@ async def test_only_manager_can_create_update_and_delete_sub_teams(
         headers=assistant_headers,
     )
     assert response.status_code == 403
+    response = await async_client.put(
+        f"/api/sub-teams/{sub_team_id}",
+        json={"name": "Updated By Assistant"},
+        headers=assistant_headers,
+    )
+    assert response.status_code == 403
+    response = await async_client.delete(
+        f"/api/sub-teams/{sub_team_id}",
+        headers=assistant_headers,
+    )
+    assert response.status_code == 403
 
-    manager_token = await _login(async_client, manager_username, "password")
     manager_headers = {"Authorization": f"Bearer {manager_token}"}
     response = await async_client.post(
         "/api/sub-teams/",
