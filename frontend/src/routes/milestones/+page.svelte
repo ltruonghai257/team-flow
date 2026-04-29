@@ -3,11 +3,13 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { milestones as milestonesApi, projects as projectsApi } from '$lib/apis';
-	import { formatDate, milestoneStatusColors } from '$lib/utils';
+	import type { MilestoneCommandViewResponse } from '$lib/apis/milestones';
 	import { toast } from 'svelte-sonner';
-	import { Plus, Pencil, Trash2, X, Flag, Calendar } from 'lucide-svelte';
+	import { Plus, X, Flag, AlertTriangle, CheckCircle2, MessageSquare, Ban } from 'lucide-svelte';
+	import MilestoneLane from '$lib/components/milestones/MilestoneLane.svelte';
+	import MilestoneCard from '$lib/components/milestones/MilestoneCard.svelte';
 
-	let milestoneList: any[] = [];
+	let commandData: MilestoneCommandViewResponse | null = null;
 	let projectList: any[] = [];
 	let loading = true;
 	let showModal = false;
@@ -25,14 +27,25 @@
 	};
 
 	onMount(async () => {
+		await loadData();
+	});
+
+	async function loadData() {
 		loading = true;
 		try {
-			[milestoneList, projectList] = await Promise.all([milestonesApi.list(), projectsApi.list()]);
+			const [cv, projects] = await Promise.all([
+				milestonesApi.commandView(),
+				projectsApi.list()
+			]);
+			commandData = cv;
+			projectList = projects;
+		} catch (e: any) {
+			toast.error('Failed to load milestones command view');
 		} finally {
 			loading = false;
 		}
 		await applyRouteHighlight($page.url.searchParams.toString());
-	});
+	}
 
 	function parsePositiveId(value: string | null): number | null {
 		if (!value) return null;
@@ -41,12 +54,22 @@
 	}
 
 	async function applyRouteHighlight(routeKey: string) {
-		if (routeKey === handledRouteKey) return;
+		if (routeKey === handledRouteKey || !commandData) return;
 		handledRouteKey = routeKey;
 
 		const milestoneId = parsePositiveId(new URLSearchParams(routeKey).get('milestone_id'));
-		highlightedMilestoneId =
-			milestoneId && milestoneList.some((m) => m.id === milestoneId) ? milestoneId : null;
+		
+		let exists = false;
+		if (milestoneId) {
+			for (const lane of Object.values(commandData.lanes)) {
+				if (lane.some(m => m.id === milestoneId)) {
+					exists = true;
+					break;
+				}
+			}
+		}
+
+		highlightedMilestoneId = milestoneId && exists ? milestoneId : null;
 
 		await tick();
 		if (highlightedMilestoneId) {
@@ -56,7 +79,7 @@
 		}
 	}
 
-	$: if (typeof window !== 'undefined' && !loading) {
+	$: if (typeof window !== 'undefined' && !loading && commandData) {
 		applyRouteHighlight($page.url.searchParams.toString());
 	}
 
@@ -95,106 +118,104 @@
 				toast.success('Milestone created');
 			}
 			showModal = false;
-			milestoneList = await milestonesApi.list();
+			await loadData();
 		} catch (e: any) {
 			toast.error(e.message);
 		}
 	}
 
-	async function deleteMilestone(id: number) {
-		if (!confirm('Delete this milestone?')) return;
-		try {
-			await milestonesApi.delete(id);
-			toast.success('Milestone deleted');
-			milestoneList = await milestonesApi.list();
-		} catch (e: any) {
-			toast.error(e.message);
-		}
-	}
-
-	function projectName(id: number) {
-		return projectList.find((p) => p.id === id)?.name || 'Unknown';
-	}
-
-	function progressPercent(m: any) {
-		if (m.status === 'completed') return 100;
-		if (m.status === 'planned') return 0;
-		const start = m.start_date ? new Date(m.start_date).getTime() : new Date(m.created_at).getTime();
-		const end = new Date(m.due_date).getTime();
-		const now = Date.now();
-		if (now >= end) return m.status === 'completed' ? 100 : 95;
-		return Math.round(((now - start) / (end - start)) * 100);
-	}
+	const laneOrder = ['planned', 'committed', 'active', 'completed'];
+	const laneLabels: Record<string, string> = {
+		planned: 'Planned',
+		committed: 'Committed',
+		active: 'Active',
+		completed: 'Completed'
+	};
 </script>
 
 <svelte:head><title>Milestones · TeamFlow</title></svelte:head>
 
-<div class="p-4 md:p-6 max-w-5xl mx-auto">
+<div class="p-4 md:p-6 max-w-7xl mx-auto">
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<h1 class="text-2xl font-bold text-white">Milestones</h1>
-			<p class="text-gray-400 text-sm mt-1">Track releases and major deliverables</p>
+			<p class="text-gray-400 text-sm mt-1">Command view for planning and execution</p>
 		</div>
 		<button on:click={openCreate} class="btn-primary">
 			<Plus size={16} /> New Milestone
 		</button>
 	</div>
 
-	{#if loading}
+	{#if loading && !commandData}
 		<div class="flex items-center justify-center py-20">
 			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
 		</div>
-	{:else if milestoneList.length === 0}
+	{:else if commandData}
+		<!-- Summary Metrics Row -->
+		<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+			<div class="card p-4 flex items-center gap-4">
+				<div class="p-3 rounded-lg bg-primary-500/10 text-primary-500">
+					<Flag size={20} />
+				</div>
+				<div>
+					<div class="text-2xl font-bold text-white">{commandData.metrics.active_milestones}</div>
+					<div class="text-xs text-gray-500 uppercase tracking-wider font-medium">Active</div>
+				</div>
+			</div>
+			<div class="card p-4 flex items-center gap-4">
+				<div class="p-3 rounded-lg bg-amber-500/10 text-amber-500">
+					<AlertTriangle size={20} />
+				</div>
+				<div>
+					<div class="text-2xl font-bold text-white">{commandData.metrics.risky_milestones}</div>
+					<div class="text-xs text-gray-500 uppercase tracking-wider font-medium">Risky</div>
+				</div>
+			</div>
+			<div class="card p-4 flex items-center gap-4">
+				<div class="p-3 rounded-lg bg-indigo-500/10 text-indigo-500">
+					<MessageSquare size={20} />
+				</div>
+				<div>
+					<div class="text-2xl font-bold text-white">{commandData.metrics.proposed_decisions}</div>
+					<div class="text-xs text-gray-500 uppercase tracking-wider font-medium">Proposed Decisions</div>
+				</div>
+			</div>
+			<div class="card p-4 flex items-center gap-4">
+				<div class="p-3 rounded-lg bg-red-500/10 text-red-500">
+					<Ban size={20} />
+				</div>
+				<div>
+					<div class="text-2xl font-bold text-white">{commandData.metrics.blocked_tasks}</div>
+					<div class="text-xs text-gray-500 uppercase tracking-wider font-medium">Blocked Tasks</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Lanes -->
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+			{#each laneOrder as laneKey}
+				{@const milestones = commandData.lanes[laneKey] || []}
+				<MilestoneLane title={laneLabels[laneKey]} count={milestones.length}>
+					{#each milestones as m (m.id)}
+						<MilestoneCard 
+							milestone={m} 
+							highlighted={highlightedMilestoneId === m.id}
+							on:edit={(e) => openEdit(e.detail)}
+							on:refresh={loadData}
+						/>
+					{/each}
+					{#if milestones.length === 0}
+						<div class="text-center py-8 border border-dashed border-gray-800 rounded-lg">
+							<p class="text-xs text-gray-600">Empty</p>
+						</div>
+					{/if}
+				</MilestoneLane>
+			{/each}
+		</div>
+	{:else}
 		<div class="card text-center py-12">
 			<Flag class="mx-auto text-gray-600 mb-3" size={36} />
 			<p class="text-gray-500">No milestones yet. Create one to start tracking!</p>
-		</div>
-	{:else}
-		<div class="space-y-4">
-			{#each milestoneList as m}
-				{@const pct = progressPercent(m)}
-				<div
-					id={`milestone-${m.id}`}
-					class="card hover:border-gray-700 transition-colors {highlightedMilestoneId === m.id
-						? 'ring-1 ring-primary-500/40 border-primary-500/40'
-						: ''}"
-				>
-					<div class="flex items-start justify-between gap-4">
-						<div class="flex-1 min-w-0">
-							<div class="flex items-center gap-3 mb-1">
-								<h3 class="font-semibold text-white">{m.title}</h3>
-								<span class="badge {milestoneStatusColors[m.status]}">{m.status.replace('_', ' ')}</span>
-							</div>
-							{#if m.description}
-								<p class="text-sm text-gray-400 mb-3">{m.description}</p>
-							{/if}
-							<div class="flex items-center gap-4 text-xs text-gray-500 mb-3">
-								<span class="flex items-center gap-1"><Calendar size={12} /> Due {formatDate(m.due_date)}</span>
-								{#if projectList.length > 0}
-									<span class="text-gray-600">·</span>
-									<span>{projectName(m.project_id)}</span>
-								{/if}
-							</div>
-							<!-- Progress bar -->
-							<div class="w-full bg-gray-800 rounded-full h-1.5">
-								<div
-									class="h-1.5 rounded-full transition-all {m.status === 'completed' ? 'bg-green-500' : m.status === 'delayed' ? 'bg-red-500' : 'bg-primary-500'}"
-									style="width: {pct}%"
-								></div>
-							</div>
-							<p class="text-xs text-gray-600 mt-1">{pct}% time elapsed</p>
-						</div>
-						<div class="flex items-center gap-1 flex-shrink-0">
-							<button on:click={() => openEdit(m)} class="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded transition-colors">
-								<Pencil size={14} />
-							</button>
-							<button on:click={() => deleteMilestone(m.id)} class="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded transition-colors">
-								<Trash2 size={14} />
-							</button>
-						</div>
-					</div>
-				</div>
-			{/each}
 		</div>
 	{/if}
 </div>
