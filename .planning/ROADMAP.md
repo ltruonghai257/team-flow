@@ -169,7 +169,7 @@ Plans:
 
 ### Phase 999.1: Status transition graph / workflow rules (YouTrack-style) (BACKLOG)
 
-**Goal:** Capture YouTrack-style workflow transition rules for future planning.
+**Goal:** Capture follow-up improvements and verification gaps for the shipped Phase 18 status-transition workflow rules.
 **Requirements:** TBD
 **Plans:** 0 plans
 
