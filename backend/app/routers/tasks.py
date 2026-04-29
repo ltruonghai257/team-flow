@@ -37,8 +37,47 @@ from app.schemas import (
     TaskOut,
     TaskUpdate,
 )
+from app.services.visibility import (
+    require_visible_user,
+    scoped_sub_team_filter,
+    visible_sub_team_ids,
+)
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+
+async def _require_visible_project(
+    db: AsyncSession,
+    current_user: User,
+    project_id: Optional[int],
+) -> Optional[Project]:
+    if project_id is None:
+        return None
+    allowed_ids = await visible_sub_team_ids(db, current_user)
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            scoped_sub_team_filter(Project.sub_team_id, current_user, allowed_ids),
+        )
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+async def _require_visible_assignee(
+    db: AsyncSession,
+    current_user: User,
+    assignee_id: Optional[int],
+) -> None:
+    if assignee_id is None:
+        return
+    result = await db.execute(select(User).where(User.id == assignee_id))
+    assignee = result.scalar_one_or_none()
+    if not assignee:
+        raise HTTPException(status_code=404, detail="Assignee not found")
+    await require_visible_user(db, current_user, assignee)
 
 
 async def _resolve_custom_status(
@@ -320,11 +359,12 @@ async def list_tasks(
 ):
     query = select(Task).options(selectinload(Task.assignee), selectinload(Task.custom_status))
 
-    # Apply sub-team filter (admin may have None = all teams)
-    if sub_team:
-        query = query.join(Project, Task.project_id == Project.id).where(
-            Project.sub_team_id == sub_team.id
-        )
+    allowed_ids = await visible_sub_team_ids(
+        db, current_user, requested_sub_team_id=sub_team.id if sub_team else None
+    )
+    query = query.join(Project, Task.project_id == Project.id).where(
+        scoped_sub_team_filter(Project.sub_team_id, current_user, allowed_ids)
+    )
     if project_id:
         query = query.where(Task.project_id == project_id)
     if milestone_id:
@@ -361,7 +401,13 @@ async def create_task(
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
     task_data = payload.model_dump()
+    project = await _require_visible_project(
+        db, current_user, task_data.get("project_id")
+    )
+    await _require_visible_assignee(db, current_user, task_data.get("assignee_id"))
     sub_team_id = sub_team.id if sub_team else None
+    if project:
+        sub_team_id = project.sub_team_id
     resolved_cs_id = await _resolve_custom_status(
         db,
         task_data.get("custom_status_id"),
@@ -385,12 +431,17 @@ async def create_task(
 async def get_task(
     task_id: int,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    allowed_ids = await visible_sub_team_ids(db, current_user)
     result = await db.execute(
         select(Task)
+        .join(Project, Task.project_id == Project.id)
         .options(selectinload(Task.assignee), selectinload(Task.custom_status))
-        .where(Task.id == task_id)
+        .where(
+            Task.id == task_id,
+            scoped_sub_team_filter(Project.sub_team_id, current_user, allowed_ids),
+        )
     )
     task = result.scalar_one_or_none()
     if not task:
@@ -403,23 +454,36 @@ async def update_task(
     task_id: int,
     payload: TaskUpdate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
+    allowed_ids = await visible_sub_team_ids(db, current_user)
     result = await db.execute(
         select(Task)
+        .join(Project, Task.project_id == Project.id)
         .options(selectinload(Task.assignee), selectinload(Task.custom_status))
-        .where(Task.id == task_id)
+        .where(
+            Task.id == task_id,
+            scoped_sub_team_filter(Project.sub_team_id, current_user, allowed_ids),
+        )
     )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = payload.model_dump(exclude_unset=True)
+    target_project = await _require_visible_project(
+        db, current_user, update_data.get("project_id", task.project_id)
+    )
+    await _require_visible_assignee(
+        db, current_user, update_data.get("assignee_id", task.assignee_id)
+    )
 
     requested_custom_status_id = update_data.pop("custom_status_id", None)
     sub_team_id = sub_team.id if sub_team else None
     target_project_id = update_data.get("project_id", task.project_id)
+    if target_project:
+        sub_team_id = target_project.sub_team_id
     target_legacy_status = update_data.get("status", task.status)
     should_enforce_transition = (
         requested_custom_status_id is not None
@@ -470,9 +534,17 @@ async def update_task(
 async def delete_task(
     task_id: int,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    allowed_ids = await visible_sub_team_ids(db, current_user)
+    result = await db.execute(
+        select(Task)
+        .join(Project, Task.project_id == Project.id)
+        .where(
+            Task.id == task_id,
+            scoped_sub_team_filter(Project.sub_team_id, current_user, allowed_ids),
+        )
+    )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

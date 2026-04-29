@@ -162,6 +162,19 @@ async def visible_scoped_filter(
     return scoped_sub_team_filter(sub_team_id_column, current_user, allowed_ids)
 
 
+async def require_visible_sub_team_id(
+    session: AsyncSession,
+    current_user: User,
+    sub_team_id: Optional[int],
+) -> Optional[int]:
+    if sub_team_id is None:
+        return None
+    await visible_sub_team_ids(
+        session, current_user, requested_sub_team_id=sub_team_id
+    )
+    return sub_team_id
+
+
 async def can_see_user(
     session: AsyncSession,
     current_user: User,

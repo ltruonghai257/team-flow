@@ -6,7 +6,17 @@ from fastapi import Response
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from app.models import InviteStatus, SubTeam, TeamInvite, User, UserRole
+from app.models import (
+    InviteStatus,
+    Project,
+    SubTeam,
+    Task,
+    TaskPriority,
+    TaskStatus,
+    TeamInvite,
+    User,
+    UserRole,
+)
 from app.routers.invites import accept_invite
 from app.routers.users import (
     get_user as get_user_endpoint,
@@ -27,6 +37,7 @@ from app.services.visibility import (
     visible_user_filter,
 )
 from app.utils.auth import (
+    create_access_token,
     hash_password,
     get_sub_team,
     require_leader,
@@ -640,3 +651,148 @@ async def test_invite_acceptance_assigns_stored_role_and_scope(
 
     assert user.role == UserRole.assistant_manager
     assert user.sub_team_id == visibility_graph["alpha"].id
+
+
+async def _create_visibility_work_items(db_session, visibility_graph):
+    alpha_project = Project(
+        name="Alpha Visible Project",
+        sub_team_id=visibility_graph["alpha"].id,
+    )
+    beta_project = Project(
+        name="Beta Hidden Project",
+        sub_team_id=visibility_graph["beta"].id,
+    )
+    db_session.add_all([alpha_project, beta_project])
+    await db_session.flush()
+
+    alpha_task = Task(
+        title="Alpha Visible Task",
+        status=TaskStatus.todo,
+        priority=TaskPriority.medium,
+        project_id=alpha_project.id,
+        creator_id=visibility_graph["alpha_member"].id,
+    )
+    beta_task = Task(
+        title="Beta Hidden Task",
+        status=TaskStatus.todo,
+        priority=TaskPriority.medium,
+        project_id=beta_project.id,
+        creator_id=visibility_graph["beta_member"].id,
+    )
+    db_session.add_all([alpha_task, beta_task])
+    await db_session.commit()
+    return alpha_project, beta_project, alpha_task, beta_task
+
+
+@pytest.mark.asyncio
+async def test_project_and_task_lists_follow_role_scope(
+    async_client, db_session, visibility_graph
+):
+    alpha_project, beta_project, alpha_task, beta_task = await _create_visibility_work_items(
+        db_session, visibility_graph
+    )
+    assistant_token = create_access_token(
+        {"sub": str(visibility_graph["alpha_assistant"].id)}
+    )
+    manager_token = create_access_token({"sub": str(visibility_graph["manager"].id)})
+
+    response = await async_client.get(
+        "/api/projects/",
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 200
+    assert {project["id"] for project in response.json()} == {alpha_project.id}
+
+    response = await async_client.get(
+        "/api/tasks/",
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 200
+    assert {task["id"] for task in response.json()} == {alpha_task.id}
+
+    response = await async_client.get(
+        "/api/projects/",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200
+    assert {project["id"] for project in response.json()} == {
+        alpha_project.id,
+        beta_project.id,
+    }
+
+    response = await async_client.get(
+        "/api/tasks/",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200
+    assert {task["id"] for task in response.json()} == {alpha_task.id, beta_task.id}
+
+
+@pytest.mark.asyncio
+async def test_project_and_task_direct_id_access_is_scoped(
+    async_client, db_session, visibility_graph
+):
+    alpha_project, beta_project, alpha_task, beta_task = await _create_visibility_work_items(
+        db_session, visibility_graph
+    )
+    alpha_project_id = alpha_project.id
+    beta_project_id = beta_project.id
+    alpha_task_id = alpha_task.id
+    beta_task_id = beta_task.id
+    member_token = create_access_token({"sub": str(visibility_graph["alpha_member"].id)})
+    manager_token = create_access_token({"sub": str(visibility_graph["manager"].id)})
+
+    response = await async_client.get(
+        f"/api/projects/{alpha_project_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 200
+
+    response = await async_client.get(
+        f"/api/projects/{beta_project_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.patch(
+        f"/api/projects/{beta_project_id}",
+        json={"name": "Leaked"},
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.delete(
+        f"/api/projects/{beta_project_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.get(
+        f"/api/tasks/{alpha_task_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 200
+
+    response = await async_client.get(
+        f"/api/tasks/{beta_task_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.delete(
+        f"/api/tasks/{beta_task_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.get(
+        f"/api/projects/{beta_project_id}",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200
+
+    response = await async_client.get(
+        f"/api/tasks/{beta_task_id}",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200

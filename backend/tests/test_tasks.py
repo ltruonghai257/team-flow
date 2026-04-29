@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.utils.auth import hash_password
+from app.utils.auth import create_access_token, hash_password
 from app.models import (
     CustomStatus,
     Milestone,
@@ -20,7 +20,6 @@ from app.models import (
     User,
     UserRole,
 )
-from app.utils.auth import hash_password
 
 
 def test_task_model_retains_legacy_status_and_custom_status_id():
@@ -88,15 +87,6 @@ def test_moving_from_is_done_to_non_done_status_clears_completed_at():
     task.custom_status = todo_status
 
     assert task.completed_at is None
-
-
-async def _login(async_client: AsyncClient, username: str) -> str:
-    response = await async_client.post(
-        "/api/auth/token",
-        data={"username": username, "password": "password"},
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
 
 
 async def _build_task_workflow_context(db_session, *, suffix: str = ""):
@@ -342,7 +332,7 @@ async def test_task_update_allows_free_movement_when_transition_graph_is_empty(
     data = await _build_task_workflow_context(db_session, suffix="_free")
     task_id = data["task"].id
     review_id = data["review"].id
-    token = await _login(async_client, data["member"].username)
+    token = create_access_token({"sub": str(data["member"].id)})
     headers = {"Authorization": f"Bearer {token}"}
 
     response = await async_client.patch(
@@ -374,7 +364,7 @@ async def test_task_update_blocks_non_listed_transition_with_structured_detail(
     )
     await db_session.commit()
 
-    token = await _login(async_client, data["member"].username)
+    token = create_access_token({"sub": str(data["member"].id)})
     headers = {"Authorization": f"Bearer {token}"}
     response = await async_client.patch(
         f"/api/tasks/{task_id}",
@@ -410,7 +400,7 @@ async def test_task_update_uses_legacy_status_mapping_before_enforcement(
     )
     await db_session.commit()
 
-    token = await _login(async_client, data["member"].username)
+    token = create_access_token({"sub": str(data["member"].id)})
     headers = {"Authorization": f"Bearer {token}"}
     response = await async_client.patch(
         f"/api/tasks/{task_id}",
@@ -438,7 +428,7 @@ async def test_task_update_does_not_block_ordinary_field_edits(
     )
     await db_session.commit()
 
-    token = await _login(async_client, data["member"].username)
+    token = create_access_token({"sub": str(data["member"].id)})
     headers = {"Authorization": f"Bearer {token}"}
     response = await async_client.patch(
         f"/api/tasks/{task_id}",
