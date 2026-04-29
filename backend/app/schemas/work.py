@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, field_validator
 
 from app.models.enums import (
+    MilestoneDecisionStatus,
     MilestoneStatus,
     SprintStatus,
     StatusSetScope,
@@ -88,6 +89,37 @@ class MilestoneOut(BaseModel):
     completed_at: Optional[datetime]
     project_id: int
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Milestone Decision ────────────────────────────────────────────────────────
+
+
+class MilestoneDecisionCreate(BaseModel):
+    milestone_id: int
+    task_id: Optional[int] = None
+    title: str
+    status: MilestoneDecisionStatus = MilestoneDecisionStatus.proposed
+    note: Optional[str] = None
+
+
+class MilestoneDecisionUpdate(BaseModel):
+    task_id: Optional[int] = None
+    title: Optional[str] = None
+    status: Optional[MilestoneDecisionStatus] = None
+    note: Optional[str] = None
+
+
+class MilestoneDecisionOut(BaseModel):
+    id: int
+    milestone_id: int
+    task_id: Optional[int]
+    title: str
+    status: MilestoneDecisionStatus
+    note: Optional[str]
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -413,3 +445,53 @@ class DashboardStats(BaseModel):
     total_team_members: int
     upcoming_milestones: List[MilestoneOut]
     recent_tasks: List[TaskOut]
+
+
+# ── Milestone Command View ────────────────────────────────────────────────────
+
+
+class MilestoneDecisionSummary(BaseModel):
+    proposed: int = 0
+    approved: int = 0
+    rejected: int = 0
+    superseded: int = 0
+
+
+class MilestoneTaskRollup(BaseModel):
+    total: int = 0
+    done: int = 0
+    blocked: int = 0
+    completion_percent: float = 0.0
+
+
+class MilestoneCommandViewMilestone(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    status: MilestoneStatus
+    planning_state: str  # "planned", "committed", "active", "completed"
+    risk: Optional[str] = None  # "at_risk", "delayed", "blocked", "watch"
+    start_date: Optional[datetime]
+    due_date: datetime
+    completed_at: Optional[datetime]
+    project_id: int
+    project_name: str
+    project_color: str
+    progress: MilestoneTaskRollup
+    decision_summary: MilestoneDecisionSummary
+    tasks: List[TaskOut] = []
+    decisions: List[MilestoneDecisionOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class MilestoneCommandViewMetrics(BaseModel):
+    active_milestones: int = 0
+    risky_milestones: int = 0
+    proposed_decisions: int = 0
+    blocked_tasks: int = 0
+
+
+class MilestoneCommandViewResponse(BaseModel):
+    metrics: MilestoneCommandViewMetrics
+    lanes: Dict[str, List[MilestoneCommandViewMilestone]]

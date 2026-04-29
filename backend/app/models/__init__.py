@@ -10,6 +10,7 @@
 from app.models.enums import (  # noqa: F401
     InviteStatus,
     KnowledgeSessionType,
+    MilestoneDecisionStatus,
     MilestoneStatus,
     NotificationEventType,
     NotificationStatus,
@@ -25,6 +26,7 @@ from app.models.users import KPIWeightSettings, SubTeam, TeamInvite, User  # noq
 from app.models.work import (  # noqa: F401
     CustomStatus,
     Milestone,
+    MilestoneDecision,
     Project,
     Schedule,
     Sprint,

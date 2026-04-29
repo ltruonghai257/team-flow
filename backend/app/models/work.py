@@ -16,6 +16,7 @@ from sqlalchemy.orm import relationship
 
 from app.db.database import Base
 from app.models.enums import (
+    MilestoneDecisionStatus,
     MilestoneStatus,
     SprintStatus,
     StatusSetScope,
@@ -60,6 +61,7 @@ class Milestone(Base):
     project = relationship("Project", back_populates="milestones")
     tasks = relationship("Task", back_populates="milestone")
     sprints = relationship("Sprint", back_populates="milestone")
+    decisions = relationship("MilestoneDecision", back_populates="milestone", cascade="all, delete-orphan")
 
 
 class Sprint(Base):
@@ -235,6 +237,7 @@ class Task(Base):
     milestone = relationship("Milestone", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
     custom_status = relationship("CustomStatus", back_populates="tasks")
+    milestone_decisions = relationship("MilestoneDecision", back_populates="task")
     assignee = relationship(
         "User", back_populates="assigned_tasks", foreign_keys=[assignee_id]
     )
@@ -262,3 +265,33 @@ class Schedule(Base):
     )
 
     user = relationship("User", back_populates="schedules")
+
+
+class MilestoneDecision(Base):
+    __tablename__ = "milestone_decisions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    milestone_id = Column(
+        Integer, ForeignKey("milestones.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    task_id = Column(
+        Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    title = Column(String, nullable=False)
+    status = Column(
+        Enum(MilestoneDecisionStatus),
+        default=MilestoneDecisionStatus.proposed,
+        nullable=False,
+    )
+    note = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+
+    milestone = relationship("Milestone", back_populates="decisions")
+    task = relationship("Task", back_populates="milestone_decisions")

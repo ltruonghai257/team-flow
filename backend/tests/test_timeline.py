@@ -19,16 +19,7 @@ from app.models import (
     User,
     UserRole,
 )
-from app.utils.auth import hash_password
-
-
-async def _login(async_client: AsyncClient, username: str, password: str = "password") -> str:
-    response = await async_client.post(
-        "/api/auth/token",
-        data={"username": username, "password": password},
-    )
-    assert response.status_code == 200
-    return response.json()["access_token"]
+from app.utils.auth import create_access_token, hash_password
 
 
 @pytest_asyncio.fixture
@@ -38,12 +29,12 @@ async def timeline_graph(db_session):
     db_session.add_all([team_a, team_b])
     await db_session.flush()
 
-    admin = User(
-        email="admin@example.com",
-        username="admin",
-        full_name="Admin User",
+    manager = User(
+        email="manager@example.com",
+        username="manager",
+        full_name="Manager User",
         hashed_password=hash_password("password"),
-        role=UserRole.admin,
+        role=UserRole.manager,
     )
     supervisor_a = User(
         email="sup-a@example.com",
@@ -69,7 +60,7 @@ async def timeline_graph(db_session):
         role=UserRole.member,
         sub_team_id=team_b.id,
     )
-    db_session.add_all([admin, supervisor_a, member_a, member_b])
+    db_session.add_all([manager, supervisor_a, member_a, member_b])
     await db_session.flush()
 
     team_a.supervisor_id = supervisor_a.id
@@ -163,9 +154,11 @@ async def timeline_graph(db_session):
 
     return {
         "team_a_id": team_a.id,
-        "admin_username": admin.username,
+        "manager_id": manager.id,
         "supervisor_a_username": supervisor_a.username,
+        "supervisor_a_id": supervisor_a.id,
         "member_a_username": member_a.username,
+        "member_a_id": member_a.id,
     }
 
 
@@ -173,10 +166,10 @@ async def timeline_graph(db_session):
 async def test_member_timeline_visibility_and_shape(
     async_client: AsyncClient, timeline_graph
 ):
-    token = await _login(async_client, timeline_graph["member_a_username"])
+    token = create_access_token({"sub": str(timeline_graph["member_a_id"])})
     response = await async_client.get(
         "/api/timeline/",
-        headers={"Cookie": f"access_token={token}"},
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     projects = response.json()
@@ -196,10 +189,10 @@ async def test_member_timeline_visibility_and_shape(
 async def test_supervisor_timeline_visibility_and_shape(
     async_client: AsyncClient, timeline_graph
 ):
-    token = await _login(async_client, timeline_graph["supervisor_a_username"])
+    token = create_access_token({"sub": str(timeline_graph["supervisor_a_id"])})
     response = await async_client.get(
         "/api/timeline/",
-        headers={"Cookie": f"access_token={token}"},
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     projects = response.json()
@@ -209,14 +202,14 @@ async def test_supervisor_timeline_visibility_and_shape(
 
 
 @pytest.mark.asyncio
-async def test_admin_timeline_visibility_respects_sub_team_header(
+async def test_manager_timeline_visibility_respects_sub_team_header(
     async_client: AsyncClient, timeline_graph
 ):
-    token = await _login(async_client, timeline_graph["admin_username"])
+    token = create_access_token({"sub": str(timeline_graph["manager_id"])})
 
     all_response = await async_client.get(
         "/api/timeline/",
-        headers={"Cookie": f"access_token={token}"},
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert all_response.status_code == 200
     all_names = {project["name"] for project in all_response.json()}
@@ -225,7 +218,7 @@ async def test_admin_timeline_visibility_respects_sub_team_header(
     filtered_response = await async_client.get(
         "/api/timeline/",
         headers={
-            "Cookie": f"access_token={token}",
+            "Authorization": f"Bearer {token}",
             "X-SubTeam-ID": str(timeline_graph["team_a_id"]),
         },
     )

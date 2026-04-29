@@ -8,6 +8,8 @@ from sqlalchemy import select
 
 from app.models import (
     InviteStatus,
+    Milestone,
+    MilestoneStatus,
     Project,
     SubTeam,
     Task,
@@ -684,6 +686,27 @@ async def _create_visibility_work_items(db_session, visibility_graph):
     return alpha_project, beta_project, alpha_task, beta_task
 
 
+async def _create_visibility_milestones(db_session, visibility_graph):
+    alpha_project, beta_project, _, _ = await _create_visibility_work_items(
+        db_session, visibility_graph
+    )
+    alpha_milestone = Milestone(
+        title="Alpha Visible Milestone",
+        status=MilestoneStatus.planned,
+        project_id=alpha_project.id,
+        due_date=datetime(2026, 6, 10),
+    )
+    beta_milestone = Milestone(
+        title="Beta Hidden Milestone",
+        status=MilestoneStatus.planned,
+        project_id=beta_project.id,
+        due_date=datetime(2026, 6, 20),
+    )
+    db_session.add_all([alpha_milestone, beta_milestone])
+    await db_session.commit()
+    return alpha_milestone, beta_milestone
+
+
 @pytest.mark.asyncio
 async def test_project_and_task_lists_follow_role_scope(
     async_client, db_session, visibility_graph
@@ -726,6 +749,65 @@ async def test_project_and_task_lists_follow_role_scope(
     )
     assert response.status_code == 200
     assert {task["id"] for task in response.json()} == {alpha_task.id, beta_task.id}
+
+
+@pytest.mark.asyncio
+async def test_milestone_list_and_direct_id_access_is_scoped(
+    async_client, db_session, visibility_graph
+):
+    alpha_milestone, beta_milestone = await _create_visibility_milestones(
+        db_session, visibility_graph
+    )
+    alpha_milestone_id = alpha_milestone.id
+    beta_milestone_id = beta_milestone.id
+    assistant_token = create_access_token(
+        {"sub": str(visibility_graph["alpha_assistant"].id)}
+    )
+    member_token = create_access_token({"sub": str(visibility_graph["alpha_member"].id)})
+    manager_token = create_access_token({"sub": str(visibility_graph["manager"].id)})
+
+    response = await async_client.get(
+        "/api/milestones/",
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 200
+    assert {milestone["id"] for milestone in response.json()} == {alpha_milestone_id}
+
+    response = await async_client.get(
+        f"/api/milestones/{beta_milestone_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.patch(
+        f"/api/milestones/{beta_milestone_id}",
+        json={"title": "Leaked Milestone"},
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.delete(
+        f"/api/milestones/{beta_milestone_id}",
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.post(
+        f"/api/milestones/{beta_milestone_id}/decisions",
+        json={"milestone_id": beta_milestone_id, "title": "Hidden Decision"},
+        headers={"Authorization": f"Bearer {member_token}"},
+    )
+    assert response.status_code == 404
+
+    response = await async_client.get(
+        "/api/milestones/",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200
+    assert {milestone["id"] for milestone in response.json()} == {
+        alpha_milestone_id,
+        beta_milestone_id,
+    }
 
 
 @pytest.mark.asyncio

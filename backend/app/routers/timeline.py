@@ -7,8 +7,9 @@ from sqlalchemy.orm import selectinload
 
 from app.utils.auth import get_current_user, get_sub_team
 from app.db.database import get_db
-from app.models import Milestone, Project, SubTeam, Task, User, UserRole
+from app.models import Milestone, Project, SubTeam, Task, User
 from app.schemas import TimelineProjectOut, TimelineTaskOut, TimelineMilestoneOut
+from app.services.visibility import scoped_sub_team_filter, visible_sub_team_ids
 
 router = APIRouter(prefix="/api/timeline", tags=["timeline"])
 
@@ -29,19 +30,10 @@ async def get_timeline(
         .selectinload(Task.custom_status),
     )
 
-    # Apply sub-team filter (admin may have None = all teams)
-    if sub_team:
-        stmt = stmt.where(Project.sub_team_id == sub_team.id)
-
-    # Apply role-specific filtering per D-22/D-23/D-24
-    if current_user.role == UserRole.member:
-        # Members see only projects where they have assigned tasks
-        stmt = (
-            stmt.join(Task, Project.id == Task.project_id)
-            .where(Task.assignee_id == current_user.id)
-            .distinct()
-        )
-    # Supervisors and admins see all projects in their scoped view (already filtered by sub_team above)
+    allowed_ids = await visible_sub_team_ids(
+        db, current_user, requested_sub_team_id=sub_team.id if sub_team else None
+    )
+    stmt = stmt.where(scoped_sub_team_filter(Project.sub_team_id, current_user, allowed_ids))
 
     stmt = stmt.order_by(Project.name)
     result = await db.execute(stmt)
