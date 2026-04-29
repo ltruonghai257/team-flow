@@ -9,6 +9,7 @@ from app.models import (
     NotificationStatus,
     ReminderProposalStatus,
     ReminderSettingsProposal,
+    SubTeam,
     User,
     UserRole,
 )
@@ -30,7 +31,7 @@ async def _create_user(
     username: str,
     full_name: str,
     role: UserRole,
-    sub_team_id: int,
+    sub_team_id: int | None = None,
 ) -> User:
     user = User(
         email=email,
@@ -92,13 +93,12 @@ async def test_supervisor_proposal_creates_pending_notification_and_preserves_se
     sub_team.supervisor_id = supervisor.id
     db_session.add(sub_team)
     await db_session.commit()
-    admin = await _create_user(
+    manager = await _create_user(
         db_session,
-        email="admin@example.com",
-        username="admin",
-        full_name="Admin User",
-        role=UserRole.admin,
-        sub_team_id=sub_team.id,
+        email="manager@example.com",
+        username="manager",
+        full_name="Manager User",
+        role=UserRole.manager,
     )
 
     token = await _login(async_client, supervisor.username, "password")
@@ -127,7 +127,7 @@ async def test_supervisor_proposal_creates_pending_notification_and_preserves_se
 
     result = await db_session.execute(
         select(EventNotification).where(
-            EventNotification.user_id == admin.id,
+            EventNotification.user_id == manager.id,
             EventNotification.event_type == NotificationEventType.reminder_settings_proposal,
             EventNotification.event_ref_id == proposal["id"],
             EventNotification.status == NotificationStatus.pending,
@@ -146,16 +146,15 @@ async def test_supervisor_proposal_creates_pending_notification_and_preserves_se
 
 
 @pytest.mark.asyncio
-async def test_admin_can_update_and_approve_reminder_settings(
+async def test_manager_can_update_and_approve_reminder_settings(
     async_client: AsyncClient, db_session, sub_team
 ):
-    admin = await _create_user(
+    manager = await _create_user(
         db_session,
-        email="admin2@example.com",
-        username="admin2",
-        full_name="Admin User",
-        role=UserRole.admin,
-        sub_team_id=sub_team.id,
+        email="manager2@example.com",
+        username="manager2",
+        full_name="Manager User",
+        role=UserRole.manager,
     )
     supervisor = await _create_user(
         db_session,
@@ -169,16 +168,16 @@ async def test_admin_can_update_and_approve_reminder_settings(
     db_session.add(sub_team)
     await db_session.commit()
 
-    admin_token = await _login(async_client, admin.username, "password")
-    admin_headers = {
-        "Authorization": f"Bearer {admin_token}",
+    manager_token = await _login(async_client, manager.username, "password")
+    manager_headers = {
+        "Authorization": f"Bearer {manager_token}",
         "X-SubTeam-ID": str(sub_team.id),
     }
 
     response = await async_client.patch(
         "/api/sub-teams/reminder-settings/current",
         json={"lead_time_days": 3, "sprint_reminders_enabled": False},
-        headers=admin_headers,
+        headers=manager_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -201,7 +200,7 @@ async def test_admin_can_update_and_approve_reminder_settings(
     response = await async_client.post(
         f"/api/sub-teams/reminder-settings/proposals/{proposal_id}/review",
         json={"decision": "approve"},
-        headers=admin_headers,
+        headers=manager_headers,
     )
     if response.status_code != 200:
         print("REVIEW RESPONSE:", response.json())
@@ -211,10 +210,119 @@ async def test_admin_can_update_and_approve_reminder_settings(
 
     response = await async_client.get(
         "/api/sub-teams/reminder-settings/current",
-        headers=admin_headers,
+        headers=manager_headers,
     )
     assert response.status_code == 200
     current = response.json()
     assert current["lead_time_days"] == 3
     assert current["sprint_reminders_enabled"] is False
     assert current["milestone_reminders_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_leaders_list_only_allowed_sub_teams_and_manager_lists_all(
+    async_client: AsyncClient, db_session
+):
+    alpha = SubTeam(name="Alpha", supervisor_id=None)
+    beta = SubTeam(name="Beta", supervisor_id=None)
+    db_session.add_all([alpha, beta])
+    await db_session.flush()
+
+    manager = await _create_user(
+        db_session,
+        email="team.manager@example.com",
+        username="team_manager",
+        full_name="Team Manager",
+        role=UserRole.manager,
+    )
+    assistant = await _create_user(
+        db_session,
+        email="assistant@example.com",
+        username="assistant",
+        full_name="Assistant Manager",
+        role=UserRole.assistant_manager,
+        sub_team_id=alpha.id,
+    )
+    supervisor = await _create_user(
+        db_session,
+        email="beta.lead@example.com",
+        username="beta_lead",
+        full_name="Beta Lead",
+        role=UserRole.supervisor,
+        sub_team_id=beta.id,
+    )
+    beta.supervisor_id = supervisor.id
+    db_session.add(beta)
+    await db_session.commit()
+
+    assistant_token = await _login(async_client, assistant.username, "password")
+    response = await async_client.get(
+        "/api/sub-teams/",
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 200
+    assert [team["name"] for team in response.json()] == ["Alpha"]
+
+    manager_token = await _login(async_client, manager.username, "password")
+    response = await async_client.get(
+        "/api/sub-teams/",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200
+    assert {team["name"] for team in response.json()} == {"Alpha", "Beta"}
+
+
+@pytest.mark.asyncio
+async def test_only_manager_can_create_update_and_delete_sub_teams(
+    async_client: AsyncClient, db_session, sub_team
+):
+    manager = await _create_user(
+        db_session,
+        email="mut.manager@example.com",
+        username="mut_manager",
+        full_name="Mutation Manager",
+        role=UserRole.manager,
+    )
+    assistant = await _create_user(
+        db_session,
+        email="mut.assistant@example.com",
+        username="mut_assistant",
+        full_name="Mutation Assistant",
+        role=UserRole.assistant_manager,
+        sub_team_id=sub_team.id,
+    )
+    manager_username = manager.username
+    assistant_username = assistant.username
+
+    assistant_token = await _login(async_client, assistant_username, "password")
+    assistant_headers = {"Authorization": f"Bearer {assistant_token}"}
+    response = await async_client.post(
+        "/api/sub-teams/",
+        json={"name": "Created By Assistant"},
+        headers=assistant_headers,
+    )
+    assert response.status_code == 403
+
+    manager_token = await _login(async_client, manager_username, "password")
+    manager_headers = {"Authorization": f"Bearer {manager_token}"}
+    response = await async_client.post(
+        "/api/sub-teams/",
+        json={"name": "Created By Manager"},
+        headers=manager_headers,
+    )
+    assert response.status_code == 201
+    created_id = response.json()["id"]
+
+    response = await async_client.put(
+        f"/api/sub-teams/{created_id}",
+        json={"name": "Updated By Manager"},
+        headers=manager_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated By Manager"
+
+    response = await async_client.delete(
+        f"/api/sub-teams/{created_id}",
+        headers=manager_headers,
+    )
+    assert response.status_code == 204

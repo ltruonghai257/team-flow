@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.auth import get_current_user, get_sub_team, require_admin, require_supervisor_or_admin
+from app.utils.auth import (
+    get_current_user,
+    get_sub_team,
+    require_leader_or_manager,
+    require_manager,
+)
 from app.db.database import get_db
 from app.models import (
     EventNotification,
@@ -28,6 +33,12 @@ from app.schemas import (
     SubTeamUpdate,
 )
 from app.services.reminder_notifications import get_or_create_reminder_settings
+from app.services.visibility import (
+    is_leader,
+    is_manager,
+    scoped_sub_team_filter,
+    visible_sub_team_ids,
+)
 
 router = APIRouter(prefix="/api/sub-teams", tags=["sub-teams"])
 
@@ -40,17 +51,17 @@ def _active_sub_team_or_error(
     return sub_team
 
 
-async def _notify_admins_of_proposal(
+async def _notify_managers_of_proposal(
     db: AsyncSession, proposal: ReminderSettingsProposal
 ) -> None:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     result = await db.execute(
-        select(User.id).where(User.role == UserRole.admin, User.is_active.is_(True))
+        select(User.id).where(User.role == UserRole.manager, User.is_active.is_(True))
     )
-    for (admin_id,) in result.all():
+    for (manager_id,) in result.all():
         db.add(
             EventNotification(
-                user_id=admin_id,
+                user_id=manager_id,
                 event_type=NotificationEventType.reminder_settings_proposal,
                 event_ref_id=proposal.id,
                 title_cache="Reminder settings proposal pending review on /team",
@@ -80,8 +91,8 @@ async def update_reminder_settings_current(
     current_user: User = Depends(get_current_user),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    if not is_manager(current_user):
+        raise HTTPException(status_code=403, detail="Manager access required")
     target_sub_team = _active_sub_team_or_error(current_user, sub_team)
     settings = await get_or_create_reminder_settings(db, target_sub_team.id)
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -98,8 +109,8 @@ async def create_reminder_settings_proposal(
     current_user: User = Depends(get_current_user),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    if current_user.role != UserRole.supervisor:
-        raise HTTPException(status_code=403, detail="Supervisor access required")
+    if not is_leader(current_user):
+        raise HTTPException(status_code=403, detail="Leader access required")
     target_sub_team = _active_sub_team_or_error(current_user, sub_team)
     proposal = ReminderSettingsProposal(
         sub_team_id=target_sub_team.id,
@@ -108,7 +119,7 @@ async def create_reminder_settings_proposal(
     )
     db.add(proposal)
     await db.flush()
-    await _notify_admins_of_proposal(db, proposal)
+    await _notify_managers_of_proposal(db, proposal)
     await db.commit()
     await db.refresh(proposal)
     return proposal
@@ -120,8 +131,8 @@ async def list_reminder_settings_proposals(
     current_user: User = Depends(get_current_user),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    if not is_manager(current_user):
+        raise HTTPException(status_code=403, detail="Manager access required")
     target_sub_team = _active_sub_team_or_error(current_user, sub_team)
     result = await db.execute(
         select(ReminderSettingsProposal)
@@ -142,8 +153,8 @@ async def review_reminder_settings_proposal(
     current_user: User = Depends(get_current_user),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    if not is_manager(current_user):
+        raise HTTPException(status_code=403, detail="Manager access required")
     target_sub_team = _active_sub_team_or_error(current_user, sub_team)
     result = await db.execute(
         select(ReminderSettingsProposal).where(ReminderSettingsProposal.id == proposal_id)
@@ -178,7 +189,7 @@ async def review_reminder_settings_proposal(
 async def create_sub_team(
     sub_team: SubTeamCreate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_supervisor_or_admin),
+    _: User = Depends(require_manager),
 ):
     new_sub_team = SubTeam(**sub_team.model_dump())
     db.add(new_sub_team)
@@ -190,9 +201,12 @@ async def create_sub_team(
 @router.get("/", response_model=List[SubTeamOut])
 async def list_sub_teams(
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
 ):
-    result = await db.execute(select(SubTeam))
+    allowed_ids = await visible_sub_team_ids(db, current_user)
+    result = await db.execute(
+        select(SubTeam).where(scoped_sub_team_filter(SubTeam.id, current_user, allowed_ids))
+    )
     return result.scalars().all()
 
 
@@ -201,7 +215,7 @@ async def update_sub_team(
     sub_team_id: int,
     sub_team_update: SubTeamUpdate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_supervisor_or_admin),
+    _: User = Depends(require_manager),
 ):
     result = await db.execute(select(SubTeam).where(SubTeam.id == sub_team_id))
     sub_team = result.scalar_one_or_none()
@@ -218,7 +232,7 @@ async def update_sub_team(
 async def delete_sub_team(
     sub_team_id: int,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_admin),
+    _: User = Depends(require_manager),
 ):
     result = await db.execute(select(SubTeam).where(SubTeam.id == sub_team_id))
     sub_team = result.scalar_one_or_none()
