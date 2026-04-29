@@ -35,6 +35,14 @@ def is_active_role(role: UserRole | str) -> bool:
     return value in {active_role.value for active_role in ACTIVE_ROLES}
 
 
+def can_assign_role(current_user: User, role: UserRole) -> bool:
+    if is_manager(current_user):
+        return is_active_role(role)
+    if is_leader(current_user):
+        return role == UserRole.member
+    return False
+
+
 def _unique_ids(ids: Iterable[int | None]) -> list[int]:
     return sorted({item for item in ids if item is not None})
 

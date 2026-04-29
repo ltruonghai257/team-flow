@@ -12,7 +12,7 @@ from app.utils.auth import (
     get_current_user,
     get_sub_team,
     hash_password,
-    require_supervisor_or_admin,
+    require_leader_or_manager,
 )
 from app.core.config import settings
 from app.db.database import get_db
@@ -26,6 +26,12 @@ from app.schemas import (
     InviteOut,
     InviteValidateOut,
     UserOut,
+)
+from app.services.visibility import (
+    can_assign_role,
+    is_manager,
+    scoped_sub_team_filter,
+    visible_sub_team_ids,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,9 +56,15 @@ async def send_invite(
     request: Request,
     payload: InviteCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
+    if not can_assign_role(current_user, payload.role):
+        raise HTTPException(
+            status_code=403,
+            detail="Only managers can assign leadership roles",
+        )
+
     result = await db.execute(
         select(TeamInvite).where(
             TeamInvite.email == payload.email,
@@ -71,16 +83,14 @@ async def send_invite(
             status_code=400, detail="User with this email is already registered"
         )
 
-    # Determine target sub_team_id from inviter's context per D-16/D-17
     target_sub_team_id = payload.sub_team_id
     if target_sub_team_id is None:
-        # Use inviter's current sub-team context
-        if current_user.role == UserRole.admin:
-            target_sub_team_id = sub_team.id if sub_team else None
-        elif current_user.role == UserRole.supervisor:
-            target_sub_team_id = current_user.sub_team_id
-        else:
-            target_sub_team_id = current_user.sub_team_id
+        target_sub_team_id = sub_team.id if sub_team else current_user.sub_team_id
+
+    allowed_ids = await visible_sub_team_ids(db, current_user, target_sub_team_id)
+    if not is_manager(current_user):
+        if target_sub_team_id is None or allowed_ids != [target_sub_team_id]:
+            raise HTTPException(status_code=403, detail="Invalid sub-team")
 
     token = _generate_token()
     code = _generate_validation_code()
@@ -120,7 +130,7 @@ async def send_invite(
 async def direct_add_member(
     payload: DirectAddRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
 ):
     result = await db.execute(select(User).where(User.id == payload.user_id))
     user = result.scalar_one_or_none()
@@ -129,12 +139,22 @@ async def direct_add_member(
     if not user.is_active:
         raise HTTPException(status_code=400, detail="User is not active")
 
+    target_role = payload.role or user.role
+    if not can_assign_role(current_user, target_role):
+        raise HTTPException(
+            status_code=403,
+            detail="Only managers can assign leadership roles",
+        )
+
+    allowed_ids = await visible_sub_team_ids(db, current_user, user.sub_team_id)
+    if not is_manager(current_user):
+        if user.sub_team_id is None or allowed_ids != [user.sub_team_id]:
+            raise HTTPException(status_code=403, detail="User outside visible scope")
+        if user.role != UserRole.member:
+            raise HTTPException(status_code=403, detail="Leaders can manage members only")
+
     if payload.role is not None:
-        if current_user.role != UserRole.admin and payload.role != UserRole.member:
-            raise HTTPException(
-                status_code=403, detail="Only admins can assign non-member roles"
-            )
-        user.role = payload.role
+        user.role = target_role
         await db.flush()
         await db.refresh(user)
 
@@ -239,11 +259,15 @@ async def accept_invite(
 @router.get("/api/invites/pending", response_model=List[InviteOut])
 async def list_pending_invites(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
 ):
+    allowed_ids = await visible_sub_team_ids(db, current_user)
     result = await db.execute(
         select(TeamInvite)
-        .where(TeamInvite.status == InviteStatus.pending)
+        .where(
+            TeamInvite.status == InviteStatus.pending,
+            scoped_sub_team_filter(TeamInvite.sub_team_id, current_user, allowed_ids),
+        )
         .order_by(TeamInvite.created_at.desc())
     )
     return result.scalars().all()
@@ -253,7 +277,7 @@ async def list_pending_invites(
 async def cancel_invite(
     invite_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_supervisor_or_admin),
+    current_user: User = Depends(require_leader_or_manager),
 ):
     result = await db.execute(select(TeamInvite).where(TeamInvite.id == invite_id))
     invite = result.scalar_one_or_none()
@@ -263,5 +287,9 @@ async def cancel_invite(
         raise HTTPException(
             status_code=400, detail="Only pending invites can be cancelled"
         )
+    allowed_ids = await visible_sub_team_ids(db, current_user, invite.sub_team_id)
+    if not is_manager(current_user):
+        if invite.sub_team_id is None or allowed_ids != [invite.sub_team_id]:
+            raise HTTPException(status_code=403, detail="Invite outside visible scope")
     invite.status = InviteStatus.cancelled
     await db.flush()

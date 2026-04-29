@@ -1,16 +1,20 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 import pytest_asyncio
+from fastapi import Response
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from app.models import SubTeam, User, UserRole
+from app.models import InviteStatus, SubTeam, TeamInvite, User, UserRole
+from app.routers.invites import accept_invite
 from app.routers.users import (
     get_user as get_user_endpoint,
     list_users,
     update_user,
     update_user_role,
 )
-from app.schemas import UserRoleUpdate, UserUpdate
+from app.schemas import InviteAcceptRequest, UserRoleUpdate, UserUpdate
 from app.services.visibility import (
     ACTIVE_ROLES,
     can_see_user,
@@ -50,6 +54,36 @@ async def _create_user(
     db_session.add(user)
     await db_session.flush()
     return user
+
+
+async def _login(async_client, username: str) -> str:
+    async_client.cookies.clear()
+    response = await async_client.post(
+        "/api/auth/token",
+        data={"username": username, "password": "password"},
+    )
+    assert response.status_code == 200
+    async_client.cookies.clear()
+    return response.json()["access_token"]
+
+
+def _invite(
+    *,
+    email: str,
+    role: UserRole,
+    invited_by_id: int,
+    sub_team_id: int | None,
+) -> TeamInvite:
+    return TeamInvite(
+        email=email,
+        role=role,
+        token=f"token-{email}",
+        validation_code="123456",
+        status=InviteStatus.pending,
+        invited_by_id=invited_by_id,
+        sub_team_id=sub_team_id,
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1),
+    )
 
 
 @pytest_asyncio.fixture
@@ -426,3 +460,183 @@ async def test_member_profile_update_cannot_change_role_or_scope(
             current_user=visibility_graph["alpha_member"],
         )
     assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_invite_role_assignment_is_manager_only(async_client, visibility_graph):
+    alpha_id = visibility_graph["alpha"].id
+    beta_id = visibility_graph["beta"].id
+    manager_token = await _login(async_client, visibility_graph["manager"].username)
+    assistant_token = await _login(async_client, visibility_graph["alpha_assistant"].username)
+
+    response = await async_client.post(
+        "/api/teams/invite",
+        json={
+            "email": "new.supervisor@example.com",
+            "role": "supervisor",
+            "sub_team_id": alpha_id,
+        },
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 201
+    assert response.json()["role"] == "supervisor"
+    assert response.json()["sub_team_id"] == alpha_id
+
+    async_client.cookies.clear()
+    response = await async_client.post(
+        "/api/teams/invite",
+        json={
+            "email": "blocked.leader@example.com",
+            "role": "assistant_manager",
+            "sub_team_id": alpha_id,
+        },
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 403
+
+    response = await async_client.post(
+        "/api/teams/invite",
+        json={
+            "email": "scoped.member@example.com",
+            "role": "member",
+            "sub_team_id": alpha_id,
+        },
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 201
+    assert response.json()["role"] == "member"
+
+    response = await async_client.post(
+        "/api/teams/invite",
+        json={
+            "email": "out.scope.member@example.com",
+            "role": "member",
+            "sub_team_id": beta_id,
+        },
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_direct_add_role_assignment_is_manager_only(async_client, visibility_graph):
+    alpha_member_id = visibility_graph["alpha_member"].id
+    unscoped_member_id = visibility_graph["unscoped_member"].id
+    manager_token = await _login(async_client, visibility_graph["manager"].username)
+    assistant_token = await _login(async_client, visibility_graph["alpha_assistant"].username)
+
+    response = await async_client.post(
+        "/api/teams/add",
+        json={
+            "user_id": unscoped_member_id,
+            "role": "manager",
+        },
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["role"] == "manager"
+
+    async_client.cookies.clear()
+    response = await async_client.post(
+        "/api/teams/add",
+        json={
+            "user_id": alpha_member_id,
+            "role": "supervisor",
+        },
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 403
+
+    response = await async_client.post(
+        "/api/teams/add",
+        json={
+            "user_id": alpha_member_id,
+            "role": "member",
+        },
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_pending_invites_are_scoped_and_cancellation_is_guarded(
+    async_client, db_session, visibility_graph
+):
+    manager_username = visibility_graph["manager"].username
+    assistant_username = visibility_graph["alpha_assistant"].username
+    alpha_invite = _invite(
+        email="alpha.pending@example.com",
+        role=UserRole.member,
+        invited_by_id=visibility_graph["manager"].id,
+        sub_team_id=visibility_graph["alpha"].id,
+    )
+    beta_invite = _invite(
+        email="beta.pending@example.com",
+        role=UserRole.member,
+        invited_by_id=visibility_graph["manager"].id,
+        sub_team_id=visibility_graph["beta"].id,
+    )
+    db_session.add_all([alpha_invite, beta_invite])
+    await db_session.commit()
+    beta_invite_id = beta_invite.id
+
+    assistant_token = await _login(async_client, assistant_username)
+    response = await async_client.get(
+        "/api/invites/pending",
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 200
+    assert [invite["email"] for invite in response.json()] == ["alpha.pending@example.com"]
+
+    response = await async_client.delete(
+        f"/api/invites/{beta_invite_id}",
+        headers={"Authorization": f"Bearer {assistant_token}"},
+    )
+    assert response.status_code == 403
+
+    async_client.cookies.clear()
+    manager_token = await _login(async_client, manager_username)
+    response = await async_client.get(
+        "/api/invites/pending",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 200
+    assert {invite["email"] for invite in response.json()} == {
+        "alpha.pending@example.com",
+        "beta.pending@example.com",
+    }
+
+    response = await async_client.delete(
+        f"/api/invites/{beta_invite_id}",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_invite_acceptance_assigns_stored_role_and_scope(
+    db_session, visibility_graph
+):
+    invite = _invite(
+        email="accepted.assistant@example.com",
+        role=UserRole.assistant_manager,
+        invited_by_id=visibility_graph["manager"].id,
+        sub_team_id=visibility_graph["alpha"].id,
+    )
+    db_session.add(invite)
+    await db_session.commit()
+
+    user = await accept_invite(
+        InviteAcceptRequest(
+            token=invite.token,
+            validation_code=invite.validation_code,
+            username="accepted_assistant",
+            full_name="Accepted Assistant",
+            password="password",
+        ),
+        response=Response(),
+        db=db_session,
+    )
+
+    assert user.role == UserRole.assistant_manager
+    assert user.sub_team_id == visibility_graph["alpha"].id
