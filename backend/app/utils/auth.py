@@ -12,6 +12,11 @@ from app.core.config import settings
 from app.db.database import get_db
 from app.models import SubTeam, User, UserRole
 from app.schemas import TokenData
+from app.services.visibility import (
+    is_leader,
+    is_manager,
+    resolve_visible_sub_team,
+)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token", auto_error=False)
 
@@ -64,32 +69,40 @@ async def get_current_user(
     return user
 
 
-async def require_supervisor(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role not in (UserRole.admin, UserRole.supervisor):
+async def require_manager(current_user: User = Depends(get_current_user)) -> User:
+    if not is_manager(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Supervisor or admin access required",
+            detail="Manager access required",
         )
     return current_user
 
 
-async def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != UserRole.admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
-        )
-    return current_user
-
-
-async def require_supervisor_or_admin(
+async def require_leader_or_manager(
     current_user: User = Depends(get_current_user),
 ) -> User:
-    if current_user.role not in (UserRole.admin, UserRole.supervisor):
+    if not (is_manager(current_user) or is_leader(current_user)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Supervisor or admin access required",
+            detail="Leader or manager access required",
         )
     return current_user
+
+
+async def require_leader(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not is_leader(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Leader access required",
+        )
+    return current_user
+
+
+require_supervisor = require_leader_or_manager
+require_admin = require_manager
+require_supervisor_or_admin = require_leader_or_manager
 
 
 async def get_sub_team(
@@ -97,29 +110,10 @@ async def get_sub_team(
     x_sub_team_id: Optional[int] = Header(None, alias="X-SubTeam-ID"),
     db: AsyncSession = Depends(get_db),
 ) -> Optional[SubTeam]:
-    """Inject sub-team context: implicit for member/supervisor, explicit for admin."""
-    if current_user.role == UserRole.member:
-        # Members have exactly one sub-team
-        result = await db.execute(
-            select(SubTeam).where(SubTeam.id == current_user.sub_team_id)
-        )
-        return result.scalar_one_or_none()
-    elif current_user.role == UserRole.supervisor:
-        # Supervisors see their assigned sub-team
-        result = await db.execute(
-            select(SubTeam).where(SubTeam.supervisor_id == current_user.id)
-        )
-        return result.scalars().first()
-    elif current_user.role == UserRole.admin:
-        # Admins use X-SubTeam-ID header (from global switcher)
-        if x_sub_team_id is None:
-            return None  # Admin sees all data when no filter
-        result = await db.execute(select(SubTeam).where(SubTeam.id == x_sub_team_id))
-        sub_team = result.scalar_one_or_none()
-        if not sub_team:
-            raise HTTPException(status_code=403, detail="Invalid sub-team")
-        return sub_team
-    return None
+    """Inject Phase 29 sub-team context for scoped route dependencies."""
+    return await resolve_visible_sub_team(
+        db, current_user, requested_sub_team_id=x_sub_team_id
+    )
 
 
 async def get_user_from_cookie(
