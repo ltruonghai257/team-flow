@@ -2,8 +2,9 @@ import enum
 
 
 class UserRole(str, enum.Enum):
-    admin = "admin"
+    manager = "manager"
     supervisor = "supervisor"
+    assistant_manager = "assistant_manager"
     member = "member"
 
 
@@ -80,3 +81,10 @@ class InviteStatus(str, enum.Enum):
     accepted = "accepted"
     expired = "expired"
     cancelled = "cancelled"
+
+
+class MilestoneDecisionStatus(str, enum.Enum):
+    proposed = "proposed"
+    approved = "approved"
+    rejected = "rejected"
+    superseded = "superseded"
