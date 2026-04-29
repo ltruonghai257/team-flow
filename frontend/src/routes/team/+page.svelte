@@ -9,7 +9,7 @@
 	} from '$lib/apis';
 	import type { ReminderSettings, ReminderSettingsProposal } from '$lib/types';
 	import { initials, statusColors, statusLabels, priorityColors, formatDate } from '$lib/utils';
-	import { authStore, isSupervisor } from '$lib/stores/auth';
+	import { authStore, isManager, isManagerOrLeader } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';
 	import { Mail, Users, UserPlus, UserCheck, X, Loader2, Layers, Plus, Edit, Trash2 } from 'lucide-svelte';
 
@@ -54,6 +54,9 @@
 	let subTeamName = '';
 	let subTeamSupervisorId: number | null = null;
 
+	$: canManageMembers = $isManagerOrLeader;
+	$: canAssignLeadership = $isManager;
+
 	onMount(async () => {
 		loading = true;
 		try {
@@ -62,7 +65,7 @@
 			for (const u of userList) {
 				taskMap[u.id] = allTasks.filter((t: any) => t.assignee_id === u.id);
 			}
-			if ($isSupervisor) {
+			if (canManageMembers) {
 				await loadPendingInvites();
 				await loadSubTeams();
 			}
@@ -100,7 +103,7 @@
 			reminderLeadTimeDays = currentSettings.lead_time_days;
 			reminderSprintEnabled = currentSettings.sprint_reminders_enabled;
 			reminderMilestoneEnabled = currentSettings.milestone_reminders_enabled;
-			if ($authStore.user?.role === 'admin') {
+			if (canAssignLeadership) {
 				pendingProposals = await reminderSettingsApi.listProposals();
 			} else {
 				pendingProposals = [];
@@ -115,7 +118,7 @@
 	}
 
 	async function saveReminderSettings() {
-		if (!$authStore.user || $authStore.user.role === 'member') return;
+		if (!$authStore.user || !canManageMembers) return;
 		reminderSaving = true;
 		try {
 			const payload = {
@@ -123,7 +126,7 @@
 				sprint_reminders_enabled: reminderSprintEnabled,
 				milestone_reminders_enabled: reminderMilestoneEnabled
 			};
-			if ($authStore.user.role === 'admin') {
+			if (canAssignLeadership) {
 				await reminderSettingsApi.updateCurrent(payload);
 				toast.success('Reminder settings updated');
 			} else {
@@ -266,11 +269,33 @@
 
 	function roleColor(role: string) {
 		const map: Record<string, string> = {
-			admin: 'bg-blue-100 text-blue-800',
+			manager: 'bg-blue-100 text-blue-800',
 			supervisor: 'bg-purple-100 text-purple-800',
+			assistant_manager: 'bg-cyan-100 text-cyan-800',
 			member: 'bg-gray-700 text-gray-300'
 		};
 		return map[role] || 'bg-gray-700 text-gray-300';
+	}
+
+	function roleLabel(role: string) {
+		const map: Record<string, string> = {
+			manager: 'Manager',
+			supervisor: 'Supervisor',
+			assistant_manager: 'Assistant Manager',
+			member: 'Member'
+		};
+		return map[role] || role;
+	}
+
+	function assignableRoles() {
+		return canAssignLeadership
+			? [
+					{ value: 'member', label: 'Member' },
+					{ value: 'supervisor', label: 'Supervisor' },
+					{ value: 'assistant_manager', label: 'Assistant Manager' },
+					{ value: 'manager', label: 'Manager' }
+				]
+			: [{ value: 'member', label: 'Member' }];
 	}
 
 	function taskStats(uid: number) {
@@ -298,7 +323,7 @@
 	</div>
 
 	<!-- Tabs -->
-	{#if $isSupervisor}
+	{#if canManageMembers}
 	<div class="mb-6 flex gap-2 border-b border-gray-800">
 		<button
 			on:click={() => (activeTab = 'members')}
@@ -327,7 +352,7 @@
 					Shared lead time for sprint-end and milestone due-date reminders.
 				</p>
 			</div>
-			{#if reminderSettings && $authStore.user?.role !== 'member'}
+			{#if reminderSettings && canManageMembers}
 				<button
 					on:click={saveReminderSettings}
 					disabled={reminderSaving}
@@ -336,7 +361,7 @@
 					{#if reminderSaving}
 						<Loader2 class="animate-spin" size={14} />
 					{/if}
-					{$authStore.user?.role === 'admin' ? 'Save settings' : 'Submit proposal'}
+					{canAssignLeadership ? 'Save settings' : 'Submit proposal'}
 				</button>
 			{/if}
 		</div>
@@ -355,7 +380,7 @@
 						min="0"
 						max="30"
 						bind:value={reminderLeadTimeDays}
-						disabled={$authStore.user?.role === 'member'}
+						disabled={!canManageMembers}
 						class="input"
 					/>
 				</div>
@@ -363,7 +388,7 @@
 					<input
 						type="checkbox"
 						bind:checked={reminderSprintEnabled}
-						disabled={$authStore.user?.role === 'member'}
+						disabled={!canManageMembers}
 						class="rounded border-gray-700 bg-gray-800 text-primary-600 focus:ring-primary-500"
 					/>
 					Sprint reminders
@@ -372,19 +397,19 @@
 					<input
 						type="checkbox"
 						bind:checked={reminderMilestoneEnabled}
-						disabled={$authStore.user?.role === 'member'}
+						disabled={!canManageMembers}
 						class="rounded border-gray-700 bg-gray-800 text-primary-600 focus:ring-primary-500"
 					/>
 					Milestone reminders
 				</label>
 			</div>
 			<p class="mt-3 text-xs text-gray-500">
-				{#if $authStore.user?.role === 'member'}
+				{#if !canManageMembers}
 					Read-only view for your team.
-				{:else if $authStore.user?.role === 'admin'}
+				{:else if canAssignLeadership}
 					Edits apply immediately to the active sub-team.
 				{:else}
-					Submissions become proposals until an admin approves them.
+					Submissions become proposals until a manager approves them.
 				{/if}
 			</p>
 		{:else}
@@ -394,12 +419,12 @@
 		{/if}
 	</div>
 
-	{#if $authStore.user?.role === 'admin' && pendingProposals.length > 0}
+	{#if canAssignLeadership && pendingProposals.length > 0}
 		<div class="mb-6 rounded-xl border border-gray-800 bg-gray-900/70 p-4">
 			<div class="flex items-center justify-between gap-4 mb-4">
 				<div>
 					<h2 class="text-sm font-semibold text-white">Pending reminder proposals</h2>
-					<p class="text-xs text-gray-500 mt-1">Review supervisor-submitted changes for the active sub-team.</p>
+					<p class="text-xs text-gray-500 mt-1">Review leader-submitted changes for the active sub-team.</p>
 				</div>
 				<span class="text-xs text-gray-500">{pendingProposals.length} pending</span>
 			</div>
@@ -437,7 +462,7 @@
 
 	{#if activeTab === 'members'}
 	<div class="mb-6 flex items-start justify-between gap-4">
-		{#if $isSupervisor}
+		{#if canManageMembers}
 			<div class="flex gap-2 flex-shrink-0">
 				<button
 					on:click={() => (showAddModal = true)}
@@ -482,13 +507,7 @@
 							<p class="font-semibold text-white truncate">{u.full_name}</p>
 							<p class="text-xs text-gray-500 truncate">@{u.username}</p>
 						</div>
-						{#if u.role === 'admin'}
-						<span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">Admin</span>
-					{:else if u.role === 'supervisor'}
-						<span class="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800">Supervisor</span>
-					{:else}
-						<span class="badge {roleColor(u.role)}">{u.role}</span>
-					{/if}
+						<span class="badge {roleColor(u.role)}">{roleLabel(u.role)}</span>
 					</div>
 					<div class="flex items-center gap-1 text-xs text-gray-500 mb-4">
 						<Mail size={12} />
@@ -547,8 +566,8 @@
 			</div>
 		{/if}
 
-		<!-- Pending Invites (supervisor/admin only) -->
-		{#if $isSupervisor && (pendingInvites.length > 0 || loadingInvites)}
+		<!-- Pending Invites (leadership only) -->
+		{#if canManageMembers && (pendingInvites.length > 0 || loadingInvites)}
 			<div class="mt-6 card">
 				<h2 class="font-semibold text-white mb-4 flex items-center gap-2">
 					<Mail size={16} class="text-primary-400" />
@@ -566,7 +585,7 @@
 								<div class="flex-1 min-w-0">
 									<p class="text-sm text-gray-200 truncate">{inv.email}</p>
 									<p class="text-xs text-gray-500 mt-0.5">
-										Role: <span class="capitalize">{inv.role}</span> · Expires {formatExpiry(inv.expires_at)}
+										Role: {roleLabel(inv.role)} · Expires {formatExpiry(inv.expires_at)}
 									</p>
 								</div>
 								<button
@@ -667,11 +686,9 @@
 				<div>
 					<label class="block text-sm font-medium text-gray-300 mb-1.5" for="inviteRole">Role</label>
 					<select id="inviteRole" bind:value={inviteRole} class="input w-full">
-						<option value="member">Member</option>
-						<option value="supervisor">Supervisor</option>
-						{#if $authStore.user?.role === 'admin'}
-							<option value="admin">Admin</option>
-						{/if}
+						{#each assignableRoles() as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
 					</select>
 				</div>
 				<div class="flex gap-3 pt-1">
@@ -739,11 +756,9 @@
 				<div>
 					<label class="block text-sm font-medium text-gray-300 mb-1.5" for="addRole">Assign Role</label>
 					<select id="addRole" bind:value={addRole} class="input w-full">
-						<option value="member">Member</option>
-						<option value="supervisor">Supervisor</option>
-						{#if $authStore.user?.role === 'admin'}
-							<option value="admin">Admin</option>
-						{/if}
+						{#each assignableRoles() as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
 					</select>
 				</div>
 				<div class="flex gap-3 pt-1">
@@ -789,11 +804,11 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-300 mb-1.5" for="subTeamSupervisor">Supervisor</label>
+					<label class="block text-sm font-medium text-gray-300 mb-1.5" for="subTeamSupervisor">Sub-team leader</label>
 					<select id="subTeamSupervisor" bind:value={subTeamSupervisorId} class="input w-full">
-						<option value={null}>No supervisor</option>
-						{#each userList.filter(u => u.role === 'supervisor' || u.role === 'admin') as user}
-							<option value={user.id}>{user.full_name} (@{user.username})</option>
+						<option value={null}>No leader</option>
+						{#each userList.filter(u => u.role === 'supervisor' || u.role === 'assistant_manager') as user}
+							<option value={user.id}>{user.full_name} (@{user.username}) - {roleLabel(user.role)}</option>
 						{/each}
 					</select>
 				</div>
