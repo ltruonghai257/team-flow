@@ -145,7 +145,7 @@ Plans:
 - [ ] 28-02-PLAN.md — Add the derived milestone command-view API, summary metrics, and typed frontend contract
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 28-03-PLAN.md — Rebuild `/milestones` into a lane-based command view with linked-task detail and decision CRUD
+- [x] 28-03-PLAN.md — Rebuild `/milestones` into a lane-based command view with linked-task detail and decision CRUD
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 28-04-PLAN.md — Add milestone command-view regression coverage and final release verification
@@ -176,7 +176,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
 | 27. Timeline & Gantt Clarity | 3/3 | Complete   | 2026-04-28 |
-| 28. Milestone Planning & Decisions | 0/4 | Ready to execute | — |
+| 28. Milestone Planning & Decisions | 1/4 | In Progress|  |
 | 29. Scoped Team Visibility & Leadership RBAC | 0/0 | Not started | — |
 | 30. Phase 18 status-transition follow-up hardening | 0/0 | Not started | — |
 
@@ -185,7 +185,7 @@ Plans:
 **Goal:** Harden and verify the shipped Phase 18 status-transition workflow rules after the refactor, with a focus on status-set scoping, workflow feedback, and regression coverage.
 **Requirements**: TBD
 **Depends on:** Phase 29
-**Plans:** 0 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 30 to break down)

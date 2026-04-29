@@ -26,10 +26,10 @@
 
 ### Milestone Planning & Decisions (ML)
 
-- [ ] **ML-01**: `/milestones` gives a clearer overview of milestone status with separate signals for committed work, planned work, and completed work
-- [ ] **ML-02**: A milestone detail view shows the tasks that belong to that milestone directly in context
-- [ ] **ML-03**: Milestone decisions are captured and visible in the milestone experience, not only in planning docs
-- [ ] **ML-04**: Planning and decision markers reuse existing data where possible and introduce new persistence only when current models cannot express the workflow
+- [x] **ML-01**: `/milestones` gives a clearer overview of milestone status with separate signals for committed work, planned work, and completed work
+- [x] **ML-02**: A milestone detail view shows the tasks that belong to that milestone directly in context
+- [x] **ML-03**: Milestone decisions are captured and visible in the milestone experience, not only in planning docs
+- [x] **ML-04**: Planning and decision markers reuse existing data where possible and introduce new persistence only when current models cannot express the workflow
 
 ### Scoped Team Visibility & RBAC (VIS)
 
