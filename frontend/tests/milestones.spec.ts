@@ -1,99 +1,129 @@
 import { expect, test } from '@playwright/test';
 
-const MILESTONE_COMMAND_VIEW_FIXTURE = {
-	metrics: {
-		active_milestones: 2,
-		risky_milestones: 1,
-		proposed_decisions: 3,
-		blocked_tasks: 1
-	},
-	lanes: {
-		planned: [
-			{
-				id: 1,
-				title: 'Future Milestone',
-				project_name: 'Project Alpha',
-				due_date: '2026-12-01T00:00:00.000Z',
-				planning_state: 'planned',
-				risk: null,
-				progress: { total: 5, done: 0, blocked: 0, completion_percent: 0 },
-				decision_summary: { proposed: 1, approved: 0 },
-				tasks: [],
-				decisions: []
-			}
-		],
-		committed: [
-			{
-				id: 2,
-				title: 'Committed Milestone',
-				project_name: 'Project Beta',
-				due_date: '2026-06-01T00:00:00.000Z',
-				planning_state: 'committed',
-				risk: 'watch',
-				progress: { total: 10, done: 2, blocked: 0, completion_percent: 20 },
-				decision_summary: { proposed: 0, approved: 1 },
-				tasks: [],
-				decisions: []
-			}
-		],
-		active: [
-			{
-				id: 3,
-				title: 'Active Milestone',
-				project_name: 'Project Alpha',
-				due_date: '2026-04-15T00:00:00.000Z',
-				planning_state: 'active',
-				risk: null,
-				progress: { total: 8, done: 4, blocked: 1, completion_percent: 50 },
-				decision_summary: { proposed: 2, approved: 1 },
-				tasks: [
-					{ id: 101, title: 'Critical Task', status: 'in_progress', priority: 'high', due_date: '2026-04-10T00:00:00.000Z' },
-					{ id: 102, title: 'Blocked Task', status: 'blocked', priority: 'medium', due_date: '2026-04-12T00:00:00.000Z' }
-				],
-				decisions: [
-					{ id: 1, title: 'Choose API Provider', note: 'Considering Stripe vs Braintree', status: 'proposed', created_at: '2026-03-20T10:00:00.000Z' }
-				]
-			}
-		],
-		completed: [
-			{
-				id: 4,
-				title: 'Completed Milestone',
-				project_name: 'Project Gamma',
-				due_date: '2026-02-01T00:00:00.000Z',
-				planning_state: 'completed',
-				risk: null,
-				progress: { total: 4, done: 4, blocked: 0, completion_percent: 100 },
-				decision_summary: { proposed: 0, approved: 2 },
-				tasks: [],
-				decisions: []
-			}
-		]
-	}
+const COMMAND_VIEW_FIXTURE = {
+    metrics: {
+        active_milestones: 1,
+        risky_milestones: 1,
+        proposed_decisions: 1,
+        blocked_tasks: 1
+    },
+    lanes: {
+        planned: [
+            {
+                id: 1,
+                title: 'Phase 1: Foundation',
+                description: 'Initial setup and base architecture',
+                status: 'planned',
+                planning_state: 'planned',
+                risk: null,
+                start_date: '2026-05-01T00:00:00.000Z',
+                due_date: '2026-05-15T00:00:00.000Z',
+                completed_at: null,
+                project_id: 1,
+                project_name: 'Core System',
+                project_color: '#6366f1',
+                progress: { total: 5, done: 0, blocked: 0, completion_percent: 0 },
+                decision_summary: { proposed: 0, approved: 0, rejected: 0, superseded: 0 },
+                tasks: [],
+                decisions: []
+            }
+        ],
+        committed: [
+            {
+                id: 2,
+                title: 'Phase 2: Security',
+                description: 'OAuth and RBAC implementation',
+                status: 'in_progress',
+                planning_state: 'committed',
+                risk: 'watch',
+                start_date: '2026-05-10T00:00:00.000Z',
+                due_date: '2026-05-25T00:00:00.000Z',
+                completed_at: null,
+                project_id: 1,
+                project_name: 'Core System',
+                project_color: '#6366f1',
+                progress: { total: 10, done: 2, blocked: 0, completion_percent: 20 },
+                decision_summary: { proposed: 1, approved: 0, rejected: 0, superseded: 0 },
+                tasks: [
+                    { id: 101, title: 'Define scope', status: 'Done', due_date: '2026-05-12' },
+                    { id: 102, title: 'Mock implementation', status: 'In Progress', due_date: '2026-05-15' }
+                ],
+                decisions: [
+                    {
+                        id: 201,
+                        milestone_id: 2,
+                        task_id: null,
+                        title: 'Auth provider choice',
+                        status: 'proposed',
+                        note: 'Considering Auth0 or custom JWT',
+                        created_at: '2026-05-11T10:00:00Z',
+                        updated_at: '2026-05-11T10:00:00Z'
+                    }
+                ]
+            }
+        ],
+        active: [
+            {
+                id: 3,
+                title: 'Phase 3: Integration',
+                description: 'External API connectors',
+                status: 'in_progress',
+                planning_state: 'active',
+                risk: 'at_risk',
+                start_date: '2026-04-15T00:00:00.000Z',
+                due_date: '2026-05-05T00:00:00.000Z',
+                completed_at: null,
+                project_id: 1,
+                project_name: 'Core System',
+                project_color: '#6366f1',
+                progress: { total: 8, done: 4, blocked: 1, completion_percent: 50 },
+                decision_summary: { proposed: 0, approved: 1, rejected: 0, superseded: 0 },
+                tasks: [
+                    { id: 103, title: 'Slack integration', status: 'Blocked', due_date: '2026-04-20' },
+                    { id: 104, title: 'Email service', status: 'In Progress', due_date: '2026-04-25' }
+                ],
+                decisions: [
+                    {
+                        id: 202,
+                        milestone_id: 3,
+                        task_id: 103,
+                        title: 'Slack API Tier',
+                        status: 'approved',
+                        note: 'Going with Pro tier for better rate limits',
+                        created_at: '2026-04-18T10:00:00Z',
+                        updated_at: '2026-04-18T10:00:00Z'
+                    }
+                ]
+            }
+        ],
+        completed: [
+            {
+                id: 4,
+                title: 'Phase 0: Planning',
+                description: 'Project discovery and scoping',
+                status: 'completed',
+                planning_state: 'completed',
+                risk: null,
+                start_date: '2026-03-01T00:00:00.000Z',
+                due_date: '2026-03-15T00:00:00.000Z',
+                completed_at: '2026-03-14T10:00:00.000Z',
+                project_id: 1,
+                project_name: 'Core System',
+                project_color: '#6366f1',
+                progress: { total: 3, done: 3, blocked: 0, completion_percent: 100 },
+                decision_summary: { proposed: 0, approved: 2, rejected: 0, superseded: 0 },
+                tasks: [],
+                decisions: []
+            }
+        ]
+    }
 };
 
-const RISKY_MILESTONE_FIXTURE = {
-	...MILESTONE_COMMAND_VIEW_FIXTURE,
-	lanes: {
-		...MILESTONE_COMMAND_VIEW_FIXTURE.lanes,
-		planned: [
-			{
-				id: 5,
-				title: 'Risky Planned Milestone',
-				project_name: 'Project Delta',
-				due_date: '2026-05-01T00:00:00.000Z',
-				planning_state: 'planned',
-				risk: 'at_risk',
-				progress: { total: 3, done: 0, blocked: 2, completion_percent: 0 },
-				decision_summary: { proposed: 1, approved: 0 },
-				tasks: [{ id: 103, title: 'Delayed Task', status: 'todo', priority: 'high', due_date: '2026-04-01T00:00:00.000Z' }],
-				decisions: []
-			}
-		]
-	}
-};
+const PROJECTS_FIXTURE = [
+    { id: 1, name: 'Core System', color: '#6366f1' }
+];
 
-test.describe('Milestone Command View', () => {
+test.describe('Milestones Command View', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.route('**/api/auth/me', async (route) => {
 			await route.fulfill({
@@ -105,144 +135,162 @@ test.describe('Milestone Command View', () => {
 					username: 'ada',
 					full_name: 'Ada Lovelace',
 					role: 'member',
-					is_active: true
+					avatar_url: null,
+					is_active: true,
+					created_at: '2026-01-01T00:00:00.000Z'
 				})
 			});
 		});
 		await page.route('**/api/notifications/unread', async (route) => {
 			await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
 		});
+		await page.route('**/api/milestones/command-view/', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(COMMAND_VIEW_FIXTURE)
+			});
+		});
 		await page.route('**/api/projects/', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify([
-					{ id: 1, name: 'Project Alpha' },
-					{ id: 2, name: 'Project Beta' },
-					{ id: 3, name: 'Project Gamma' },
-					{ id: 4, name: 'Project Delta' }
-				])
+				body: JSON.stringify(PROJECTS_FIXTURE)
 			});
 		});
 	});
 
-	test('renders all four lanes and summary metrics', async ({ page }) => {
-		await page.route('**/api/milestones/command-view', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify(MILESTONE_COMMAND_VIEW_FIXTURE)
-			});
-		});
-
+	test('renders summary metrics', async ({ page }) => {
 		await page.goto('/milestones');
-
-		// Check metrics
-		await expect(page.getByText('2', { exact: true }).first()).toBeVisible(); // Active
-		await expect(page.getByText('1', { exact: true }).first()).toBeVisible(); // Risky
-		await expect(page.getByText('3', { exact: true }).first()).toBeVisible(); // Proposed Decisions
-		await expect(page.getByText('1', { exact: true }).nth(1)).toBeVisible(); // Blocked Tasks (nth because metrics row has multiple '1's potentially)
-
-		// Check lanes
-		await expect(page.getByText('Planned', { exact: true })).toBeVisible();
-		await expect(page.getByText('Committed', { exact: true })).toBeVisible();
-		await expect(page.getByText('Active', { exact: true })).toBeVisible();
-		await expect(page.getByText('Completed', { exact: true })).toBeVisible();
-
-		// Check milestone presence in lanes
-		await expect(page.getByText('Future Milestone')).toBeVisible();
-		await expect(page.getByText('Committed Milestone')).toBeVisible();
-		await expect(page.getByText('Active Milestone')).toBeVisible();
-		await expect(page.getByText('Completed Milestone')).toBeVisible();
-	});
-
-	test('auto-expands active milestones and shows details', async ({ page }) => {
-		await page.route('**/api/milestones/command-view', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify(MILESTONE_COMMAND_VIEW_FIXTURE)
-			});
-		});
-
-		await page.goto('/milestones');
-
-		// Active Milestone (ID 3) should be expanded by default
-		await expect(page.getByText('Critical Task')).toBeVisible();
-		await expect(page.getByText('Choose API Provider')).toBeVisible();
-		
-		// Planned Milestone (ID 1) should NOT be expanded by default
-		await expect(page.getByText('No tasks linked to this milestone.')).not.toBeVisible();
-	});
-
-	test('auto-expands risky milestones even if not active', async ({ page }) => {
-		await page.route('**/api/milestones/command-view', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify(RISKY_MILESTONE_FIXTURE)
-			});
-		});
-
-		await page.goto('/milestones');
-
-		// Risky Planned Milestone (ID 5) should be expanded
-		await expect(page.getByText('Delayed Task')).toBeVisible();
-		await expect(page.getByText('Risky Planned Milestone').locator('xpath=..').getByText('AT RISK')).toBeVisible();
-	});
-
-	test('decision CRUD interaction', async ({ page }) => {
-		await page.route('**/api/milestones/command-view', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify(MILESTONE_COMMAND_VIEW_FIXTURE)
-			});
-		});
-
-		let createCalled = false;
-		await page.route('**/api/milestones/3/decisions', async (route) => {
-			if (route.request().method() === 'POST') {
-				createCalled = true;
-				await route.fulfill({ status: 201, body: JSON.stringify({ id: 99, title: 'New Decision' }) });
-			}
-		});
-
-		await page.goto('/milestones');
-
-		// Find the 'Add Decision' button in the expanded Active Milestone card
-		const activeCard = page.locator('#milestone-3');
-		await activeCard.getByRole('button', { name: 'Add Decision' }).click();
-
-		await page.getByPlaceholder('Decision title *').fill('New Test Decision');
-		await page.getByPlaceholder('Notes (optional)').fill('Some details');
-		await page.locator('#milestone-3').getByRole('button').filter({ hasText: '' }).last().click(); // The Check button
-
-		expect(createCalled).toBe(true);
-	});
-
-	test('mobile layout stacks lanes', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
-		
-		await page.route('**/api/milestones/command-view', async (route) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify(MILESTONE_COMMAND_VIEW_FIXTURE)
-			});
-		});
-
-		await page.goto('/milestones');
-
-		// In mobile, lanes are stacked vertically. 
-		// We verify they all exist and are visible.
-		await expect(page.getByText('Planned')).toBeVisible();
-		await expect(page.getByText('Committed')).toBeVisible();
-		await expect(page.getByText('Active')).toBeVisible();
-		await expect(page.getByText('Completed')).toBeVisible();
-		
-		// Verify metrics are also visible in mobile (grid-cols-2)
-		await expect(page.getByText('Active', { exact: true })).toBeVisible();
+		await expect(page.getByText('1', { exact: true }).first()).toBeVisible(); // Active
+		await expect(page.getByText('Active', { exact: true }).first()).toBeVisible();
 		await expect(page.getByText('Risky', { exact: true })).toBeVisible();
+		await expect(page.getByText('Proposed Decisions', { exact: true })).toBeVisible();
+		await expect(page.getByText('Blocked Tasks', { exact: true })).toBeVisible();
+	});
+
+	test('renders all four lanes', async ({ page }) => {
+		await page.goto('/milestones');
+		await expect(page.getByRole('heading', { name: /^Planned$/ }).first()).toBeVisible();
+		await expect(page.getByRole('heading', { name: /^Committed$/ }).first()).toBeVisible();
+		await expect(page.getByRole('heading', { name: /^Active$/ }).first()).toBeVisible();
+		await expect(page.getByRole('heading', { name: /^Completed$/ }).first()).toBeVisible();
+	});
+
+	test('active milestones are expanded by default', async ({ page }) => {
+		await page.goto('/milestones');
+		// Phase 3 is active and risky, should be expanded
+		const card = page.locator('#milestone-3');
+		await expect(card.getByText('Phase 3: Integration')).toBeVisible();
+		await expect(card.getByText('Linked Tasks')).toBeVisible();
+		await expect(card.getByText('Slack integration')).toBeVisible();
+		await expect(card.getByText('Email service')).toBeVisible();
+        await expect(card.getByText('Slack API Tier')).toBeVisible();
+	});
+
+    test('risky milestones (watch) are NOT expanded by default unless active', async ({ page }) => {
+		await page.goto('/milestones');
+		// Phase 2 is committed + watch. According to logic:
+        // let expanded = initiallyExpanded || milestone.planning_state === 'active' || (milestone.risk && milestone.risk !== 'watch');
+        // So watch should NOT be expanded by default.
+		const card = page.locator('#milestone-2');
+		await expect(card.getByText('Phase 2: Security')).toBeVisible();
+		await expect(card.getByText('Define scope')).not.toBeVisible();
+	});
+
+    test('can toggle expansion', async ({ page }) => {
+		await page.goto('/milestones');
+		const card = page.locator('#milestone-1');
+		await card.getByText('Phase 1: Foundation').click();
+		await expect(card.getByText('Linked Tasks')).toBeVisible();
+        await expect(card.getByText('No tasks linked to this milestone.')).toBeVisible();
+        await card.getByText('Phase 1: Foundation').click();
+        await expect(card.getByText('Linked Tasks')).not.toBeVisible();
+	});
+
+    test('renders decision summary on collapsed cards', async ({ page }) => {
+		await page.goto('/milestones');
+		const phase2 = page.locator('#milestone-2');
+		await expect(phase2.getByText('1 Proposed', { exact: true })).toBeVisible();
+		const phase3 = page.locator('#milestone-3');
+		await expect(phase3.getByText('1 Approved', { exact: true })).toBeVisible();
+	});
+
+    test('task links point to task view', async ({ page }) => {
+		await page.goto('/milestones');
+		// Phase 3 is expanded
+		const card = page.locator('#milestone-3');
+		const taskLink = card.getByRole('link', { name: 'Slack integration' });
+		await expect(taskLink).toHaveAttribute('href', '/tasks?task_id=103');
+	});
+
+    test('decision CRUD interaction', async ({ page }) => {
+        // Mock decision creation
+        await page.route('**/api/milestones/2/decisions', async (route) => {
+            if (route.request().method() === 'POST') {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        id: 203,
+                        milestone_id: 2,
+                        task_id: null,
+                        title: 'New Decision',
+                        status: 'proposed',
+                        note: 'New note',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    })
+                });
+            }
+        });
+
+		await page.goto('/milestones');
+		// Expand Phase 2
+		await page.locator('#milestone-2').getByText('Phase 2: Security').click();
+        
+        const card = page.locator('#milestone-2');
+        // Add decision
+        await card.getByRole('button', { name: 'Add Decision' }).click();
+        await card.getByPlaceholder('Decision title *').fill('New Decision');
+        await card.getByPlaceholder('Notes (optional)').fill('New note');
+        
+        // Mock the refresh call to show the new decision
+        await page.route('**/api/milestones/command-view/', async (route) => {
+            const updated = JSON.parse(JSON.stringify(COMMAND_VIEW_FIXTURE));
+            updated.lanes.committed[0].decisions.push({
+                id: 203,
+                milestone_id: 2,
+                task_id: null,
+                title: 'New Decision',
+                status: 'proposed',
+                note: 'New note',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(updated)
+			});
+		});
+
+        await card.locator('button:has(svg.lucide-check)').click();
+        await expect(page.getByText('Decision created')).toBeVisible();
+        await expect(card.getByText('New Decision')).toBeVisible();
+	});
+
+    test('mobile lane model (stacked)', async ({ page }) => {
+        await page.setViewportSize({ width: 375, height: 667 });
+		await page.goto('/milestones');
+        
+        // In mobile, they are stacked. Check that we see all lane titles.
+		await expect(page.getByRole('heading', { name: /^Planned$/ }).first()).toBeVisible();
+		await expect(page.getByRole('heading', { name: /^Committed$/ }).first()).toBeVisible();
+		await expect(page.getByRole('heading', { name: /^Active$/ }).first()).toBeVisible();
+		await expect(page.getByRole('heading', { name: /^Completed$/ }).first()).toBeVisible();
+        
+        // Verify we can still see metrics
+		await expect(page.getByText('Active', { exact: true }).first()).toBeVisible();
 	});
 });

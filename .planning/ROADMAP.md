@@ -1,6 +1,6 @@
 # Roadmap: TeamFlow
 
-_Updated: 2026-04-29_
+_Updated: 2026-04-30_
 
 ---
 
@@ -10,7 +10,7 @@ _Updated: 2026-04-29_
 - ✅ **v2.0** — Team Hierarchy, Sprints & Advanced Analytics (Phases 12-18) — shipped 2026-04-28
 - ✅ **v2.1** — Open WebUI-Style Project Structure Refactor (Phases 19-22) — shipped 2026-04-28
 - ✅ **v2.2** — Team Updates, Knowledge Sharing & Weekly Board (Phases 23-25) — shipped 2026-04-28
-- 🔄 **v2.3** — Timeline Clarity, Navigation IA & Scoped Visibility (Phases 26-29) — in progress
+- 🔄 **v2.3** — Timeline Clarity, Navigation IA & Scoped Visibility (Phases 26-30) — in progress
 
 ---
 
@@ -66,7 +66,7 @@ _Updated: 2026-04-29_
 
 - [x] **Phase 26: Navigation Information Architecture** — Reorganize the sidebar and mobile navigation into workflow-based groups with nested items and role-aware visibility (completed 2026-04-28)
 - [x] **Phase 27: Timeline & Gantt Clarity** — Make `/timeline` milestone-first, clearer to scan, and richer in planning and decision signal (completed 2026-04-28)
-- [ ] **Phase 28: Milestone Planning & Decisions** — Improve `/milestones` so planning state, decisions, and related tasks are visible together
+- [x] **Phase 28: Milestone Planning & Decisions** — Improve `/milestones` so planning state, decisions, and related tasks are visible together (completed 2026-04-30)
 - [x] **Phase 29: Scoped Team Visibility & Leadership RBAC** — Enforce the new member / supervisor / assistant manager / manager visibility rules across the product (completed 2026-04-29)
 
 ---
@@ -176,7 +176,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 26. Navigation Information Architecture | 3/3 | Complete    | 2026-04-28 |
 | 27. Timeline & Gantt Clarity | 3/3 | Complete   | 2026-04-28 |
-| 28. Milestone Planning & Decisions | 1/4 | In Progress|  |
+| 28. Milestone Planning & Decisions | 4/4 | Complete   | 2026-04-30 |
 | 29. Scoped Team Visibility & Leadership RBAC | 4/4 | Complete   | 2026-04-29 |
 | 30. Phase 18 status-transition follow-up hardening | 0/0 | Not started | — |
 
@@ -185,7 +185,7 @@ Plans:
 **Goal:** Harden and verify the shipped Phase 18 status-transition workflow rules after the refactor, with a focus on status-set scoping, workflow feedback, and regression coverage.
 **Requirements**: TBD
 **Depends on:** Phase 29
-**Plans:** 4/4 plans complete
+**Plans:** 0/0 plans complete
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 30 to break down)
+- [ ] Run `/gsd-plan-phase 30` to break down this follow-up hardening phase

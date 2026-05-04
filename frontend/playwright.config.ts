@@ -7,20 +7,24 @@ export default defineConfig({
 	reporter: 'list',
 	timeout: 600000,
 	use: {
-		baseURL: 'http://localhost:5173',
+		baseURL: 'http://127.0.0.1:5173',
 		trace: 'on-first-retry',
 		video: 'on',
 	},
 	projects: [
 		{
 			name: 'desktop-chrome',
-			use: { ...devices['Desktop Chrome'] },
+			use: { ...devices['Desktop Chrome'], channel: 'chrome' },
 		},
 	],
-	webServer: {
-		command: 'bun run dev',
-		url: 'http://localhost:5173',
-		reuseExistingServer: true,
-		timeout: 30000,
-	},
+	...(process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1'
+		? {}
+		: {
+				webServer: {
+					command: 'bun run dev -- --host 127.0.0.1 --port 5173',
+					url: 'http://127.0.0.1:5173',
+					reuseExistingServer: true,
+					timeout: 30000,
+				},
+			}),
 });

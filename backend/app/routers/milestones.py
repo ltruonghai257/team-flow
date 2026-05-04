@@ -93,6 +93,7 @@ async def _get_visible_milestone(
 async def _get_visible_decision(
     db: AsyncSession,
     current_user: User,
+    milestone_id: int,
     decision_id: int,
 ) -> MilestoneDecision:
     allowed_ids = await _visible_project_ids(db, current_user)
@@ -101,6 +102,7 @@ async def _get_visible_decision(
         .join(Milestone)
         .join(Project)
         .where(
+            MilestoneDecision.milestone_id == milestone_id,
             MilestoneDecision.id == decision_id,
             _milestone_scope_filter(current_user, allowed_ids),
         )
@@ -308,6 +310,24 @@ async def create_milestone(
     return milestone
 
 
+async def _validate_decision_task_scope(
+    db: AsyncSession,
+    milestone: Milestone,
+    task_id: int,
+) -> None:
+    task_result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            (Task.milestone_id == milestone.id) | (Task.project_id == milestone.project_id),
+        )
+    )
+    if not task_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400,
+            detail="Task not found or not linked to this milestone project",
+        )
+
+
 @router.get("/{milestone_id}", response_model=MilestoneOut)
 async def get_milestone(
     milestone_id: int,
@@ -380,19 +400,15 @@ async def create_milestone_decision(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await _get_visible_milestone(db, current_user, milestone_id)
-
-    # If task_id is provided, verify it exists and belongs to the same milestone
-    if payload.task_id:
-        task_result = await db.execute(
-            select(Task).where(
-                Task.id == payload.task_id, Task.milestone_id == milestone_id
-            )
+    milestone = await _get_visible_milestone(db, current_user, milestone_id)
+    if payload.milestone_id is not None and payload.milestone_id != milestone_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Milestone ID does not match the request path",
         )
-        if not task_result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=400, detail="Task not found or not linked to this milestone"
-            )
+
+    if payload.task_id is not None:
+        await _validate_decision_task_scope(db, milestone, payload.task_id)
 
     decision = MilestoneDecision(**payload.model_dump())
     decision.milestone_id = milestone_id  # Ensure it matches the URL
@@ -402,26 +418,21 @@ async def create_milestone_decision(
     return decision
 
 
-@router.patch("/decisions/{decision_id}", response_model=MilestoneDecisionOut)
+@router.patch(
+    "/{milestone_id}/decisions/{decision_id}", response_model=MilestoneDecisionOut
+)
 async def update_milestone_decision(
+    milestone_id: int,
     decision_id: int,
     payload: MilestoneDecisionUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decision = await _get_visible_decision(db, current_user, decision_id)
+    decision = await _get_visible_decision(db, current_user, milestone_id, decision_id)
+    milestone = await _get_visible_milestone(db, current_user, milestone_id)
 
-    # If task_id is being updated, verify it exists and belongs to the same milestone
     if payload.task_id is not None:
-        task_result = await db.execute(
-            select(Task).where(
-                Task.id == payload.task_id, Task.milestone_id == decision.milestone_id
-            )
-        )
-        if not task_result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=400, detail="Task not found or not linked to this milestone"
-            )
+        await _validate_decision_task_scope(db, milestone, payload.task_id)
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(decision, field, value)
@@ -430,12 +441,13 @@ async def update_milestone_decision(
     return decision
 
 
-@router.delete("/decisions/{decision_id}", status_code=204)
+@router.delete("/{milestone_id}/decisions/{decision_id}", status_code=204)
 async def delete_milestone_decision(
+    milestone_id: int,
     decision_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decision = await _get_visible_decision(db, current_user, decision_id)
+    decision = await _get_visible_decision(db, current_user, milestone_id, decision_id)
     await db.delete(decision)
     await db.flush()

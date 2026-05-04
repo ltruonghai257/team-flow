@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Timeline Clarity, Navigation IA & Scoped Visibility
-status: verifying
-last_updated: "2026-04-29T16:50:20.800Z"
-last_activity: 2026-04-29
+status: in_progress
+last_updated: "2026-04-30T00:00:00.000Z"
+last_activity: 2026-04-30
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
-  completed_plans: 11
-  percent: 79
+  completed_plans: 14
+  percent: 100
 ---
 
 # State: TeamFlow
@@ -18,15 +18,15 @@ progress:
 ## Current Status
 
 **Milestone:** v2.3 — Timeline Clarity, Navigation IA & Scoped Visibility
-**Active Phase:** Phase 28 — Milestone Planning & Decisions (Ready to execute)
-**Last Session:** 2026-04-29T16:50:12.184Z
+**Active Phase:** Phase 30 — Phase 18 status-transition follow-up hardening (Planning required)
+**Last Session:** 2026-04-30T00:00:00.000Z
 
 ## Current Position
 
-Phase: 29 (scoped-team-visibility-leadership-rbac) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-04-29
+Phase: 30 (phase-18-status-transition-follow-up-hardening) — PLANNING REQUIRED
+Plan: 0 of 0
+Status: Pending phase breakdown
+Last activity: 2026-04-30
 
 ## Session Notes
 
@@ -38,11 +38,12 @@ Last activity: 2026-04-29
 - Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
 - All schema changes go through Alembic migrations.
 - Milestone v2.2 shipped on 2026-04-28: standup updates, knowledge-sharing scheduler, and weekly board with AI summary.
-- Milestone v2.3 roadmap created 2026-04-29: 4 phases covering sidebar IA, clearer timeline and milestones, and scoped visibility / RBAC.
+- Milestone v2.3 roadmap created 2026-04-29: 5 phases covering sidebar IA, clearer timeline and milestones, scoped visibility / RBAC, and follow-up status-transition hardening.
+- Phase 28 completed on 2026-04-30 with browser-verified milestone command-view coverage.
 
 ## Resume Point
 
-Next: `/gsd-execute-phase 28` to build the milestone planning and decisions plans.
+Next: `/gsd-plan-phase 30` to break down the status-transition follow-up hardening work.
 
 Alternative: `/gsd-review --phase 28 --all` to peer review the plans before execution.
 
@@ -128,7 +129,8 @@ None
 **Completed Phase:** 23 (standup-updates) — 4 plans — 2026-04-28 [v2.2]
 **Completed Phase:** 24 (knowledge-sharing-scheduler) — 3 plans — 2026-04-28 [v2.2]
 **Completed Phase:** 25 (team-weekly-board-ai-summary) — 4 plans — 2026-04-28 [v2.2]
-**Planned Phase:** 26 (navigation-information-architecture) — 3 plans — 2026-04-29 [v2.3]
-**Planned Phase:** 27 (timeline-gantt-clarity) — 0 plans — 2026-04-29 [v2.3]
-**Planned Phase:** 28 (milestone-planning-decisions) — 4 plans — 2026-04-29 [v2.3]
-**Planned Phase:** 29 (scoped-team-visibility-leadership-rbac) — 0 plans — 2026-04-29 [v2.3]
+**Completed Phase:** 26 (navigation-information-architecture) — 3 plans — 2026-04-28 [v2.3]
+**Completed Phase:** 27 (timeline-gantt-clarity) — 3 plans — 2026-04-28 [v2.3]
+**Completed Phase:** 28 (milestone-planning-decisions) — 4 plans — 2026-04-30 [v2.3]
+**Completed Phase:** 29 (scoped-team-visibility-leadership-rbac) — 0 plans — 2026-04-29 [v2.3]
+**Planned Phase:** 30 (phase-18-status-transition-follow-up-hardening) — 0 plans — 2026-04-30 [v2.3]

@@ -97,7 +97,7 @@ class MilestoneOut(BaseModel):
 
 
 class MilestoneDecisionCreate(BaseModel):
-    milestone_id: int
+    milestone_id: Optional[int] = None
     task_id: Optional[int] = None
     title: str
     status: MilestoneDecisionStatus = MilestoneDecisionStatus.proposed

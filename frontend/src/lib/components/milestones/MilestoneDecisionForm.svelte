@@ -50,7 +50,7 @@
 	async function handleSubmit() {
 		try {
 			if (editingDecision) {
-				await milestonesApi.decisions.update(editingDecision.id, form);
+				await milestonesApi.decisions.update(milestoneId, editingDecision.id, form);
 				toast.success('Decision updated');
 			} else {
 				await milestonesApi.decisions.create(milestoneId, form);
@@ -67,7 +67,7 @@
 	async function deleteDecision(id: number) {
 		if (!confirm('Delete this decision?')) return;
 		try {
-			await milestonesApi.decisions.delete(id);
+			await milestonesApi.decisions.delete(milestoneId, id);
 			toast.success('Decision deleted');
 			dispatch('refresh');
 		} catch (e: any) {

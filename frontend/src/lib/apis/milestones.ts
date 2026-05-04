@@ -77,12 +77,12 @@ export const milestones = {
                 method: 'POST',
                 body: JSON.stringify(data),
             }),
-        update: (decisionId: number, data: object) =>
-            request<MilestoneDecision>(`/milestones/decisions/${decisionId}`, {
+        update: (milestoneId: number, decisionId: number, data: object) =>
+            request<MilestoneDecision>(`/milestones/${milestoneId}/decisions/${decisionId}`, {
                 method: 'PATCH',
                 body: JSON.stringify(data),
             }),
-        delete: (decisionId: number) =>
-            request(`/milestones/decisions/${decisionId}`, { method: 'DELETE' }),
+        delete: (milestoneId: number, decisionId: number) =>
+            request(`/milestones/${milestoneId}/decisions/${decisionId}`, { method: 'DELETE' }),
     }
 };
