@@ -233,11 +233,18 @@ async def main() -> None:
             print("  skipped sub-team (exists): Product Team")
 
         # Assign leaders and members to their sub-team scopes. Managers remain org-wide.
-        for username in ("supervisor", "assistant", "alice", "bob", "latruonghai"):
+        for username in (
+            "supervisor",
+            "assistant",
+            "alice",
+            "bob",
+            "latruonghai",
+            "doanduckien",
+        ):
             u = users[username]
             if u.sub_team_id != sub_team.id:
                 u.sub_team_id = sub_team.id
-        for username in ("product_supervisor", "carol", "doanduckien"):
+        for username in ("product_supervisor", "carol"):
             u = users[username]
             if u.sub_team_id != product_sub_team.id:
                 u.sub_team_id = product_sub_team.id
