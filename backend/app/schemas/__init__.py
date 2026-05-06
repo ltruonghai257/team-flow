@@ -20,7 +20,12 @@ from app.schemas.board import (  # noqa: F401
     WeeklyPostOut,
     WeeklyPostUpdate,
 )
-from app.schemas.users import UserCreate, UserOut, UserRoleUpdate, UserUpdate  # noqa: F401
+from app.schemas.users import (
+    UserCreate,
+    UserOut,
+    UserRoleUpdate,
+    UserUpdate,
+)  # noqa: F401
 from app.schemas.work import (  # noqa: F401
     AiParseRequest,
     AiParseResponse,
@@ -126,4 +131,11 @@ from app.schemas.kpi import (  # noqa: F401
     KPIWarningEmailResponse,
     KPIWeightSettingsOut,
     KPIWeightSettingsUpdate,
+)
+from app.schemas.dashboard import (  # noqa: F401
+    DashboardActivityItem,
+    DashboardKpiSummary,
+    DashboardPayload,
+    DashboardTaskItem,
+    DashboardTeamHealthMember,
 )
