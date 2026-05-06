@@ -1,9 +1,9 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.3
-milestone_name: Timeline Clarity, Navigation IA & Scoped Visibility
-status: in_progress
-last_updated: "2026-04-30T00:00:00.000Z"
+milestone: v2.2
+milestone_name: — Team Updates, Knowledge Sharing & Weekly Board
+status: Pending phase breakdown
+last_updated: "2026-05-06T16:14:42.553Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 5
@@ -19,7 +19,7 @@ progress:
 
 **Milestone:** v2.3 — Timeline Clarity, Navigation IA & Scoped Visibility
 **Active Phase:** Phase 30 — Phase 18 status-transition follow-up hardening (Planning required)
-**Last Session:** 2026-04-30T00:00:00.000Z
+**Last Session:** --stopped-at
 
 ## Current Position
 
