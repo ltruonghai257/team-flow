@@ -246,7 +246,10 @@ Plans:
 **Goal:** Rebuild the dashboard `+page.svelte` into a professional, role-aware overview with visual hierarchy and role-conditional panels
 **Requirements:** DASH-01, DASH-02, DASH-03, TASKS-01, TASKS-02, TASKS-03, HEALTH-01, HEALTH-02, HEALTH-03, KPI-01, KPI-02, KPI-03, FEED-01, FEED-02, FEED-03
 **Depends on:** Phase 31
-**Plans:** 0 plans
+**Plans:**
+
+-   [x] 32-01-PLAN.md — Update dashboard API client with typed DashboardPayload interfaces and get() method
+-   [x] 32-02-PLAN.md — Rebuild frontend/src/routes/+page.svelte into role-aware dashboard with 4 sections
 
 **Success Criteria:**
 
