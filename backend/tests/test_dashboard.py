@@ -100,6 +100,80 @@ async def test_supervisor_dashboard_shape(
 
 
 @pytest.mark.asyncio
+async def test_assistant_manager_dashboard_shape(
+    db_session: AsyncSession, async_client: AsyncClient
+):
+    """Assistant manager role: all four keys present with correct shape."""
+    sub_team = SubTeam(name="Test SubTeam")
+    db_session.add(sub_team)
+    await db_session.flush()
+
+    assistant_manager_user = await _make_user(
+        db_session,
+        email="assistant_manager@test.com",
+        username="assistant_manager_user",
+        role=UserRole.assistant_manager,
+        sub_team_id=sub_team.id,
+    )
+    await db_session.commit()
+
+    token = _token(assistant_manager_user)
+    response = await async_client.get(
+        "/api/dashboard/",
+        headers={"Cookie": f"access_token={token}"},
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "my_tasks" in data
+    assert "team_health" in data
+    assert "kpi_summary" in data
+    assert "recent_activity" in data
+    assert isinstance(data["team_health"], list)
+    assert isinstance(data["kpi_summary"], dict)
+    assert "avg_score" in data["kpi_summary"]
+    assert "completion_rate" in data["kpi_summary"]
+    assert "needs_attention_count" in data["kpi_summary"]
+
+
+@pytest.mark.asyncio
+async def test_manager_dashboard_shape(
+    db_session: AsyncSession, async_client: AsyncClient
+):
+    """Manager role: all four keys present with correct shape."""
+    sub_team = SubTeam(name="Test SubTeam")
+    db_session.add(sub_team)
+    await db_session.flush()
+
+    manager_user = await _make_user(
+        db_session,
+        email="manager@test.com",
+        username="manager_user",
+        role=UserRole.manager,
+        sub_team_id=sub_team.id,
+    )
+    await db_session.commit()
+
+    token = _token(manager_user)
+    response = await async_client.get(
+        "/api/dashboard/",
+        headers={"Cookie": f"access_token={token}"},
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "my_tasks" in data
+    assert "team_health" in data
+    assert "kpi_summary" in data
+    assert "recent_activity" in data
+    assert isinstance(data["team_health"], list)
+    assert isinstance(data["kpi_summary"], dict)
+    assert "avg_score" in data["kpi_summary"]
+    assert "completion_rate" in data["kpi_summary"]
+    assert "needs_attention_count" in data["kpi_summary"]
+
+
+@pytest.mark.asyncio
 async def test_my_tasks_urgency_sort(
     db_session: AsyncSession, async_client: AsyncClient
 ):
