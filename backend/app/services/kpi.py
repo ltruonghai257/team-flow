@@ -1,11 +1,19 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from sqlalchemy import extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import CustomStatus, KPIWeightSettings, Project, SubTeam, Task, TaskType, User
+from app.models import (
+    CustomStatus,
+    KPIWeightSettings,
+    Project,
+    SubTeam,
+    Task,
+    TaskType,
+    User,
+)
 
 
 @dataclass
@@ -112,61 +120,75 @@ async def compute_kpi_overview(
     weights = await get_or_create_kpi_weights(db, sub_team)
 
     # Per-member aggregates
-    base = select(
-        User.id,
-        User.full_name,
-        User.avatar_url,
-        func.count(Task.id).filter(
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(False),
-        ).label("active_tasks"),
-        func.count(Task.id).filter(
-            Task.completed_at.is_not(None),
-            Task.completed_at >= thirty_days_ago,
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("completed_30d"),
-        func.avg(
-            extract("epoch", Task.completed_at - Task.created_at) / 3600
-        ).filter(
-            Task.completed_at.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("avg_cycle_time"),
-        func.count(Task.id).filter(
-            Task.completed_at.is_not(None),
-            Task.due_date.is_not(None),
-            Task.completed_at <= Task.due_date,
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("on_time_count"),
-        func.count(Task.id).filter(
-            Task.due_date.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("total_with_due"),
-        func.count(Task.id).filter(
-            Task.type == TaskType.bug,
-            Task.completed_at.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("bugs_closed"),
-        func.avg(
-            extract("epoch", Task.completed_at - Task.created_at) / 3600
-        ).filter(
-            Task.type == TaskType.bug,
-            Task.completed_at.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("bug_mttr"),
-        # NEW: overdue_tasks aggregate
-        func.count(Task.id).filter(
-            Task.due_date < now,
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(False),
-        ).label("overdue_tasks"),
-    ).join(Task, User.id == Task.assignee_id, isouter=True).outerjoin(
-        CustomStatus, Task.custom_status_id == CustomStatus.id
+    base = (
+        select(
+            User.id,
+            User.full_name,
+            User.avatar_url,
+            func.count(Task.id)
+            .filter(
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(False),
+            )
+            .label("active_tasks"),
+            func.count(Task.id)
+            .filter(
+                Task.completed_at.is_not(None),
+                Task.completed_at >= thirty_days_ago,
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(True),
+            )
+            .label("completed_30d"),
+            func.avg(extract("epoch", Task.completed_at - Task.created_at) / 3600)
+            .filter(
+                Task.completed_at.is_not(None),
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(True),
+            )
+            .label("avg_cycle_time"),
+            func.count(Task.id)
+            .filter(
+                Task.completed_at.is_not(None),
+                Task.due_date.is_not(None),
+                Task.completed_at <= Task.due_date,
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(True),
+            )
+            .label("on_time_count"),
+            func.count(Task.id)
+            .filter(
+                Task.due_date.is_not(None),
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(True),
+            )
+            .label("total_with_due"),
+            func.count(Task.id)
+            .filter(
+                Task.type == TaskType.bug,
+                Task.completed_at.is_not(None),
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(True),
+            )
+            .label("bugs_closed"),
+            func.avg(extract("epoch", Task.completed_at - Task.created_at) / 3600)
+            .filter(
+                Task.type == TaskType.bug,
+                Task.completed_at.is_not(None),
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(True),
+            )
+            .label("bug_mttr"),
+            # NEW: overdue_tasks aggregate
+            func.count(Task.id)
+            .filter(
+                Task.due_date < now,
+                Task.custom_status_id == CustomStatus.id,
+                CustomStatus.is_done.is_(False),
+            )
+            .label("overdue_tasks"),
+        )
+        .join(Task, User.id == Task.assignee_id, isouter=True)
+        .outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id)
     )
 
     if sub_team:
@@ -206,15 +228,34 @@ async def compute_kpi_overview(
 
         reasons = []
         if ws < 70:
-            reasons.append(KPIReason(label="High workload", severity="warning" if ws == 70 else "critical"))
+            reasons.append(
+                KPIReason(
+                    label="High workload",
+                    severity="warning" if ws == 70 else "critical",
+                )
+            )
         if vs < 70:
-            reasons.append(KPIReason(label="Low velocity", severity="warning" if vs == 70 else "critical"))
+            reasons.append(
+                KPIReason(
+                    label="Low velocity", severity="warning" if vs == 70 else "critical"
+                )
+            )
         if cs < 70:
-            reasons.append(KPIReason(label="Slow cycle time", severity="warning" if cs == 70 else "critical"))
+            reasons.append(
+                KPIReason(
+                    label="Slow cycle time",
+                    severity="warning" if cs == 70 else "critical",
+                )
+            )
         if ots < 70:
             reasons.append(KPIReason(label="Low on-time rate", severity="warning"))
         if ds < 70:
-            reasons.append(KPIReason(label="High bug MTTR", severity="warning" if ds == 70 else "critical"))
+            reasons.append(
+                KPIReason(
+                    label="High bug MTTR",
+                    severity="warning" if ds == 70 else "critical",
+                )
+            )
 
         trend = "stable"
         if kpi_score >= 80:
@@ -222,32 +263,36 @@ async def compute_kpi_overview(
         elif kpi_score < 60:
             trend = "down"
 
-        scorecards.append(KPIMemberScorecard(
-            user_id=row.id,
-            full_name=row.full_name,
-            avatar_url=row.avatar_url,
-            kpi_score=kpi_score,
-            trend=trend,
-            reasons=reasons,
-            breakdown=KPIScoreBreakdown(
-                workload=ws,
-                velocity=vs,
-                cycle_time=cs,
-                on_time=ots,
-                defects=ds,
-            ),
-        ))
+        scorecards.append(
+            KPIMemberScorecard(
+                user_id=row.id,
+                full_name=row.full_name,
+                avatar_url=row.avatar_url,
+                kpi_score=kpi_score,
+                trend=trend,
+                reasons=reasons,
+                breakdown=KPIScoreBreakdown(
+                    workload=ws,
+                    velocity=vs,
+                    cycle_time=cs,
+                    on_time=ots,
+                    defects=ds,
+                ),
+            )
+        )
 
         # NEW: Build per_member data with overdue_tasks
-        per_member_data.append(KpiPerMemberData(
-            user_id=row.id,
-            full_name=row.full_name,
-            avatar_url=row.avatar_url,
-            active_tasks=row.active_tasks,
-            completed_30d=row.completed_30d,
-            overdue_tasks=row.overdue_tasks or 0,
-            kpi_score=kpi_score,
-        ))
+        per_member_data.append(
+            KpiPerMemberData(
+                user_id=row.id,
+                full_name=row.full_name,
+                avatar_url=row.avatar_url,
+                active_tasks=row.active_tasks,
+                completed_30d=row.completed_30d,
+                overdue_tasks=row.overdue_tasks or 0,
+                kpi_score=kpi_score,
+            )
+        )
 
         total_active += row.active_tasks
         total_completed += row.completed_30d
@@ -255,14 +300,26 @@ async def compute_kpi_overview(
             cycle_times.append(row.avg_cycle_time)
         total_bugs += row.bugs_closed or 0
 
-    needs_attention = [s for s in scorecards if s.kpi_score < 70 or any(r.severity == "critical" for r in s.reasons)]
-    avg_score = round(sum(s.kpi_score for s in scorecards) / len(scorecards)) if scorecards else 0
+    needs_attention = [
+        s
+        for s in scorecards
+        if s.kpi_score < 70 or any(r.severity == "critical" for r in s.reasons)
+    ]
+    avg_score = (
+        round(sum(s.kpi_score for s in scorecards) / len(scorecards))
+        if scorecards
+        else 0
+    )
     avg_cycle = round(sum(cycle_times) / len(cycle_times), 1) if cycle_times else None
 
     # NEW: Compute completion_rate
     total_active_sum = sum(m.active_tasks for m in per_member_data)
     total_completed_sum = sum(m.completed_30d for m in per_member_data)
-    completion_rate = total_completed_sum / (total_active_sum + total_completed_sum) if (total_active_sum + total_completed_sum) > 0 else 0.0
+    completion_rate = (
+        total_completed_sum / (total_active_sum + total_completed_sum)
+        if (total_active_sum + total_completed_sum) > 0
+        else 0.0
+    )
 
     return KpiComputeResult(
         scorecards=scorecards,

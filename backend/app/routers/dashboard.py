@@ -23,7 +23,7 @@ from app.services.visibility import is_leader, is_manager
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-@router.get("/", response_model=DashboardPayload)
+@router.get("/", response_model=DashboardPayload, response_model_exclude_none=True)
 async def get_dashboard(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
