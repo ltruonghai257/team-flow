@@ -63,14 +63,14 @@
 	{:else if stats}
 		{#if $isManagerOrLeader && stats.kpi_summary}
 			<!-- KPI Summary Strip (supervisor / assistant_manager / manager only — D-12, D-13) -->
-			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" data-testid="kpi-summary-section">
 				<!-- Avg Score -->
 				<div class="card">
 					<div class="flex items-center justify-between mb-3">
 						<span class="text-gray-400 text-sm">Avg Score</span>
 						<TrendingUp class="text-primary-400" size={18} />
 					</div>
-					<p class="text-2xl font-semibold {kpiScoreColor(stats.kpi_summary.avg_score)}">{stats.kpi_summary.avg_score}</p>
+					<p class="text-2xl font-semibold {kpiScoreColor(stats.kpi_summary.avg_score)}" data-testid="kpi-avg-score">{stats.kpi_summary.avg_score}</p>
 					<p class="text-xs text-gray-500 mt-1">out of 100</p>
 				</div>
 				<!-- Completion Rate -->
@@ -79,7 +79,7 @@
 						<span class="text-gray-400 text-sm">Completion Rate</span>
 						<CheckSquare class="text-primary-400" size={18} />
 					</div>
-					<p class="text-2xl font-semibold text-white">{Math.round(stats.kpi_summary.completion_rate * 100)}%</p>
+					<p class="text-2xl font-semibold text-white" data-testid="kpi-completion-rate">{Math.round(stats.kpi_summary.completion_rate * 100)}%</p>
 					<p class="text-xs text-gray-500 mt-1">last 30 days</p>
 				</div>
 				<!-- Needs Attention — links to /performance (KPI-03) -->
@@ -88,7 +88,7 @@
 						<span class="text-gray-400 text-sm">Needs Attention</span>
 						<AlertTriangle class="text-yellow-400" size={18} />
 					</div>
-					<p class="text-2xl font-semibold {stats.kpi_summary.needs_attention_count > 0 ? 'text-yellow-400' : 'text-white'}">{stats.kpi_summary.needs_attention_count}</p>
+					<p class="text-2xl font-semibold {stats.kpi_summary.needs_attention_count > 0 ? 'text-yellow-400' : 'text-white'}" data-testid="kpi-needs-attention">{stats.kpi_summary.needs_attention_count}</p>
 					<p class="text-xs text-gray-500 mt-1">members below 70</p>
 				</a>
 			</div>
@@ -97,7 +97,7 @@
 		<!-- Two-column row: My Tasks (left) + Activity Feed (right) — all roles (D-01, D-02) -->
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 			<!-- My Tasks Panel (D-04 to D-07) -->
-			<div class="card">
+			<div class="card" data-testid="my-tasks-section">
 				<div class="flex items-center gap-2 mb-4">
 					<CheckSquare class="text-primary-400" size={18} />
 					<h2 class="font-semibold text-white">My Tasks</h2>
@@ -110,6 +110,9 @@
 							<a
 								href="/tasks"
 								class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-800 transition-colors {t.is_overdue ? 'bg-red-950/40' : t.is_due_soon ? 'bg-yellow-950/40' : ''}"
+								data-testid="task-card"
+								data-overdue={t.is_overdue ? "true" : "false"}
+								data-due-soon={t.is_due_soon ? "true" : "false"}
 							>
 								<div class="flex-1 min-w-0">
 									<p class="text-sm text-gray-200 truncate">{t.title}</p>
@@ -130,7 +133,7 @@
 			</div>
 
 			<!-- Activity Feed Panel (D-14 to D-16) -->
-			<div class="card">
+			<div class="card" data-testid="activity-feed-section">
 				<div class="flex items-center gap-2 mb-4">
 					<Clock class="text-primary-400" size={18} />
 					<h2 class="font-semibold text-white">Recent Activity</h2>
@@ -140,7 +143,7 @@
 				{:else}
 					<div>
 						{#each stats.recent_activity as activity}
-							<div class="flex items-start gap-3 py-2 border-b border-gray-800 last:border-0">
+							<div class="flex items-start gap-3 py-2 border-b border-gray-800 last:border-0" data-testid="activity-feed-item">
 								<div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold text-gray-300 flex-shrink-0">
 									{activity.author_name.charAt(0).toUpperCase()}
 								</div>
@@ -163,7 +166,7 @@
 
 		{#if $isManagerOrLeader && stats.team_health}
 			<!-- Team Health Panel (supervisor / assistant_manager / manager only — D-08 to D-11) -->
-			<div class="card">
+			<div class="card" data-testid="team-health-section">
 				<div class="flex items-center gap-2 mb-4">
 					<Users class="text-primary-400" size={18} />
 					<h2 class="font-semibold text-white">Team Health</h2>
@@ -173,7 +176,7 @@
 				{:else}
 					<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
 						{#each stats.team_health as member}
-							<div class="bg-gray-800 rounded-lg p-3 border {member.status === 'red' ? 'border-red-500/50' : 'border-gray-700'}">
+							<div class="bg-gray-800 rounded-lg p-3 border {member.status === 'red' ? 'border-red-500/50' : 'border-gray-700'}" data-testid="team-health-member" data-at-risk={member.status === 'red' ? "true" : "false"}>
 								<div class="flex items-center gap-2">
 									{#if member.avatar_url}
 										<img src={member.avatar_url} alt={member.full_name} class="w-10 h-10 rounded-full object-cover flex-shrink-0" />
