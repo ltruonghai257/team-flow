@@ -1,19 +1,38 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { dashboard } from '$lib/apis';
-	import { formatDate, statusColors, statusLabels, priorityColors, isOverdue, milestoneStatusColors } from '$lib/utils';
-	import { CheckSquare, Clock, AlertTriangle, Users, TrendingUp, Flag } from 'lucide-svelte';
+	import type { DashboardPayload } from '$lib/apis/dashboard';
+	import { timeAgo, priorityColors, statusColors, statusLabels, initials } from '$lib/utils';
+	import { isManagerOrLeader } from '$lib/stores/auth';
+	import { CheckSquare, Clock, AlertTriangle, Users, TrendingUp } from 'lucide-svelte';
 
-	let stats: any = null;
+	let stats: DashboardPayload | null = null;
 	let loading = true;
 
 	onMount(async () => {
 		try {
-			stats = await dashboard.stats();
+			stats = await dashboard.get();
 		} finally {
 			loading = false;
 		}
 	});
+
+	function activityPreview(fv: Record<string, string>): string {
+		const first = Object.values(fv).find((v) => v?.trim());
+		return first ? first.substring(0, 120) : '';
+	}
+
+	function kpiScoreColor(score: number): string {
+		if (score >= 80) return 'text-green-400';
+		if (score >= 60) return 'text-yellow-400';
+		return 'text-red-400';
+	}
+
+	const statusDotClass: Record<string, string> = {
+		green: 'bg-green-400',
+		yellow: 'bg-yellow-400',
+		red: 'bg-red-400'
+	};
 </script>
 
 <svelte:head><title>Dashboard · TeamFlow</title></svelte:head>
