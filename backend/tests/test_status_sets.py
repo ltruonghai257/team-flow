@@ -324,11 +324,14 @@ async def test_transition_write_scope_allows_manager_and_assistant_manager(
     status_set_id = status_set.id
     todo_id = todo.id
     review_id = review.id
+    manager_username = manager_user.username
+    assistant_manager_username = assistant_manager_user.username
+    member_username = member_user.username
     transition_payload = {
         "transitions": [{"from_status_id": todo_id, "to_status_id": review_id}]
     }
 
-    manager_token = await _login(async_client, manager_user.username)
+    manager_token = await _login(async_client, manager_username)
     manager_headers = {"Authorization": f"Bearer {manager_token}"}
     response = await async_client.post(
         f"/api/status-sets/{status_set_id}/transitions",
@@ -339,9 +342,7 @@ async def test_transition_write_scope_allows_manager_and_assistant_manager(
         response.status_code == 200
     ), f"manager should have write access (got {response.status_code}): {response.text}"
 
-    assistant_manager_token = await _login(
-        async_client, assistant_manager_user.username
-    )
+    assistant_manager_token = await _login(async_client, assistant_manager_username)
     assistant_manager_headers = {"Authorization": f"Bearer {assistant_manager_token}"}
     response = await async_client.post(
         f"/api/status-sets/{status_set_id}/transitions",
@@ -352,7 +353,7 @@ async def test_transition_write_scope_allows_manager_and_assistant_manager(
         response.status_code == 200
     ), f"assistant_manager should have write access (got {response.status_code}): {response.text}"
 
-    member_token = await _login(async_client, member_user.username)
+    member_token = await _login(async_client, member_username)
     member_headers = {"Authorization": f"Bearer {member_token}"}
     response = await async_client.post(
         f"/api/status-sets/{status_set_id}/transitions",
@@ -363,10 +364,12 @@ async def test_transition_write_scope_allows_manager_and_assistant_manager(
         response.status_code == 403
     ), f"member should be denied write access (got {response.status_code})"
 
+    fresh_manager_token = await _login(async_client, manager_username)
+    fresh_manager_headers = {"Authorization": f"Bearer {fresh_manager_token}"}
     response = await async_client.post(
         f"/api/status-sets/{status_set_id}/transitions",
         json={"transitions": []},
-        headers=manager_headers,
+        headers=fresh_manager_headers,
     )
     assert response.status_code == 200
     assert response.json() == []
