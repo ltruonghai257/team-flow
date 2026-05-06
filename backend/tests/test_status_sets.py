@@ -171,7 +171,9 @@ def test_done_status_has_is_done_true():
 
 @pytest.mark.asyncio
 async def test_status_transition_model_can_create_valid_transition(db_session):
-    _, status_set, todo, review, _ = await _create_status_set(db_session, suffix="_model")
+    _, status_set, todo, review, _ = await _create_status_set(
+        db_session, suffix="_model"
+    )
 
     transition = StatusTransition(
         status_set_id=status_set.id,
@@ -245,7 +247,9 @@ async def test_transition_replace_validates_auth_pairs_and_empty_payload(
         headers=supervisor_headers,
     )
     assert response.status_code == 200
-    assert {(row["from_status_id"], row["to_status_id"]) for row in response.json()} == {
+    assert {
+        (row["from_status_id"], row["to_status_id"]) for row in response.json()
+    } == {
         (todo_id, review_id),
         (review_id, done_id),
     }
@@ -272,9 +276,7 @@ async def test_transition_replace_validates_auth_pairs_and_empty_payload(
     response = await async_client.post(
         f"/api/status-sets/{status_set_id}/transitions",
         json={
-            "transitions": [
-                {"from_status_id": todo_id, "to_status_id": other_todo_id}
-            ]
+            "transitions": [{"from_status_id": todo_id, "to_status_id": other_todo_id}]
         },
         headers=supervisor_headers,
     )
@@ -285,6 +287,86 @@ async def test_transition_replace_validates_auth_pairs_and_empty_payload(
         f"/api/status-sets/{status_set_id}/transitions",
         json={"transitions": []},
         headers=supervisor_headers,
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_transition_write_scope_allows_manager_and_assistant_manager(
+    async_client: AsyncClient, db_session
+):
+    sub_team, status_set, todo, review, _ = await _create_status_set(
+        db_session, suffix="_rbac"
+    )
+    manager_user = await _create_user(
+        db_session,
+        email="workflow-manager@example.com",
+        username="workflow-manager",
+        role=UserRole.manager,
+        sub_team_id=sub_team.id,
+    )
+    assistant_manager_user = await _create_user(
+        db_session,
+        email="workflow-assistant-manager@example.com",
+        username="workflow-assistant-manager",
+        role=UserRole.assistant_manager,
+        sub_team_id=sub_team.id,
+    )
+    member_user = await _create_user(
+        db_session,
+        email="workflow-rbac-member@example.com",
+        username="workflow-rbac-member",
+        role=UserRole.member,
+        sub_team_id=sub_team.id,
+    )
+    await db_session.commit()
+    status_set_id = status_set.id
+    todo_id = todo.id
+    review_id = review.id
+    transition_payload = {
+        "transitions": [{"from_status_id": todo_id, "to_status_id": review_id}]
+    }
+
+    manager_token = await _login(async_client, manager_user.username)
+    manager_headers = {"Authorization": f"Bearer {manager_token}"}
+    response = await async_client.post(
+        f"/api/status-sets/{status_set_id}/transitions",
+        json=transition_payload,
+        headers=manager_headers,
+    )
+    assert (
+        response.status_code == 200
+    ), f"manager should have write access (got {response.status_code}): {response.text}"
+
+    assistant_manager_token = await _login(
+        async_client, assistant_manager_user.username
+    )
+    assistant_manager_headers = {"Authorization": f"Bearer {assistant_manager_token}"}
+    response = await async_client.post(
+        f"/api/status-sets/{status_set_id}/transitions",
+        json=transition_payload,
+        headers=assistant_manager_headers,
+    )
+    assert (
+        response.status_code == 200
+    ), f"assistant_manager should have write access (got {response.status_code}): {response.text}"
+
+    member_token = await _login(async_client, member_user.username)
+    member_headers = {"Authorization": f"Bearer {member_token}"}
+    response = await async_client.post(
+        f"/api/status-sets/{status_set_id}/transitions",
+        json=transition_payload,
+        headers=member_headers,
+    )
+    assert (
+        response.status_code == 403
+    ), f"member should be denied write access (got {response.status_code})"
+
+    response = await async_client.post(
+        f"/api/status-sets/{status_set_id}/transitions",
+        json={"transitions": []},
+        headers=manager_headers,
     )
     assert response.status_code == 200
     assert response.json() == []
@@ -359,7 +441,9 @@ async def test_transition_get_filters_archived_endpoints_and_writes_reject_archi
 
 
 @pytest.mark.asyncio
-async def test_project_override_copies_transition_snapshot(async_client: AsyncClient, db_session):
+async def test_project_override_copies_transition_snapshot(
+    async_client: AsyncClient, db_session
+):
     sub_team, status_set, todo, review, done = await _create_status_set(
         db_session, suffix="_override"
     )
@@ -393,7 +477,9 @@ async def test_project_override_copies_transition_snapshot(async_client: AsyncCl
     )
     assert response.status_code == 201
     override_set_id = response.json()["id"]
-    override_statuses = {status["slug"]: status["id"] for status in response.json()["statuses"]}
+    override_statuses = {
+        status["slug"]: status["id"] for status in response.json()["statuses"]
+    }
 
     response = await async_client.get(
         f"/api/status-sets/{override_set_id}/transitions",
