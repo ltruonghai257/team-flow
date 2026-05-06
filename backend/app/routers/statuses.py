@@ -17,8 +17,8 @@ from app.models import (
     SubTeam,
     Task,
     User,
-    UserRole,
 )
+from app.services.visibility import is_member
 from app.schemas import (
     CustomStatusCreate,
     CustomStatusOut,
@@ -138,13 +138,13 @@ async def _status_task_count(db: AsyncSession, status_id: int) -> int:
     return len(result.scalars().all())
 
 
-def _require_status_write_scope(current_user: User, sub_team: Optional[SubTeam]) -> None:
-    if current_user.role == UserRole.member:
-        raise HTTPException(status_code=403, detail="Supervisor or admin access required")
-    if current_user.role == UserRole.admin and sub_team is None:
+def _require_status_write_scope(
+    current_user: User, sub_team: Optional[SubTeam]
+) -> None:
+    if is_member(current_user):
         raise HTTPException(
-            status_code=400,
-            detail="Select a sub-team before editing default statuses",
+            status_code=403,
+            detail="Manager, supervisor, or assistant manager access required",
         )
 
 
@@ -208,7 +208,8 @@ async def _list_status_transitions(
     return [
         transition
         for transition in transitions
-        if not transition.from_status.is_archived and not transition.to_status.is_archived
+        if not transition.from_status.is_archived
+        and not transition.to_status.is_archived
     ]
 
 
@@ -465,9 +466,7 @@ async def delete_or_archive_status(
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
     _require_status_write_scope(current_user, sub_team)
-    result = await db.execute(
-        select(CustomStatus).where(CustomStatus.id == status_id)
-    )
+    result = await db.execute(select(CustomStatus).where(CustomStatus.id == status_id))
     status = result.scalar_one_or_none()
     if not status:
         raise HTTPException(status_code=404, detail="Status not found")
@@ -545,7 +544,9 @@ async def delete_or_archive_status(
     return _enrich_statuses(status_set, task_counts)
 
 
-@router.post("/projects/{project_id}/override", response_model=StatusSetOut, status_code=201)
+@router.post(
+    "/projects/{project_id}/override", response_model=StatusSetOut, status_code=201
+)
 async def create_project_override(
     project_id: int,
     db: AsyncSession = Depends(get_db),
