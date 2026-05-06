@@ -1,110 +1,139 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.auth import get_current_user, get_sub_team
 from app.db.database import get_db
-from app.models import (
-    Milestone,
-    MilestoneStatus,
-    Project,
-    SubTeam,
-    Task,
-    TaskStatus,
-    User,
+from app.models import CustomStatus, Project, SubTeam, Task, TaskStatus, User
+from app.models.updates import StandupPost
+from app.schemas.dashboard import (
+    DashboardActivityItem,
+    DashboardKpiSummary,
+    DashboardPayload,
+    DashboardTaskItem,
+    DashboardTeamHealthMember,
 )
-from app.schemas import DashboardStats
+from app.services.kpi import compute_kpi_overview
+from app.services.visibility import is_leader, is_manager
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-@router.get("/", response_model=DashboardStats)
+@router.get("/", response_model=DashboardPayload)
 async def get_dashboard(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
-):
+) -> DashboardPayload:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    next_30 = now + timedelta(days=30)
+    due_soon_cutoff = now + timedelta(hours=48)
 
-    # Apply sub-team filter to task queries
-    task_query = select(Task)
-    if sub_team:
-        task_query = task_query.join(Project, Task.project_id == Project.id).where(
-            Project.sub_team_id == sub_team.id
-        )
-
-    total = (
-        await db.execute(select(func.count()).select_from(task_query.subquery()))
-    ).scalar()
-    todo = (
-        await db.execute(
-            select(func.count()).select_from(
-                task_query.where(Task.status == TaskStatus.todo).subquery()
-            )
-        )
-    ).scalar()
-    in_progress = (
-        await db.execute(
-            select(func.count()).select_from(
-                task_query.where(Task.status == TaskStatus.in_progress).subquery()
-            )
-        )
-    ).scalar()
-    done = (
-        await db.execute(
-            select(func.count()).select_from(
-                task_query.where(Task.status == TaskStatus.done).subquery()
-            )
-        )
-    ).scalar()
-    overdue = (
-        await db.execute(
-            select(func.count()).select_from(
-                task_query.where(
-                    Task.due_date < now, Task.status != TaskStatus.done
-                ).subquery()
-            )
-        )
-    ).scalar()
-
-    # Apply sub-team filter to user query
-    user_query = select(User).where(User.is_active == True)
-    if sub_team:
-        user_query = user_query.where(User.sub_team_id == sub_team.id)
-    team_count = (
-        await db.execute(select(func.count()).select_from(user_query))
-    ).scalar()
-
-    upcoming_milestones_result = await db.execute(
-        select(Milestone)
-        .where(
-            Milestone.due_date <= next_30, Milestone.status != MilestoneStatus.completed
-        )
-        .order_by(Milestone.due_date)
-        .limit(5)
-    )
-    upcoming_milestones = upcoming_milestones_result.scalars().all()
-
-    recent_tasks_result = await db.execute(
+    # Section 1 — my_tasks (all roles, D-02 to D-05)
+    task_result = await db.execute(
         select(Task)
-        .options(selectinload(Task.assignee), selectinload(Task.custom_status))
-        .order_by(Task.updated_at.desc())
-        .limit(10)
+        .outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id)
+        .where(
+            Task.assignee_id == current_user.id,
+            Task.status != TaskStatus.done,
+            (Task.custom_status_id.is_(None)) | (CustomStatus.is_done.is_(False)),
+        )
+        .options(selectinload(Task.custom_status), selectinload(Task.project))
     )
-    recent_tasks = recent_tasks_result.scalars().all()
+    tasks = task_result.scalars().all()
 
-    return DashboardStats(
-        total_tasks=total,
-        todo_tasks=todo,
-        in_progress_tasks=in_progress,
-        done_tasks=done,
-        overdue_tasks=overdue,
-        total_team_members=team_count,
-        upcoming_milestones=upcoming_milestones,
-        recent_tasks=recent_tasks,
+    task_items = []
+    for t in tasks:
+        is_overdue = t.due_date is not None and t.due_date < now.date()
+        is_due_soon = (
+            not is_overdue
+            and t.due_date is not None
+            and now.date() <= t.due_date <= due_soon_cutoff.date()
+        )
+        project_name = t.project.name if t.project else None
+        task_items.append(
+            DashboardTaskItem(
+                id=t.id,
+                title=t.title,
+                project_name=project_name,
+                status=t.status,
+                priority=t.priority,
+                due_date=t.due_date,
+                is_overdue=is_overdue,
+                is_due_soon=is_due_soon,
+            )
+        )
+
+    # Sort: overdue first (due_date ASC), then upcoming (due_date ASC), then no due_date
+    overdue = sorted(
+        [x for x in task_items if x.is_overdue], key=lambda x: x.due_date or date.min
+    )
+    upcoming = sorted(
+        [x for x in task_items if not x.is_overdue and x.due_date is not None],
+        key=lambda x: x.due_date,
+    )
+    no_date = [x for x in task_items if x.due_date is None]
+    my_tasks = (overdue + upcoming + no_date)[:20]
+
+    # Section 2 — team_health and kpi_summary (supervisor/assistant_manager/manager only)
+    team_health = None
+    kpi_summary = None
+
+    if is_leader(current_user) or is_manager(current_user):
+        kpi_result = await compute_kpi_overview(db, sub_team)
+
+        team_health = [
+            DashboardTeamHealthMember(
+                user_id=m.user_id,
+                full_name=m.full_name,
+                avatar_url=m.avatar_url,
+                status=(
+                    "red"
+                    if m.active_tasks > 10
+                    else ("yellow" if m.active_tasks > 7 else "green")
+                ),
+                active_tasks=m.active_tasks,
+                completed_30d=m.completed_30d,
+                overdue_tasks=m.overdue_tasks,
+            )
+            for m in kpi_result.per_member
+        ]
+
+        kpi_summary = DashboardKpiSummary(
+            avg_score=kpi_result.avg_score,
+            completion_rate=kpi_result.completion_rate,
+            needs_attention_count=kpi_result.needs_attention_count,
+        )
+
+    # Section 3 — recent_activity (all roles, D-13 to D-15)
+    activity_query = select(StandupPost).order_by(StandupPost.id.desc()).limit(5)
+    if sub_team is not None:
+        activity_query = activity_query.where(StandupPost.sub_team_id == sub_team.id)
+
+    activity_result = await db.execute(activity_query)
+    posts = activity_result.scalars().all()
+
+    # Load author relationship for each post
+    for post in posts:
+        await db.refresh(post, attribute_names=["author"])
+
+    recent_activity = [
+        DashboardActivityItem(
+            post_id=post.id,
+            author_id=post.author_id,
+            author_name=post.author.full_name if post.author else "Unknown",
+            created_at=post.created_at,
+            field_values=post.field_values or {},
+        )
+        for post in posts
+    ]
+
+    return DashboardPayload(
+        my_tasks=my_tasks,
+        team_health=team_health,
+        kpi_summary=kpi_summary,
+        recent_activity=recent_activity,
     )
