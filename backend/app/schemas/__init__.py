@@ -33,7 +33,6 @@ from app.schemas.work import (  # noqa: F401
     CustomStatusCreate,
     CustomStatusOut,
     CustomStatusUpdate,
-    DashboardStats,
     MilestoneCreate,
     MilestoneDecisionCreate,
     MilestoneDecisionOut,

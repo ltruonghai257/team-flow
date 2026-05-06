@@ -136,7 +136,9 @@ class SprintBase(BaseModel):
 
 
 class SprintCreate(SprintBase):
-    _normalize_dates = field_validator("start_date", "end_date", mode="after")(_to_naive_utc)
+    _normalize_dates = field_validator("start_date", "end_date", mode="after")(
+        _to_naive_utc
+    )
 
 
 class SprintUpdate(BaseModel):
@@ -146,7 +148,9 @@ class SprintUpdate(BaseModel):
     status: Optional[SprintStatus] = None
     milestone_id: Optional[int] = None
 
-    _normalize_dates = field_validator("start_date", "end_date", mode="after")(_to_naive_utc)
+    _normalize_dates = field_validator("start_date", "end_date", mode="after")(
+        _to_naive_utc
+    )
 
 
 class SprintOut(SprintBase):
@@ -431,20 +435,6 @@ class TimelineProjectOut(BaseModel):
     unassigned_tasks: List[TimelineTaskOut] = []
 
     model_config = {"from_attributes": True}
-
-
-# ── Dashboard ─────────────────────────────────────────────────────────────────
-
-
-class DashboardStats(BaseModel):
-    total_tasks: int
-    todo_tasks: int
-    in_progress_tasks: int
-    done_tasks: int
-    overdue_tasks: int
-    total_team_members: int
-    upcoming_milestones: List[MilestoneOut]
-    recent_tasks: List[TaskOut]
 
 
 # ── Milestone Command View ────────────────────────────────────────────────────
