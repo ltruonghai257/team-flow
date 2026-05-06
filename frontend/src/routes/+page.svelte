@@ -8,10 +8,14 @@
 
 	let stats: DashboardPayload | null = null;
 	let loading = true;
+	let error: string | null = null;
 
 	onMount(async () => {
 		try {
 			stats = await dashboard.get();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load dashboard';
+			console.error('Dashboard load error:', e);
 		} finally {
 			loading = false;
 		}
@@ -46,6 +50,15 @@
 	{#if loading}
 		<div class="flex items-center justify-center py-20">
 			<div class="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+		</div>
+	{:else if error}
+		<div class="flex flex-col items-center justify-center py-20">
+			<AlertTriangle class="text-red-400 mb-3" size={48} />
+			<p class="text-gray-400 text-sm">Failed to load dashboard</p>
+			<p class="text-gray-500 text-xs mt-1">{error}</p>
+			<button onclick={() => window.location.reload()} class="mt-4 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-500 transition-colors text-sm">
+				Retry
+			</button>
 		</div>
 	{:else if stats}
 		{#if $isManagerOrLeader && stats.kpi_summary}
