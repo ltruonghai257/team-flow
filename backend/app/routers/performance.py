@@ -9,7 +9,19 @@ from sqlalchemy.orm import selectinload
 from app.utils.auth import require_supervisor, get_sub_team
 from app.db.database import get_db
 from app.utils.email_service import send_kpi_warning_email
-from app.models import Project, SubTeam, User, Task, TaskStatus, TaskType, ChatMessage, KPIWeightSettings, CustomStatus, Sprint, SprintStatus
+from app.models import (
+    Project,
+    SubTeam,
+    User,
+    Task,
+    TaskStatus,
+    TaskType,
+    ChatMessage,
+    KPIWeightSettings,
+    CustomStatus,
+    Sprint,
+    SprintStatus,
+)
 from app.schemas import (
     PerformanceDashboard,
     TeamMemberPerformance,
@@ -35,25 +47,19 @@ from app.schemas import (
     KPIWarningEmailResponse,
 )
 from app.services.visibility import require_visible_user
+from app.services.kpi import (
+    compute_kpi_overview,
+    get_or_create_kpi_weights,
+    score_workload,
+    score_velocity,
+    score_cycle_time,
+    score_on_time,
+    score_defects,
+    completed_task_filter,
+    active_task_filter,
+)
 
 router = APIRouter(prefix="/api/performance", tags=["performance"])
-
-
-async def _get_or_create_kpi_weights(
-    db: AsyncSession, sub_team: Optional[SubTeam]
-) -> KPIWeightSettings:
-    target_sub_team_id = sub_team.id if sub_team else None
-    result = await db.execute(
-        select(KPIWeightSettings).where(
-            KPIWeightSettings.sub_team_id == target_sub_team_id
-        )
-    )
-    weights = result.scalar_one_or_none()
-    if weights is None:
-        weights = KPIWeightSettings(sub_team_id=target_sub_team_id)
-        db.add(weights)
-        await db.flush()
-    return weights
 
 
 @router.get("/kpi/weights", response_model=KPIWeightSettingsOut)
@@ -62,7 +68,7 @@ async def get_kpi_weights(
     current_user: User = Depends(require_supervisor),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    weights = await _get_or_create_kpi_weights(db, sub_team)
+    weights = await get_or_create_kpi_weights(db, sub_team)
     await db.commit()
     await db.refresh(weights)
     return weights
@@ -76,7 +82,7 @@ async def update_kpi_weights(
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
     payload.validate_sum()
-    weights = await _get_or_create_kpi_weights(db, sub_team)
+    weights = await get_or_create_kpi_weights(db, sub_team)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(weights, field, value)
     await db.commit()
@@ -96,7 +102,9 @@ async def send_kpi_warning(
     if payload.level == "fair" and not (60 <= payload.kpi_score < 80):
         raise HTTPException(status_code=400, detail="Fair warning requires score 60–79")
     if payload.level == "at_risk" and payload.kpi_score >= 60:
-        raise HTTPException(status_code=400, detail="Serious warning requires score below 60")
+        raise HTTPException(
+            status_code=400, detail="Serious warning requires score below 60"
+        )
 
     result = await db.execute(select(User).where(User.id == payload.user_id))
     recipient = result.scalar_one_or_none()
@@ -446,151 +454,23 @@ async def get_kpi_overview(
     current_user: User = Depends(require_supervisor),
     sub_team: Optional[SubTeam] = Depends(get_sub_team),
 ):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    thirty_days_ago = now - timedelta(days=30)
-
-    weights = await _get_or_create_kpi_weights(db, sub_team)
-
-    # Per-member aggregates
-    base = select(
-        User.id,
-        User.full_name,
-        User.avatar_url,
-        func.count(Task.id).filter(
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(False),
-        ).label("active_tasks"),
-        func.count(Task.id).filter(
-            Task.completed_at.is_not(None),
-            Task.completed_at >= thirty_days_ago,
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("completed_30d"),
-        func.avg(
-            extract("epoch", Task.completed_at - Task.created_at) / 3600
-        ).filter(
-            Task.completed_at.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("avg_cycle_time"),
-        func.count(Task.id).filter(
-            Task.completed_at.is_not(None),
-            Task.due_date.is_not(None),
-            Task.completed_at <= Task.due_date,
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("on_time_count"),
-        func.count(Task.id).filter(
-            Task.due_date.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("total_with_due"),
-        func.count(Task.id).filter(
-            Task.type == TaskType.bug,
-            Task.completed_at.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("bugs_closed"),
-        func.avg(
-            extract("epoch", Task.completed_at - Task.created_at) / 3600
-        ).filter(
-            Task.type == TaskType.bug,
-            Task.completed_at.is_not(None),
-            Task.custom_status_id == CustomStatus.id,
-            CustomStatus.is_done.is_(True),
-        ).label("bug_mttr"),
-    ).join(Task, User.id == Task.assignee_id, isouter=True).outerjoin(
-        CustomStatus, Task.custom_status_id == CustomStatus.id
-    )
-
-    if sub_team:
-        base = base.join(Project, Task.project_id == Project.id, isouter=True).where(
-            Project.sub_team_id == sub_team.id
-        )
-
-    base = base.group_by(User.id)
-    rows = (await db.execute(base)).all()
-
-    scorecards = []
-    total_active = 0
-    total_completed = 0
-    cycle_times = []
-    total_bugs = 0
-
-    for row in rows:
-        on_time_pct = (
-            (row.on_time_count / row.total_with_due * 100)
-            if row.total_with_due
-            else 100.0
-        )
-        ws = _score_workload(row.active_tasks)
-        vs = _score_velocity(row.completed_30d)
-        cs = _score_cycle_time(row.avg_cycle_time)
-        ots = _score_on_time(on_time_pct)
-        ds = _score_defects(row.bug_mttr)
-
-        kpi_score = round(
-            ws * weights.workload_weight / 100
-            + vs * weights.velocity_weight / 100
-            + cs * weights.cycle_time_weight / 100
-            + ots * weights.on_time_weight / 100
-            + ds * weights.defect_weight / 100
-        )
-
-        reasons = []
-        if ws < 70:
-            reasons.append(KPIReason(label="High workload", severity="warning" if ws == 70 else "critical"))
-        if vs < 70:
-            reasons.append(KPIReason(label="Low velocity", severity="warning" if vs == 70 else "critical"))
-        if cs < 70:
-            reasons.append(KPIReason(label="Slow cycle time", severity="warning" if cs == 70 else "critical"))
-        if ots < 70:
-            reasons.append(KPIReason(label="Low on-time rate", severity="warning"))
-        if ds < 70:
-            reasons.append(KPIReason(label="High bug MTTR", severity="warning" if ds == 70 else "critical"))
-
-        trend = "stable"
-        if kpi_score >= 80:
-            trend = "up"
-        elif kpi_score < 60:
-            trend = "down"
-
-        scorecards.append(KPIMemberScorecard(
-            user_id=row.id,
-            full_name=row.full_name,
-            avatar_url=row.avatar_url,
-            kpi_score=kpi_score,
-            trend=trend,
-            reasons=reasons,
-            breakdown=KPIScoreBreakdown(
-                workload=ws,
-                velocity=vs,
-                cycle_time=cs,
-                on_time=ots,
-                defects=ds,
-            ),
-        ))
-
-        total_active += row.active_tasks
-        total_completed += row.completed_30d
-        if row.avg_cycle_time is not None:
-            cycle_times.append(row.avg_cycle_time)
-        total_bugs += row.bugs_closed or 0
-
-    needs_attention = [s for s in scorecards if s.kpi_score < 70 or any(r.severity == "critical" for r in s.reasons)]
-    avg_score = round(sum(s.kpi_score for s in scorecards) / len(scorecards)) if scorecards else 0
-    avg_cycle = round(sum(cycle_times) / len(cycle_times), 1) if cycle_times else None
+    weights = await get_or_create_kpi_weights(db, sub_team)
+    result = await compute_kpi_overview(db, sub_team)
 
     await db.commit()
     return KPIOverviewResponse(
-        scorecards=scorecards,
-        needs_attention=needs_attention,
+        scorecards=result.scorecards,
+        needs_attention=[
+            s
+            for s in result.scorecards
+            if s.kpi_score < 70 or any(r.severity == "critical" for r in s.reasons)
+        ],
         summary=KPIOverviewSummary(
-            average_score=avg_score,
-            active_tasks=total_active,
-            completed_tasks=total_completed,
-            average_cycle_time_hours=avg_cycle,
-            defect_count=total_bugs,
+            average_score=result.avg_score,
+            active_tasks=sum(m.active_tasks for m in result.per_member),
+            completed_tasks=sum(m.completed_30d for m in result.per_member),
+            average_cycle_time_hours=None,  # Not computed in service for dashboard use
+            defect_count=0,  # Not computed in service for dashboard use
         ),
         weights=weights,
     )
@@ -619,16 +499,19 @@ async def get_kpi_sprint(
     sprint_ids = [s.id for s in sprints]
 
     # Velocity: completed tasks per member per sprint
-    vel_stmt = select(
-        Task.sprint_id,
-        User.full_name,
-        func.count(Task.id).label("count"),
-    ).join(User, Task.assignee_id == User.id).outerjoin(
-        CustomStatus, Task.custom_status_id == CustomStatus.id
-    ).where(
-        Task.sprint_id.in_(sprint_ids),
-        Task.completed_at.is_not(None),
-        CustomStatus.is_done.is_(True),
+    vel_stmt = (
+        select(
+            Task.sprint_id,
+            User.full_name,
+            func.count(Task.id).label("count"),
+        )
+        .join(User, Task.assignee_id == User.id)
+        .outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id)
+        .where(
+            Task.sprint_id.in_(sprint_ids),
+            Task.completed_at.is_not(None),
+            CustomStatus.is_done.is_(True),
+        )
     )
     if sub_team:
         vel_stmt = vel_stmt.join(Project, Task.project_id == Project.id).where(
@@ -692,7 +575,8 @@ async def get_kpi_sprint(
             remaining_r = await db.execute(
                 select(func.count(Task.id)).where(
                     Task.sprint_id == target_sprint.id,
-                    (Task.completed_at.is_(None)) | (func.date(Task.completed_at) > day),
+                    (Task.completed_at.is_(None))
+                    | (func.date(Task.completed_at) > day),
                 )
             )
             remaining = remaining_r.scalar() or 0
@@ -701,7 +585,11 @@ async def get_kpi_sprint(
         burndown_series = [KPIChartSeries(name="Remaining", points=points)]
 
     # Filter options
-    all_sprints = (await db.execute(select(Sprint).order_by(desc(Sprint.start_date)).limit(20))).scalars().all()
+    all_sprints = (
+        (await db.execute(select(Sprint).order_by(desc(Sprint.start_date)).limit(20)))
+        .scalars()
+        .all()
+    )
     filter_options = KPIFilterOptions(
         sprints=[{"id": s.id, "name": s.name} for s in all_sprints],
     )
@@ -747,55 +635,71 @@ async def get_kpi_quality(
         bug_base = bug_base.where(Task.assignee_id == member_id)
     if project_id:
         bug_base = bug_base.where(Task.project_id == project_id)
-    bug_base = bug_base.group_by(func.date(Task.created_at)).order_by(func.date(Task.created_at))
+    bug_base = bug_base.group_by(func.date(Task.created_at)).order_by(
+        func.date(Task.created_at)
+    )
     bug_rows = (await db.execute(bug_base)).all()
 
-    resolved_base = select(
-        func.date(Task.completed_at).label("date"),
-        func.count(Task.id).label("resolved"),
-    ).outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id).where(
-        Task.type == TaskType.bug,
-        Task.completed_at.is_not(None),
-        CustomStatus.is_done.is_(True),
-        Task.completed_at >= date_start,
-        Task.completed_at <= date_end,
+    resolved_base = (
+        select(
+            func.date(Task.completed_at).label("date"),
+            func.count(Task.id).label("resolved"),
+        )
+        .outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id)
+        .where(
+            Task.type == TaskType.bug,
+            Task.completed_at.is_not(None),
+            CustomStatus.is_done.is_(True),
+            Task.completed_at >= date_start,
+            Task.completed_at <= date_end,
+        )
     )
     if sub_team:
-        resolved_base = resolved_base.join(Project, Task.project_id == Project.id).where(
-            Project.sub_team_id == sub_team.id
-        )
+        resolved_base = resolved_base.join(
+            Project, Task.project_id == Project.id
+        ).where(Project.sub_team_id == sub_team.id)
     if member_id:
         resolved_base = resolved_base.where(Task.assignee_id == member_id)
     if project_id:
         resolved_base = resolved_base.where(Task.project_id == project_id)
-    resolved_base = resolved_base.group_by(func.date(Task.completed_at)).order_by(func.date(Task.completed_at))
+    resolved_base = resolved_base.group_by(func.date(Task.completed_at)).order_by(
+        func.date(Task.completed_at)
+    )
     resolved_rows = (await db.execute(resolved_base)).all()
 
     bugs_series = [
         KPIChartSeries(
             name="Reported",
-            points=[KPIChartPoint(label=str(r.date), value=r.reported) for r in bug_rows],
+            points=[
+                KPIChartPoint(label=str(r.date), value=r.reported) for r in bug_rows
+            ],
         ),
         KPIChartSeries(
             name="Resolved",
-            points=[KPIChartPoint(label=str(r.date), value=r.resolved) for r in resolved_rows],
+            points=[
+                KPIChartPoint(label=str(r.date), value=r.resolved)
+                for r in resolved_rows
+            ],
         ),
     ]
 
     # MTTR by member
-    mttr_stmt = select(
-        User.full_name,
-        func.avg(
-            extract("epoch", Task.completed_at - Task.created_at) / 3600
-        ).label("mttr"),
-    ).join(User, Task.assignee_id == User.id).outerjoin(
-        CustomStatus, Task.custom_status_id == CustomStatus.id
-    ).where(
-        Task.type == TaskType.bug,
-        Task.completed_at.is_not(None),
-        CustomStatus.is_done.is_(True),
-        Task.completed_at >= date_start,
-        Task.completed_at <= date_end,
+    mttr_stmt = (
+        select(
+            User.full_name,
+            func.avg(
+                extract("epoch", Task.completed_at - Task.created_at) / 3600
+            ).label("mttr"),
+        )
+        .join(User, Task.assignee_id == User.id)
+        .outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id)
+        .where(
+            Task.type == TaskType.bug,
+            Task.completed_at.is_not(None),
+            CustomStatus.is_done.is_(True),
+            Task.completed_at >= date_start,
+            Task.completed_at <= date_end,
+        )
     )
     if sub_team:
         mttr_stmt = mttr_stmt.join(Project, Task.project_id == Project.id).where(
@@ -806,10 +710,15 @@ async def get_kpi_quality(
     mttr_stmt = mttr_stmt.group_by(User.full_name)
     mttr_rows = (await db.execute(mttr_stmt)).all()
 
-    mttr_series = [KPIChartSeries(
-        name="MTTR (hours)",
-        points=[KPIChartPoint(label=r.full_name, value=round(r.mttr or 0, 1)) for r in mttr_rows],
-    )]
+    mttr_series = [
+        KPIChartSeries(
+            name="MTTR (hours)",
+            points=[
+                KPIChartPoint(label=r.full_name, value=round(r.mttr or 0, 1))
+                for r in mttr_rows
+            ],
+        )
+    ]
 
     return KPIQualityResponse(
         bugs_series=bugs_series,
@@ -841,17 +750,20 @@ async def get_kpi_members(
     ct_end = end or now
 
     # Throughput by member and task type
-    tp_stmt = select(
-        User.full_name,
-        Task.type,
-        func.count(Task.id).label("count"),
-    ).join(User, Task.assignee_id == User.id).outerjoin(
-        CustomStatus, Task.custom_status_id == CustomStatus.id
-    ).where(
-        Task.completed_at.is_not(None),
-        CustomStatus.is_done.is_(True),
-        Task.completed_at >= tp_start,
-        Task.completed_at <= tp_end,
+    tp_stmt = (
+        select(
+            User.full_name,
+            Task.type,
+            func.count(Task.id).label("count"),
+        )
+        .join(User, Task.assignee_id == User.id)
+        .outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id)
+        .where(
+            Task.completed_at.is_not(None),
+            CustomStatus.is_done.is_(True),
+            Task.completed_at >= tp_start,
+            Task.completed_at <= tp_end,
+        )
     )
     if sub_team:
         tp_stmt = tp_stmt.join(Project, Task.project_id == Project.id).where(
@@ -877,22 +789,28 @@ async def get_kpi_members(
     throughput_series = [
         KPIChartSeries(
             name=t,
-            points=[KPIChartPoint(label=m, value=counts.get(m, 0)) for m in all_members],
+            points=[
+                KPIChartPoint(label=m, value=counts.get(m, 0)) for m in all_members
+            ],
         )
         for t, counts in tp_by_type.items()
     ]
 
     # Cycle time by task type
-    ct_stmt = select(
-        Task.type,
-        func.avg(
-            extract("epoch", Task.completed_at - Task.created_at) / 3600
-        ).label("avg_hours"),
-    ).outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id).where(
-        Task.completed_at.is_not(None),
-        CustomStatus.is_done.is_(True),
-        Task.completed_at >= ct_start,
-        Task.completed_at <= ct_end,
+    ct_stmt = (
+        select(
+            Task.type,
+            func.avg(
+                extract("epoch", Task.completed_at - Task.created_at) / 3600
+            ).label("avg_hours"),
+        )
+        .outerjoin(CustomStatus, Task.custom_status_id == CustomStatus.id)
+        .where(
+            Task.completed_at.is_not(None),
+            CustomStatus.is_done.is_(True),
+            Task.completed_at >= ct_start,
+            Task.completed_at <= ct_end,
+        )
     )
     if sub_team:
         ct_stmt = ct_stmt.join(Project, Task.project_id == Project.id).where(
@@ -903,10 +821,18 @@ async def get_kpi_members(
     ct_stmt = ct_stmt.group_by(Task.type)
     ct_rows = (await db.execute(ct_stmt)).all()
 
-    cycle_time_series = [KPIChartSeries(
-        name="Cycle Time (hours)",
-        points=[KPIChartPoint(label=str(r.type.value) if r.type else "unknown", value=round(r.avg_hours or 0, 1)) for r in ct_rows],
-    )]
+    cycle_time_series = [
+        KPIChartSeries(
+            name="Cycle Time (hours)",
+            points=[
+                KPIChartPoint(
+                    label=str(r.type.value) if r.type else "unknown",
+                    value=round(r.avg_hours or 0, 1),
+                )
+                for r in ct_rows
+            ],
+        )
+    ]
 
     return KPIMembersResponse(
         throughput_series=throughput_series,
