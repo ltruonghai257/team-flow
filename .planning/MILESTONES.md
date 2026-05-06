@@ -1,15 +1,37 @@
 # Milestones: TeamFlow
 
-## v2.3 Timeline Clarity, Navigation IA & Scoped Visibility (Started: 2026-04-29)
+## v2.4 Professional Role-Aware Dashboard (Started: 2026-05-06)
 
 **Status:** Planning
 
 ### Goals
 
-- Regroup sidebar pages into clearer feature-based item/sub-item navigation
-- Improve timeline clarity with a stronger Gantt view, milestone emphasis, and planning/decision signal
-- Make milestones show linked tasks, planning state, and decisions more clearly
-- Enforce scoped visibility so members see only their sub-team, supervisors and assistant managers see peer leaders at the same level, and managers can see everyone
+-   Redesign the dashboard (`/`) with professional visual hierarchy, clear section groupings, and data visualizations
+-   Add a personalized My Tasks panel (all roles): assigned tasks sorted by urgency, overdue flagged red, due-soon highlighted
+-   Add a Team Health panel (supervisor+): per-member workload status with at-risk signals from existing performance data
+-   Add a KPI Summary strip (supervisor+): avg KPI score, completion rate, needs-attention count — linked to `/performance`
+-   Add an Activity Feed (all roles): recent standup posts scoped by visibility rules
+
+---
+
+## v2.3 Timeline Clarity, Navigation IA & Scoped Visibility (Shipped: 2026-05-06)
+
+**Status:** Complete
+**Phases completed:** 5 phases (26-30)
+
+### What Shipped
+
+-   Grouped sidebar navigation with parent/child sections and role-aware visibility
+-   Milestone-first Gantt timeline with expandable task rollups and planning/decision signal
+-   Milestone command view with planning state, decisions, and linked task detail
+-   Scoped visibility RBAC enforced across team, timeline, milestones, updates, board, and schedule screens
+
+### Exit Criteria Met
+
+-   ✓ `/timeline` delivered with milestone-first Gantt and planning signal
+-   ✓ `/milestones` upgraded to command view with decision CRUD
+-   ✓ Visibility rules enforced for member / supervisor / assistant manager / manager roles
+-   ✓ Sidebar navigation restructured into workflow-based groups
 
 ---
 
@@ -19,15 +41,15 @@
 
 ### What Shipped
 
-- Structured standup updates with frozen task snapshots and a team feed
-- Knowledge Sharing sessions embedded into `/schedule` with scoped visibility and reminders
-- Weekly markdown board with per-week navigation plus on-demand and scheduled AI summaries
+-   Structured standup updates with frozen task snapshots and a team feed
+-   Knowledge Sharing sessions embedded into `/schedule` with scoped visibility and reminders
+-   Weekly markdown board with per-week navigation plus on-demand and scheduled AI summaries
 
 ### Exit Criteria Met
 
-- ✓ `/updates` delivered with template-driven standup posts
-- ✓ `/schedule` includes scoped Knowledge Sessions
-- ✓ `/board` delivered with markdown posts and AI summaries
+-   ✓ `/updates` delivered with template-driven standup posts
+-   ✓ `/schedule` includes scoped Knowledge Sessions
+-   ✓ `/board` delivered with markdown posts and AI summaries
 
 ---
 
@@ -38,9 +60,9 @@
 
 ### What Shipped
 
-- Open WebUI-inspired backend package groups with compatibility preserved
-- Frontend SvelteKit structure reorganized into cleaner route and lib groups
-- Runtime, Docker, Alembic, tests, and smoke checks verified after the move
+-   Open WebUI-inspired backend package groups with compatibility preserved
+-   Frontend SvelteKit structure reorganized into cleaner route and lib groups
+-   Runtime, Docker, Alembic, tests, and smoke checks verified after the move
 
 ---
 
@@ -51,11 +73,11 @@
 
 ### What Shipped
 
-- Multi-team hierarchy and timeline visibility
-- Sprint model and sprint reminders
-- Custom Kanban statuses
-- Advanced KPI dashboard
-- Status transition graph and workflow rules
+-   Multi-team hierarchy and timeline visibility
+-   Sprint model and sprint reminders
+-   Custom Kanban statuses
+-   Advanced KPI dashboard
+-   Status transition graph and workflow rules
 
 ---
 
@@ -66,10 +88,10 @@
 
 ### What Shipped
 
-- Production hardening and RBAC baseline
-- Supervisor performance dashboard
-- Timeline view
-- AI task features
-- Mobile responsiveness
-- Azure deployment and CI/CD
-- User invite and team management
+-   Production hardening and RBAC baseline
+-   Supervisor performance dashboard
+-   Timeline view
+-   AI task features
+-   Mobile responsiveness
+-   Azure deployment and CI/CD
+-   User invite and team management

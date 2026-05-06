@@ -1,6 +1,6 @@
 # Roadmap: TeamFlow
 
-_Updated: 2026-04-30_
+_Updated: 2026-05-06_
 
 ---
 
@@ -10,7 +10,8 @@ _Updated: 2026-04-30_
 -   ✅ **v2.0** — Team Hierarchy, Sprints & Advanced Analytics (Phases 12-18) — shipped 2026-04-28
 -   ✅ **v2.1** — Open WebUI-Style Project Structure Refactor (Phases 19-22) — shipped 2026-04-28
 -   ✅ **v2.2** — Team Updates, Knowledge Sharing & Weekly Board (Phases 23-25) — shipped 2026-04-28
--   🔄 **v2.3** — Timeline Clarity, Navigation IA & Scoped Visibility (Phases 26-30) — in progress
+-   ✅ **v2.3** — Timeline Clarity, Navigation IA & Scoped Visibility (Phases 26-30) — shipped 2026-05-06
+-   🔄 **v2.4** — Professional Role-Aware Dashboard (Phases 31-33) — in progress
 
 ---
 
@@ -68,6 +69,12 @@ _Updated: 2026-04-30_
 -   [x] **Phase 27: Timeline & Gantt Clarity** — Make `/timeline` milestone-first, clearer to scan, and richer in planning and decision signal (completed 2026-04-28)
 -   [x] **Phase 28: Milestone Planning & Decisions** — Improve `/milestones` so planning state, decisions, and related tasks are visible together (completed 2026-04-30)
 -   [x] **Phase 29: Scoped Team Visibility & Leadership RBAC** — Enforce the new member / supervisor / assistant manager / manager visibility rules across the product (completed 2026-04-29)
+
+### v2.4 — Professional Role-Aware Dashboard
+
+-   [ ] **Phase 31: Dashboard API & Data Contract** — Extend `/api/dashboard/` to return role-aware payload (my_tasks, team_health, kpi_summary, recent_activity) with typed schemas and backend test coverage
+-   [ ] **Phase 32: Dashboard Frontend Redesign** — Rebuild `+page.svelte` with professional role-conditional layout: my tasks panel, team health panel (supervisor+), KPI summary strip (supervisor+), and activity feed
+-   [ ] **Phase 33: Dashboard Regression & Verification** — Playwright smoke tests, backend tests, and UAT sign-off
 
 ---
 
@@ -196,20 +203,68 @@ For detailed historical milestone information, see archived files in `.planning/
 | 27. Timeline & Gantt Clarity                       | 3/3            | Complete    | 2026-04-28 |
 | 28. Milestone Planning & Decisions                 | 4/4            | Complete    | 2026-04-30 |
 | 29. Scoped Team Visibility & Leadership RBAC       | 4/4            | Complete    | 2026-04-29 |
-| 30. Phase 18 status-transition follow-up hardening | 2/2 | Complete    | 2026-05-06 |
+| 30. Phase 18 status-transition follow-up hardening | 0/2            | In progress | —          |
+| 31. Dashboard API & Data Contract                  | 0/0            | Planned     | —          |
+| 32. Dashboard Frontend Redesign                    | 0/0            | Planned     | —          |
+| 33. Dashboard Regression & Verification            | 0/0            | Planned     | —          |
 
 ### Phase 30: Phase 18 status-transition follow-up hardening
 
 **Goal:** Harden and verify the shipped Phase 18 status-transition workflow rules after the refactor, with a focus on status-set scoping, workflow feedback, and regression coverage.
 **Requirements**: TBD
 **Depends on:** Phase 29
-**Plans:** 2/2 plans complete
+**Plans:** 0/2 plans complete
 
 Plans:
 **Wave 1**
 
--   [x] 30-01-PLAN.md — Fix `_require_status_write_scope` RBAC bug, regression audit, and backend test coverage for Phase 29 role set
+-   [ ] 30-01-PLAN.md — Fix `_require_status_write_scope` RBAC bug, regression audit, and backend test coverage for Phase 29 role set
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
--   [x] 30-02-PLAN.md — Automate Phase 18 UAT #2 and #4 as Playwright tests, update 18-UAT.md with full results
+-   [ ] 30-02-PLAN.md — Automate Phase 18 UAT #2 and #4 as Playwright tests, update 18-UAT.md with full results
+
+---
+
+### Phase 31: Dashboard API & Data Contract
+
+**Goal:** Extend `/api/dashboard/` to return a role-aware payload in one call, eliminating the need for multiple client-side fetches
+**Requirements:** API-01, API-02, API-03, API-04, API-05
+**Depends on:** Phase 30
+**Plans:** 0 plans
+
+**Success Criteria:**
+
+1. `GET /api/dashboard/` returns `my_tasks` for all roles with tasks sorted by urgency
+2. `team_health` is present in the response for supervisor/assistant_manager/manager roles and absent for members
+3. `kpi_summary` is present for supervisor/assistant_manager/manager roles with avg score, completion rate, and needs-attention count
+4. `recent_activity` returns up to 5 standup posts scoped to the caller's visibility rules
+5. Backend tests cover role-conditional payload shape for member and supervisor roles
+
+### Phase 32: Dashboard Frontend Redesign
+
+**Goal:** Rebuild the dashboard `+page.svelte` into a professional, role-aware overview with visual hierarchy and role-conditional panels
+**Requirements:** DASH-01, DASH-02, DASH-03, TASKS-01, TASKS-02, TASKS-03, HEALTH-01, HEALTH-02, HEALTH-03, KPI-01, KPI-02, KPI-03, FEED-01, FEED-02, FEED-03
+**Depends on:** Phase 31
+**Plans:** 0 plans
+
+**Success Criteria:**
+
+1. A member sees only their task queue and activity feed — no performance/KPI sections visible
+2. A supervisor sees all sections: stat summary, my tasks, team health panel, KPI strip, and activity feed
+3. Overdue tasks are visually red; tasks due within 48h show a due-soon indicator
+4. Team health panel shows per-member workload status with at-risk members distinctly highlighted
+5. Dashboard is usable on mobile with the same section structure
+
+### Phase 33: Dashboard Regression & Verification
+
+**Goal:** Confirm all dashboard requirements are met with automated and manual coverage
+**Requirements:** All DASH, TASKS, HEALTH, KPI, FEED, API requirements
+**Depends on:** Phase 32
+**Plans:** 0 plans
+
+**Success Criteria:**
+
+1. Playwright smoke test confirms member and supervisor dashboard views render correctly
+2. Backend tests cover role-conditional payload for all 4 roles
+3. UAT checklist signed off for all 18 requirements

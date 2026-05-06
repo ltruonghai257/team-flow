@@ -1,105 +1,113 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: — Team Updates, Knowledge Sharing & Weekly Board
-status: milestone_complete
-last_updated: "2026-05-06T16:26:35.533Z"
-last_activity: 2026-05-06 -- Phase --phase execution started
+milestone: v2.4
+milestone_name: Professional Role-Aware Dashboard
+status: planning
+last_updated: '2026-05-06T16:39:00.000Z'
+last_activity: 2026-05-06 -- Milestone v2.4 started
 progress:
-  total_phases: 31
-  completed_phases: 20
-  total_plans: 85
-  completed_plans: 85
-  percent: 65
+    total_phases: 0
+    completed_phases: 0
+    total_plans: 0
+    completed_plans: 0
+    percent: 0
 ---
 
 # State: TeamFlow
 
 ## Current Status
 
-**Milestone:** v2.3 — Timeline Clarity, Navigation IA & Scoped Visibility
-**Active Phase:** Phase 30 — Phase 18 status-transition follow-up hardening (Planning required)
-**Last Session:** --stopped-at
+**Milestone:** v2.4 — Professional Role-Aware Dashboard
+**Active Phase:** Not started (defining requirements)
+**Last Session:** 2026-05-06 — Milestone v2.4 initialized
 
 ## Current Position
 
-Phase: 30
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-06
+Phase: Not started
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-06 — Milestone v2.4 started
 
 ## Session Notes
 
-- Milestone 1 complete: all 11 phases done, 100% coverage.
-- Milestone 2.0 shipped with hierarchy, sprints, status sets, KPI work, reminders, and workflow rules.
-- Milestone v2.1 started 2026-04-26 to refactor backend and frontend structure toward an Open WebUI-inspired organization before continuing feature expansion.
-- User preference: Project uses Bun for frontend operations.
-- SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
-- Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
-- All schema changes go through Alembic migrations.
-- Milestone v2.2 shipped on 2026-04-28: standup updates, knowledge-sharing scheduler, and weekly board with AI summary.
-- Milestone v2.3 roadmap created 2026-04-29: 5 phases covering sidebar IA, clearer timeline and milestones, scoped visibility / RBAC, and follow-up status-transition hardening.
-- Phase 28 completed on 2026-04-30 with browser-verified milestone command-view coverage.
+-   Milestone 1 complete: all 11 phases done, 100% coverage.
+-   Milestone 2.0 shipped with hierarchy, sprints, status sets, KPI work, reminders, and workflow rules.
+-   Milestone v2.1 started 2026-04-26 to refactor backend and frontend structure toward an Open WebUI-inspired organization before continuing feature expansion.
+-   User preference: Project uses Bun for frontend operations.
+-   SvelteKit uses adapter-static with fallback: 200.html (SPA mode).
+-   Monolith Dockerfile: nginx + uvicorn + supervisord, port 80 for Azure App Service.
+-   All schema changes go through Alembic migrations.
+-   Milestone v2.2 shipped on 2026-04-28: standup updates, knowledge-sharing scheduler, and weekly board with AI summary.
+-   Milestone v2.3 roadmap created 2026-04-29: 5 phases covering sidebar IA, clearer timeline and milestones, scoped visibility / RBAC, and follow-up status-transition hardening.
+-   Phase 28 completed on 2026-04-30 with browser-verified milestone command-view coverage.
 
 ## Resume Point
 
-Next: `/gsd-plan-phase 30` to break down the status-transition follow-up hardening work.
+Next: `/gsd-plan-phase 31` to plan Phase 31 (Dashboard API & Data Contract).
 
-Alternative: `/gsd-review --phase 28 --all` to peer review the plans before execution.
+Alternative: `/gsd-discuss-phase 31` to gather context before planning.
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
-- Milestone 1 (Phases 1-11) complete.
-- Milestone 2.0 (Phases 12-18) shipped with hierarchy, sprints, statuses, KPI work, reminders, and workflow rules.
-- Milestone v2.1 (Phases 19-22) shipped on 2026-04-28 as the structure refactor baseline.
-- Milestone v2.2 (Phases 23-25) shipped on 2026-04-28: standup posts, knowledge-sharing scheduler, weekly board, and AI summary.
-- Milestone v2.3 (Phases 26-29) planned on 2026-04-29: grouped navigation, clearer timeline and milestones, and scoped leadership visibility.
-- Phase 30 added on 2026-04-29: Phase 18 status-transition follow-up hardening.
+-   Milestone 1 (Phases 1-11) complete.
+-   Milestone 2.0 (Phases 12-18) shipped with hierarchy, sprints, statuses, KPI work, reminders, and workflow rules.
+-   Milestone v2.1 (Phases 19-22) shipped on 2026-04-28 as the structure refactor baseline.
+-   Milestone v2.2 (Phases 23-25) shipped on 2026-04-28: standup posts, knowledge-sharing scheduler, weekly board, and AI summary.
+-   Milestone v2.3 (Phases 26-29) planned on 2026-04-29: grouped navigation, clearer timeline and milestones, and scoped leadership visibility.
+-   Phase 30 added on 2026-04-29: Phase 18 status-transition follow-up hardening.
 
 ### Architecture Decisions (Milestone 2.0)
 
-- SubTeam not Team: single-org deployment; Organization wrapper adds a join with zero value.
-- Dual-write for status migration: retain tasks.status enum alongside new tasks.custom_status_id FK for the full feature-build period; drop old column after KPI queries verified.
-- `is_done` replaces hardcoded done check: update_task endpoint must use `custom_status.is_done == true` after Phase 15, not `TaskStatus.done`.
-- Sprint reminders reuse the existing `EventNotification` table and 60-second poller; unique constraint on `(event_type, event_ref_id, user_id)` prevents duplicates.
-- KPI queries should stay as grouped aggregate queries, not N+1 loops.
+-   SubTeam not Team: single-org deployment; Organization wrapper adds a join with zero value.
+-   Dual-write for status migration: retain tasks.status enum alongside new tasks.custom_status_id FK for the full feature-build period; drop old column after KPI queries verified.
+-   `is_done` replaces hardcoded done check: update_task endpoint must use `custom_status.is_done == true` after Phase 15, not `TaskStatus.done`.
+-   Sprint reminders reuse the existing `EventNotification` table and 60-second poller; unique constraint on `(event_type, event_ref_id, user_id)` prevents duplicates.
+-   KPI queries should stay as grouped aggregate queries, not N+1 loops.
 
 ### Architecture Decisions (Milestone v2.1)
 
-- Follow Open WebUI structure as inspiration, not as an exact clone.
-- Keep backend under `backend/` and frontend under `frontend/` unless a later plan explicitly accepts the runtime and build impact of moving SvelteKit to repo-root `src/`.
-- Preserve API routes, Svelte routes, auth behavior, task workflows, AI task input, WebSocket chat, scheduler behavior, Docker/Azure runtime, and Alembic history.
+-   Follow Open WebUI structure as inspiration, not as an exact clone.
+-   Keep backend under `backend/` and frontend under `frontend/` unless a later plan explicitly accepts the runtime and build impact of moving SvelteKit to repo-root `src/`.
+-   Preserve API routes, Svelte routes, auth behavior, task workflows, AI task input, WebSocket chat, scheduler behavior, Docker/Azure runtime, and Alembic history.
 
 ### Architecture Decisions (Milestone v2.2)
 
-- Standup posts store a server-side frozen task snapshot.
-- Knowledge Sessions use a dedicated model and scoped visibility inside `/schedule`.
-- Weekly Board summaries are cached per ISO week with on-demand cooldown plus scheduled generation.
-- Frontend markdown rendering must stay sanitized before any `{@html}` usage.
+-   Standup posts store a server-side frozen task snapshot.
+-   Knowledge Sessions use a dedicated model and scoped visibility inside `/schedule`.
+-   Weekly Board summaries are cached per ISO week with on-demand cooldown plus scheduled generation.
+-   Frontend markdown rendering must stay sanitized before any `{@html}` usage.
 
 ### Architecture Decisions (Milestone v2.3)
 
-- Keep existing public route URLs; improve navigation through grouping and hierarchy rather than route churn.
-- Treat timeline and milestones as planning surfaces that must expose milestone state, related tasks, and decision signal together.
-- The requested visibility model is broader than the current `admin` / `supervisor` / `member` enum, so Phase 29 must decide whether to add roles, add scope attributes, or map existing roles while preserving data.
-- Apply visibility rules consistently across backend filters, frontend navigation, and every people-aware screen.
+-   Keep existing public route URLs; improve navigation through grouping and hierarchy rather than route churn.
+-   Treat timeline and milestones as planning surfaces that must expose milestone state, related tasks, and decision signal together.
+-   The requested visibility model is broader than the current `admin` / `supervisor` / `member` enum, so Phase 29 must decide whether to add roles, add scope attributes, or map existing roles while preserving data.
+-   Apply visibility rules consistently across backend filters, frontend navigation, and every people-aware screen.
+
+### Architecture Decisions (Milestone v2.4)
+
+-   Dashboard lives at `/` (`+page.svelte`) — no route change.
+-   Extend `/api/dashboard/` to return role-aware payload in one call: `my_tasks`, `team_health` (supervisor+), `kpi_summary` (supervisor+), `recent_activity`.
+-   Role-conditional sections in the frontend — member sees tasks + activity; supervisor/manager also sees team health + KPI strip.
+-   All backend data sources exist: `/api/performance/team`, `/api/performance/kpi/overview`, `/api/updates/` — dashboard API aggregates them server-side.
+-   No new database tables; all data derived from existing models.
 
 ### Deferred Items
 
 Items acknowledged and deferred at milestone close on 2026-04-28:
 
-| Category | Item | Status |
-|----------|------|--------|
-| todo | 2026-04-26-status-transition-graph-workflow.md | pending |
-| uat_gap | Phase 02: 02-UAT.md (7 pending scenarios) | testing |
-| uat_gap | Phase 07: 07-UAT.md (12 pending scenarios) | testing |
-| uat_gap | Phase 18: 18-UAT.md (4 pending scenarios) | testing |
+| Category | Item                                           | Status  |
+| -------- | ---------------------------------------------- | ------- |
+| todo     | 2026-04-26-status-transition-graph-workflow.md | pending |
+| uat_gap  | Phase 02: 02-UAT.md (7 pending scenarios)      | testing |
+| uat_gap  | Phase 07: 07-UAT.md (12 pending scenarios)     | testing |
+| uat_gap  | Phase 18: 18-UAT.md (4 pending scenarios)      | testing |
 
 ### Pending Todos
 
-- `2026-04-26-status-transition-graph-workflow.md` — Status transition graph / workflow rules (YouTrack-style) [area: ui]
+-   `2026-04-26-status-transition-graph-workflow.md` — Status transition graph / workflow rules (YouTrack-style) [area: ui]
 
 ### Watch-Out List
 
