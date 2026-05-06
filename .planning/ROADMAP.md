@@ -72,7 +72,7 @@ _Updated: 2026-05-06_
 
 ### v2.4 — Professional Role-Aware Dashboard
 
--   [ ] **Phase 31: Dashboard API & Data Contract** — Extend `/api/dashboard/` to return role-aware payload (my_tasks, team_health, kpi_summary, recent_activity) with typed schemas and backend test coverage
+-   [x] **Phase 31: Dashboard API & Data Contract** — Extend `/api/dashboard/` to return role-aware payload (my_tasks, team_health, kpi_summary, recent_activity) with typed schemas and backend test coverage — completed 2026-05-07
 -   [ ] **Phase 32: Dashboard Frontend Redesign** — Rebuild `+page.svelte` with professional role-conditional layout: my tasks panel, team health panel (supervisor+), KPI summary strip (supervisor+), and activity feed
 -   [ ] **Phase 33: Dashboard Regression & Verification** — Playwright smoke tests, backend tests, and UAT sign-off
 
